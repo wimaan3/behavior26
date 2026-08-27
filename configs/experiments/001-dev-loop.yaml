@@ -1,0 +1,46 @@
+# The frozen dev subset. Runs every iteration.
+# ~36 rollouts, roughly 13 GPU-hours, overnight on two cards.
+#
+# Three rules:
+#   1. Keep this list FROZEN so numbers are comparable across iterations.
+#   2. Instances 10-19 only. Tuning against 0-9 means fooling yourself.
+#   3. INCLUDE 2-3 TYPE C TASKS even though they will score badly.
+#
+# On rule 3 -- Q5 established that the cheap 10-task slice is mostly Type A/B
+# predicates: visually inferable from the current frame. A dev set made only of
+# those is biased in favour of our own hypothesis. The predicate head will look
+# great, we will conclude memory is unnecessary, and then we will hit the Type C
+# tasks at 100-task scale and find out otherwise.
+#
+#   A. visible now        open(door), ontop(cup, table)     no memory needed
+#   B. occluded           cereal in cabinet, door shut      memory or active looking
+#   C. no visual signature cooked(steak), switch toggled    memory, unavoidably
+#
+# If the dev set cannot fail the way the real benchmark fails, it is not a
+# measuring stick. Pick tasks spanning the failure modes, not the easy ones.
+
+name: 001-dev-loop
+description: Frozen 12-task dev subset for iteration.
+hypothesis: n/a -- this is the measuring stick, not an experiment.
+
+base_model: pi05
+checkpoint: null
+
+tasks: []                         # TODO: choose 12 after the Week 2 failure analysis
+instances: [10, 11, 12]
+num_rollouts: 1
+
+host: 127.0.0.1
+env_wrapper: omnigibson.eval.wrappers.RGBDFullResWrapper
+robot_config: configs/robot/r1pro.yaml
+max_steps: null
+write_video: true
+headless: true
+
+heads: {predicate: false, progress: false, failure: false}
+recovery_conditioning: false
+heuristics: {gripper_auto_reopen: false, early_stop_on_goal: false}
+
+wandb:
+  project: behavior26
+  tags: [dev-loop]

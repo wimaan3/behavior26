@@ -1,0 +1,29 @@
+# Week 1 smoke test. The ONLY task with a released baseline checkpoint.
+# Purpose is not the score -- it is to prove the pipeline runs end to end
+# and to measure wall-clock per rollout (THE NUMBER).
+
+name: 000-baseline-smoke
+description: Released pi0.5 checkpoint, single task, single instance. Pipeline + timing check.
+hypothesis: Runs to completion. Timing lands somewhere near 20-25 min/rollout.
+
+base_model: pi05
+checkpoint: null                  # path to the downloaded turning_on_radio checkpoint
+
+tasks: [turning_on_radio]
+instances: [0]
+num_rollouts: 1
+
+host: 127.0.0.1
+env_wrapper: omnigibson.eval.wrappers.RGBDFullResWrapper
+robot_config: configs/robot/r1pro.yaml
+max_steps: null
+write_video: true
+headless: true
+
+heads: {predicate: false, progress: false, failure: false}
+recovery_conditioning: false
+heuristics: {gripper_auto_reopen: false, early_stop_on_goal: false}
+
+wandb:
+  project: behavior26
+  tags: [baseline, smoke]

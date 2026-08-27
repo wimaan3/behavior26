@@ -1,0 +1,313 @@
+"""
+Parallel rollout launcher for the BEHAVIOR 2026 challenge.
+
+Why this exists
+---------------
+A full leaderboard submission is 100 tasks x 10 instances x 1 rollout = 1,000 rollouts.
+At the organizers' published throughput (~13.5 FPS for full-res RGB+depth) plus 150-300s
+scene load per trial, one rollout runs roughly 20-25 minutes. That puts a single full
+evaluation at ~350-420 GPU-hours -- over two weeks on one card.
+
+So evaluation has to be fanned out across workers, and it has to be resumable.
+This module does that by shelling out to the official evaluator, one subprocess per job.
+
+It also records wall-clock per job, which is the measurement everything else depends on
+(see docs/WEEK1_CHARTER.md). Do not remove the timing manifest.
+
+Port assignment
+---------------
+Each concurrent eval worker needs its own policy server connection. The challenge's
+IP-submission mode requires >=50 exposed ports for exactly this reason. Worker i talks to
+``base_port + i``, so you must have that many policy servers running (or one server bound
+across that range) before launching.
+
+Usage
+-----
+    python -m harness.launch --config configs/experiments/000-baseline-smoke.yaml
+    python -m harness.launch --config <cfg> --workers 8 --base-port 8000
+    python -m harness.launch --config <cfg> --dry-run
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import queue
+import shlex
+import subprocess
+import sys
+import threading
+import time
+from dataclasses import dataclass, asdict
+from pathlib import Path
+
+import yaml
+
+
+# The official entry point. Verify against your BEHAVIOR-1K checkout before a real run:
+#   python -m omnigibson.eval.eval --help
+EVAL_MODULE = "omnigibson.eval.eval"
+
+
+@dataclass
+class Job:
+    """One evaluator invocation: a single task over one or more instances."""
+
+    task: str
+    instances: list[int]
+    worker_id: int = -1
+
+    @property
+    def key(self) -> str:
+        lo, hi = min(self.instances), max(self.instances)
+        return f"{self.task}__i{lo}-{hi}"
+
+
+@dataclass
+class JobResult:
+    key: str
+    task: str
+    instances: list[int]
+    returncode: int
+    wall_clock_s: float
+    started_at: float
+    stdout_tail: str = ""
+
+
+def load_config(path: Path) -> dict:
+    with open(path) as f:
+        cfg = yaml.safe_load(f)
+    for required in ("name", "tasks", "instances"):
+        if required not in cfg:
+            raise ValueError(f"{path}: missing required key '{required}'")
+    return cfg
+
+
+def build_jobs(cfg: dict, instances_per_job: int) -> list[Job]:
+    """Split the (task x instance) grid into evaluator invocations.
+
+    Grouping instances into one subprocess amortizes process startup and the OmniGibson
+    import. Scene load is per-trial regardless, so grouping costs little.
+    """
+    tasks: list[str] = cfg["tasks"]
+    instances: list[int] = cfg["instances"]
+
+    jobs: list[Job] = []
+    for task in tasks:
+        if instances_per_job <= 0:
+            jobs.append(Job(task=task, instances=list(instances)))
+        else:
+            for i in range(0, len(instances), instances_per_job):
+                jobs.append(Job(task=task, instances=instances[i : i + instances_per_job]))
+    return jobs
+
+
+def already_done(job: Job, output_dir: Path) -> bool:
+    """Resume support: skip a job whose result JSONs all exist.
+
+    The evaluator writes results under <output-dir>/json/. We treat a job as complete only
+    when every instance it covers has produced a file, so a partially-killed job re-runs.
+    """
+    json_dir = output_dir / "json"
+    if not json_dir.is_dir():
+        return False
+    existing = {p.name for p in json_dir.glob("*.json")}
+    for inst in job.instances:
+        # Match loosely -- the evaluator's filename convention should be confirmed on the
+        # first real run, then tightened here.
+        if not any(job.task in name and f"{inst}" in name for name in existing):
+            return False
+    return True
+
+
+def build_command(job: Job, cfg: dict, port: int, output_dir: Path) -> list[str]:
+    cmd = [
+        sys.executable, "-m", EVAL_MODULE,
+        "--task-name", job.task,
+        "--host", cfg.get("host", "127.0.0.1"),
+        "--port", str(port),
+        "--instance-indices", *[str(i) for i in job.instances],
+        "--num-rollouts", str(cfg.get("num_rollouts", 1)),
+        "--output-dir", str(output_dir),
+    ]
+
+    wrapper = cfg.get("env_wrapper")
+    if wrapper:
+        cmd += ["--env-wrapper", wrapper]
+
+    robot_config = cfg.get("robot_config")
+    if robot_config:
+        cmd += ["--robot-config", str(robot_config)]
+
+    # Omit max_steps to get the task-specific default (1.5x mean human demo length).
+    # Only set it deliberately -- shortening it changes what your Q means.
+    if cfg.get("max_steps"):
+        cmd += ["--max-steps", str(cfg["max_steps"])]
+
+    if cfg.get("write_video", True):
+        cmd.append("--write-video")
+    if cfg.get("video_fps"):
+        cmd += ["--video-fps", str(cfg["video_fps"])]
+
+    cmd.append("--headless" if cfg.get("headless", True) else "--no-headless")
+    return cmd
+
+
+def run_job(job: Job, cfg: dict, port: int, gpu_id: int | None, output_dir: Path,
+            log_dir: Path, dry_run: bool) -> JobResult:
+    cmd = build_command(job, cfg, port, output_dir)
+
+    env = os.environ.copy()
+    if gpu_id is not None:
+        env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+        # OmniGibson picks its render device separately; without this it can land on the
+        # wrong GPU and hang at "HydraEngine rtx failed creating scene renderer".
+        env["OMNIGIBSON_GPU_ID"] = "0"
+
+    if dry_run:
+        print(f"[dry-run] w{job.worker_id} :: {shlex.join(cmd)}")
+        return JobResult(job.key, job.task, job.instances, 0, 0.0, time.time())
+
+    log_path = log_dir / f"{job.key}.log"
+    started = time.time()
+    with open(log_path, "w") as log:
+        proc = subprocess.run(cmd, env=env, stdout=log, stderr=subprocess.STDOUT)
+    elapsed = time.time() - started
+
+    tail = ""
+    try:
+        tail = "".join(open(log_path).readlines()[-15:])
+    except OSError:
+        pass
+
+    status = "ok" if proc.returncode == 0 else f"FAIL rc={proc.returncode}"
+    per_rollout = elapsed / max(len(job.instances), 1)
+    print(f"[w{job.worker_id}] {job.key}: {status} "
+          f"{elapsed/60:.1f} min total, {per_rollout/60:.1f} min/rollout")
+
+    return JobResult(job.key, job.task, job.instances, proc.returncode, elapsed, started, tail)
+
+
+def worker_loop(worker_id: int, job_q: "queue.Queue[Job]", results: list[JobResult],
+                lock: threading.Lock, cfg: dict, base_port: int, gpus: list[int] | None,
+                output_dir: Path, log_dir: Path, dry_run: bool) -> None:
+    port = base_port + worker_id
+    gpu_id = gpus[worker_id % len(gpus)] if gpus else None
+
+    while True:
+        try:
+            job = job_q.get_nowait()
+        except queue.Empty:
+            return
+        job.worker_id = worker_id
+        try:
+            result = run_job(job, cfg, port, gpu_id, output_dir, log_dir, dry_run)
+        except Exception as exc:  # keep one bad job from killing the sweep
+            print(f"[w{worker_id}] {job.key}: EXCEPTION {exc}", file=sys.stderr)
+            result = JobResult(job.key, job.task, job.instances, -1, 0.0, time.time(), str(exc))
+        with lock:
+            results.append(result)
+        job_q.task_done()
+
+
+def write_timing_manifest(results: list[JobResult], path: Path, total_wall: float) -> None:
+    """THE NUMBER. Everything downstream is planned off this file."""
+    completed = [r for r in results if r.returncode == 0 and r.wall_clock_s > 0]
+    rollouts = sum(len(r.instances) for r in completed)
+    total_compute = sum(r.wall_clock_s for r in completed)
+    per_rollout = (total_compute / rollouts) if rollouts else 0.0
+
+    manifest = {
+        "rollouts_completed": rollouts,
+        "jobs_completed": len(completed),
+        "jobs_failed": len(results) - len(completed),
+        "wall_clock_total_s": round(total_wall, 1),
+        "compute_time_total_s": round(total_compute, 1),
+        "mean_seconds_per_rollout": round(per_rollout, 1),
+        "mean_minutes_per_rollout": round(per_rollout / 60, 2),
+        "projected_gpu_hours_for_1000_rollouts": round(per_rollout * 1000 / 3600, 1),
+        "jobs": [asdict(r) for r in results],
+    }
+    path.write_text(json.dumps(manifest, indent=2))
+
+    print("\n" + "=" * 62)
+    print(f"  rollouts completed : {rollouts}")
+    print(f"  failed jobs        : {manifest['jobs_failed']}")
+    print(f"  mean per rollout   : {manifest['mean_minutes_per_rollout']} min")
+    print(f"  -> 1,000 rollouts  : {manifest['projected_gpu_hours_for_1000_rollouts']} GPU-hours")
+    print("=" * 62)
+    print(f"  manifest: {path}")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Parallel BEHAVIOR rollout launcher")
+    ap.add_argument("--config", required=True, type=Path)
+    ap.add_argument("--workers", type=int, default=1,
+                    help="concurrent evaluator processes; each needs its own policy server port")
+    ap.add_argument("--base-port", type=int, default=8000,
+                    help="worker i connects to base_port + i")
+    ap.add_argument("--gpus", type=str, default=None,
+                    help="comma-separated GPU ids to round-robin across, e.g. 0,1,2,3")
+    ap.add_argument("--instances-per-job", type=int, default=0,
+                    help="instances per evaluator process; 0 = all instances of a task in one")
+    ap.add_argument("--output-dir", type=Path, default=None,
+                    help="default: rollouts/<experiment name>")
+    ap.add_argument("--resume", action="store_true", help="skip jobs whose JSONs already exist")
+    ap.add_argument("--dry-run", action="store_true", help="print commands and exit")
+    args = ap.parse_args()
+
+    cfg = load_config(args.config)
+    output_dir = args.output_dir or Path("rollouts") / cfg["name"]
+    log_dir = output_dir / "logs"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    gpus = [int(g) for g in args.gpus.split(",")] if args.gpus else None
+    jobs = build_jobs(cfg, args.instances_per_job)
+
+    if args.resume:
+        before = len(jobs)
+        jobs = [j for j in jobs if not already_done(j, output_dir)]
+        print(f"resume: skipping {before - len(jobs)} completed job(s)")
+
+    if not jobs:
+        print("nothing to do.")
+        return 0
+
+    n_rollouts = sum(len(j.instances) for j in jobs)
+    print(f"experiment : {cfg['name']}")
+    print(f"jobs       : {len(jobs)}  ({n_rollouts} rollouts)")
+    print(f"workers    : {args.workers}  ports {args.base_port}-{args.base_port + args.workers - 1}")
+    print(f"output     : {output_dir}\n")
+
+    job_q: "queue.Queue[Job]" = queue.Queue()
+    for j in jobs:
+        job_q.put(j)
+
+    results: list[JobResult] = []
+    lock = threading.Lock()
+    started = time.time()
+
+    threads = [
+        threading.Thread(
+            target=worker_loop,
+            args=(i, job_q, results, lock, cfg, args.base_port, gpus,
+                  output_dir, log_dir, args.dry_run),
+            daemon=True,
+        )
+        for i in range(args.workers)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    if not args.dry_run:
+        write_timing_manifest(results, output_dir / "timing_manifest.json", time.time() - started)
+
+    return 1 if any(r.returncode != 0 for r in results) else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

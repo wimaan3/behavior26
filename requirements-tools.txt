@@ -1,0 +1,6 @@
+# Analysis and harness tooling ONLY.
+# The simulator lives in the separate `behavior` conda env created by BEHAVIOR-1K's setup script.
+# Never pip-install these into that env.
+pandas>=2.0
+pyyaml>=6.0
+tabulate>=0.9

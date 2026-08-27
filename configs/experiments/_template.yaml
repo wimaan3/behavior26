@@ -1,0 +1,37 @@
+# Copy this for each experiment. Commit every one -- these files ARE the experiment record.
+# Naming: NNN-short-slug.yaml   e.g. 003-predicate-head-v1.yaml
+
+name: NNN-short-slug
+description: One sentence. What is the question this run answers?
+hypothesis: What we expect to happen, written BEFORE the run.
+
+# --- what we are evaluating -------------------------------------------------
+base_model: pi05                  # pi05 | groot
+checkpoint: null                  # path or gs:// URI
+
+tasks: []                         # [] is invalid -- list task ids explicitly
+instances: [10, 11, 12]           # 0-9 = leaderboard ONLY. 10-19 = dev. Never tune on 0-9.
+num_rollouts: 1
+
+# --- evaluator settings -----------------------------------------------------
+host: 127.0.0.1
+env_wrapper: omnigibson.eval.wrappers.RGBDFullResWrapper   # official RGB+D track
+robot_config: configs/robot/r1pro.yaml
+max_steps: null                   # null = task default (1.5x mean human demo length)
+write_video: true
+headless: true
+
+# --- our contribution: flip these for ablations -----------------------------
+heads:
+  predicate: false
+  progress: false
+  failure: false
+recovery_conditioning: false
+
+heuristics:
+  gripper_auto_reopen: false      # reopen when the gripper closes on nothing
+  early_stop_on_goal: false       # Q is scored on the FINAL state -- stop before undoing work
+
+wandb:
+  project: behavior26
+  tags: []

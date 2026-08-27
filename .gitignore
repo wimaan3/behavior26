@@ -1,0 +1,38 @@
+# Data — never commit. LeRobot demo set is 3.27 TB, raw HDF5 is 1.44 TB.
+data/
+*.hdf5
+*.parquet
+*.mp4
+*.usd
+
+# Checkpoints & training output
+checkpoints/
+outputs/
+*.ckpt
+*.safetensors
+norm_stats.json
+
+# Rollout artifacts
+rollouts/
+videos/
+*.log
+
+# Secrets — W&B keys, HF tokens, cloud creds
+.env
+.env.*
+*.pem
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
