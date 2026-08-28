@@ -1,0 +1,3502 @@
+{
+ "turning_on_radio": [
+  {
+   "literal": "toggled_on(radio_receiver.n.01_1)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": false
+  }
+ ],
+ "picking_up_trash": [
+  {
+   "literal": "inside(can__of__soda.n.01_1, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(can__of__soda.n.01_2, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(can__of__soda.n.01_3, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  }
+ ],
+ "putting_away_Halloween_decorations": [
+  {
+   "literal": "inside(pumpkin.n.02_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(pumpkin.n.02_2, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(candle.n.01_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(candle.n.01_2, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(candle.n.01_3, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(caldron.n.01_1, table.n.02_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(cabinet.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  },
+  {
+   "literal": "not open(cabinet.n.01_*)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "cleaning_up_plates_and_food": [
+  {
+   "literal": "ontop(pizza.n.01_2, plate.n.04_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(pizza.n.01_1, plate.n.04_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(pizza.n.01_2, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(pizza.n.01_1, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bowl.n.01_1, sink.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (sink.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bowl.n.01_2, sink.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (sink.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_*)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "can_meat": [
+  {
+   "literal": "inside(hinged_jar.n.01_2, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": true
+  },
+  {
+   "literal": "inside(hinged_jar.n.01_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": true
+  },
+  {
+   "literal": "not open(hinged_jar.n.01_2)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  },
+  {
+   "literal": "not open(hinged_jar.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  },
+  {
+   "literal": "inside(bratwurst.n.01_4, hinged_jar.n.01_2)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (hinged_jar.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bratwurst.n.01_1, hinged_jar.n.01_2)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (hinged_jar.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bratwurst.n.01_4, hinged_jar.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (hinged_jar.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bratwurst.n.01_1, hinged_jar.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (hinged_jar.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(cabinet.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "setting_mousetraps": [
+  {
+   "literal": "ontop(mousetrap.n.01_4, floor.n.01_*)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(mousetrap.n.01_1, floor.n.01_*)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(mousetrap.n.01_3, floor.n.01_*)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(mousetrap.n.01_2, floor.n.01_*)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "under(mousetrap.n.01_4, sink.n.01_*)",
+   "bucket": "B",
+   "reason": "under",
+   "initially_true": null
+  },
+  {
+   "literal": "under(mousetrap.n.01_1, sink.n.01_*)",
+   "bucket": "B",
+   "reason": "under",
+   "initially_true": null
+  }
+ ],
+ "hiding_Easter_eggs": [
+  {
+   "literal": "nextto(easter_egg.n.01_1, tree.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(easter_egg.n.01_3, tree.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(easter_egg.n.01_2, tree.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(easter_egg.n.01_1, wicker_basket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(easter_egg.n.01_1, lawn.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(easter_egg.n.01_3, wicker_basket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(easter_egg.n.01_3, lawn.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(easter_egg.n.01_2, wicker_basket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(easter_egg.n.01_2, lawn.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "picking_up_toys": [
+  {
+   "literal": "inside(jigsaw_puzzle.n.01_2, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(jigsaw_puzzle.n.01_1, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(board_game.n.01_1, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(board_game.n.01_3, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(board_game.n.01_2, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(tennis_ball.n.01_1, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  }
+ ],
+ "rearranging_kitchen_furniture": [
+  {
+   "literal": "inside(toaster.n.02_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(food_processor.n.01_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(french_press.n.01_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(cabinet.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "putting_up_Christmas_decorations_inside": [
+  {
+   "literal": "nextto(gift_box.n.01_3, christmas_tree.n.05_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(gift_box.n.01_1, christmas_tree.n.05_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(gift_box.n.01_2, christmas_tree.n.05_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(pillar_candle.n.01_1, table.n.02_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(pillar_candle.n.01_2, table.n.02_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(candy_cane.n.01_2, table.n.02_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(wreath.n.01_1, sofa.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(candy_cane.n.01_2, sofa.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(candy_cane.n.01_3, sofa.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "set_up_a_coffee_station_in_your_kitchen": [
+  {
+   "literal": "ontop(coffee_maker.n.01_1, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  },
+  {
+   "literal": "nextto(bottle__of__coffee.n.01_1, coffee_maker.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(paper_coffee_filter.n.01_1, coffee_maker.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(saucer.n.02_1, coffee_maker.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(coffee_cup.n.01_1, saucer.n.02_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(electric_kettle.n.01_1, coffee_maker.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  }
+ ],
+ "putting_dishes_away_after_cleaning": [
+  {
+   "literal": "inside(plate.n.04_7, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(plate.n.04_8, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(plate.n.04_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(plate.n.04_3, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(plate.n.04_6, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(plate.n.04_5, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(plate.n.04_2, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(plate.n.04_4, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(cabinet.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  },
+  {
+   "literal": "not open(cabinet.n.01_*)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "preparing_lunch_box": [
+  {
+   "literal": "inside(half__apple.n.01_2, packing_box.n.02_1)",
+   "bucket": "A",
+   "reason": "inside an open container (packing_box.n.02)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(half__apple.n.01_1, packing_box.n.02_1)",
+   "bucket": "A",
+   "reason": "inside an open container (packing_box.n.02)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(club_sandwich.n.01_1, packing_box.n.02_1)",
+   "bucket": "A",
+   "reason": "inside an open container (packing_box.n.02)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(chocolate_chip_cookie.n.01_1, packing_box.n.02_1)",
+   "bucket": "A",
+   "reason": "inside an open container (packing_box.n.02)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bottle__of__tea.n.01_1, packing_box.n.02_1)",
+   "bucket": "A",
+   "reason": "inside an open container (packing_box.n.02)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "loading_the_car": [
+  {
+   "literal": "inside(container.n.01_1, car.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (car.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(digital_camera.n.01_1, container.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (container.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(tennis_racket.n.01_1, car.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (car.n.01)",
+   "initially_true": null
+  }
+ ],
+ "carrying_in_groceries": [
+  {
+   "literal": "inside(beefsteak_tomato.n.01_1, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(carton__of__milk.n.01_1, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(car.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": false
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "bringing_in_wood": [
+  {
+   "literal": "ontop(plywood.n.01_3, floor.n.01_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(plywood.n.01_2, floor.n.01_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(plywood.n.01_1, floor.n.01_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "moving_boxes_to_storage": [
+  {
+   "literal": "ontop(storage_container.n.01_1, floor.n.01_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(storage_container.n.01_2, storage_container.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "bringing_water": [
+  {
+   "literal": "ontop(bottle.n.01_2, coffee_table.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(bottle.n.01_1, coffee_table.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "tidying_bedroom": [
+  {
+   "literal": "nextto(sandal.n.01_1, bed.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(sandal.n.01_2, sandal.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(book.n.02_1, table.n.02_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "outfit_a_basic_toolbox": [
+  {
+   "literal": "inside(drill.n.01_1, toolbox.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (toolbox.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(pliers.n.01_1, toolbox.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (toolbox.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(flashlight.n.01_1, toolbox.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (toolbox.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(allen_wrench.n.01_1, toolbox.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (toolbox.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(screwdriver.n.01_1, toolbox.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (toolbox.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(toolbox.n.01_1, tabletop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  },
+  {
+   "literal": "not open(toolbox.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "sorting_vegetables": [
+  {
+   "literal": "inside(bok_choy.n.02_1, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bok_choy.n.02_3, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bok_choy.n.02_2, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(vidalia_onion.n.01_3, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(vidalia_onion.n.01_1, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(vidalia_onion.n.01_2, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(leek.n.02_2, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(leek.n.02_1, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(broccoli.n.02_1, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(broccoli.n.02_2, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(sweet_corn.n.02_3, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(sweet_corn.n.02_2, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(sweet_corn.n.02_1, mixing_bowl.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (mixing_bowl.n.01)",
+   "initially_true": null
+  }
+ ],
+ "collecting_childrens_toys": [
+  {
+   "literal": "inside(die.n.01_1, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(die.n.01_2, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(teddy.n.01_1, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(teddy.n.01_2, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(board_game.n.01_1, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(board_game.n.01_2, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(train_set.n.01_1, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  }
+ ],
+ "putting_shoes_on_rack": [
+  {
+   "literal": "touching(sandal.n.01_2, hallstand.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "not touching(sandal.n.01_2, floor.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "touching(sandal.n.01_1, hallstand.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "not touching(sandal.n.01_1, floor.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "touching(gym_shoe.n.01_1, hallstand.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "not touching(gym_shoe.n.01_1, floor.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "touching(gym_shoe.n.01_2, hallstand.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "not touching(gym_shoe.n.01_2, floor.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(gym_shoe.n.01_1, gym_shoe.n.01_2)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(sandal.n.01_1, sandal.n.01_2)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  }
+ ],
+ "boxing_books_up_for_storage": [
+  {
+   "literal": "inside(book.n.02_2, box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(book.n.02_5, box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(book.n.02_1, box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(book.n.02_4, box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(book.n.02_3, box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(book.n.02_6, box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (box.n.01)",
+   "initially_true": null
+  }
+ ],
+ "storing_food": [
+  {
+   "literal": "inside(box__of__oatmeal.n.01_2, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(box__of__oatmeal.n.01_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bag__of__chips.n.01_2, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bag__of__chips.n.01_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bottle__of__olive_oil.n.01_2, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bottle__of__olive_oil.n.01_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(jar__of__sugar.n.01_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(jar__of__sugar.n.01_2, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  }
+ ],
+ "clearing_food_from_table_into_fridge": [
+  {
+   "literal": "inside(half__apple_pie.n.01_1, tupperware.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (tupperware.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(half__chicken.n.01_1, tupperware.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (tupperware.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(tupperware.n.01_2, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(tupperware.n.01_1, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "assembling_gift_baskets": [
+  {
+   "literal": "inside(candle.n.01_1, wicker_basket.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(candle.n.01_3, wicker_basket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(candle.n.01_2, wicker_basket.n.01_4)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(candle.n.01_4, wicker_basket.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(swiss_cheese.n.01_2, wicker_basket.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(swiss_cheese.n.01_4, wicker_basket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(swiss_cheese.n.01_1, wicker_basket.n.01_4)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(swiss_cheese.n.01_3, wicker_basket.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(butter_cookie.n.01_1, wicker_basket.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(butter_cookie.n.01_2, wicker_basket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(butter_cookie.n.01_3, wicker_basket.n.01_4)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(butter_cookie.n.01_4, wicker_basket.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bow.n.08_4, wicker_basket.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bow.n.08_1, wicker_basket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bow.n.08_2, wicker_basket.n.01_4)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bow.n.08_3, wicker_basket.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (wicker_basket.n.01)",
+   "initially_true": null
+  }
+ ],
+ "sorting_household_items": [
+  {
+   "literal": "under(bottle__of__detergent.n.01_1, sink.n.01_1)",
+   "bucket": "B",
+   "reason": "under",
+   "initially_true": null
+  },
+  {
+   "literal": "under(bottle__of__detergent.n.01_2, sink.n.01_1)",
+   "bucket": "B",
+   "reason": "under",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(bottle__of__detergent.n.01_1, bottle__of__detergent.n.01_2)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(box__of__sanitary_napkin.n.01_1, shelf.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(soap_dispenser.n.01_1, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(cup.n.01_1, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  },
+  {
+   "literal": "nextto(tube__of__toothpaste.n.01_1, cup.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(toothbrush.n.01_1, cup.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (cup.n.01)",
+   "initially_true": null
+  }
+ ],
+ "getting_organized_for_work": [
+  {
+   "literal": "nextto(keyboard.n.01_1, monitor.n.04_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(keyboard.n.01_1, desk.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "under(computer.n.01_1, desk.n.01_1)",
+   "bucket": "B",
+   "reason": "under",
+   "initially_true": true
+  },
+  {
+   "literal": "ontop(monitor.n.04_1, desk.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  },
+  {
+   "literal": "nextto(mouse.n.04_1, keyboard.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(mouse.n.04_1, desk.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  },
+  {
+   "literal": "nextto(folder.n.02_1, mouse.n.04_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(notebook.n.01_1, folder.n.02_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(pen.n.01_1, notebook.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(swivel_chair.n.01_1, desk.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  }
+ ],
+ "clean_up_your_desk": [
+  {
+   "literal": "inside(folder.n.02_1, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(folder.n.02_2, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(pen.n.01_1, pencil_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (pencil_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(pen.n.01_2, pencil_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (pencil_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(paperback_book.n.01_1, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(paperback_book.n.01_2, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(pencil.n.01_1, pencil_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (pencil_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(stapler.n.01_1, desk.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(pencil_box.n.01_1, desk.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  },
+  {
+   "literal": "ontop(laptop.n.01_1, desk.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(laptop.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": false
+  }
+ ],
+ "setting_the_fire": [
+  {
+   "literal": "on_fire(firewood.n.01_1)",
+   "bucket": "A",
+   "reason": "on_fire",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(firewood.n.01_1, newspaper.n.03_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(firewood.n.01_1, wood_fireplace.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (wood_fireplace.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "on_fire(firewood.n.01_2)",
+   "bucket": "A",
+   "reason": "on_fire",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(firewood.n.01_2, newspaper.n.03_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(firewood.n.01_2, wood_fireplace.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (wood_fireplace.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "on_fire(newspaper.n.03_1)",
+   "bucket": "A",
+   "reason": "on_fire",
+   "initially_true": false
+  },
+  {
+   "literal": "not toggled_on(cigar_lighter.n.01_1)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": true
+  }
+ ],
+ "clean_boxing_gloves": [
+  {
+   "literal": "not covered(boxing_glove.n.01_2, dust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "not covered(boxing_glove.n.01_1, dust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "wash_a_baseball_cap": [
+  {
+   "literal": "not covered(baseball_cap.n.01_1, dirt.n.02_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "not covered(baseball_cap.n.01_2, dirt.n.02_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "wash_dog_toys": [
+  {
+   "literal": "not covered(teddy.n.01_1, dirt.n.02_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "not covered(teddy.n.01_1, dust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": true
+  },
+  {
+   "literal": "not covered(teddy.n.01_2, dirt.n.02_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": true
+  },
+  {
+   "literal": "not covered(teddy.n.01_2, dust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "not covered(tennis_ball.n.01_1, debris.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "not covered(softball.n.01_1, dirt.n.02_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "hanging_pictures": [
+  {
+   "literal": "attached(poster.n.01_1, wall_nail.n.01_1)",
+   "bucket": "C",
+   "reason": "attached",
+   "initially_true": false
+  }
+ ],
+ "attach_a_camera_to_a_tripod": [
+  {
+   "literal": "attached(digital_camera.n.01_1, camera_tripod.n.01_1)",
+   "bucket": "C",
+   "reason": "attached",
+   "initially_true": false
+  }
+ ],
+ "clean_a_patio": [
+  {
+   "literal": "not covered(floor.n.01_1, mud.n.03_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "clean_a_trumpet": [
+  {
+   "literal": "not covered(cornet.n.01_1, dust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "spraying_for_bugs": [
+  {
+   "literal": "covered(pot_plant.n.01_2, insectifuge.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "covered(pot_plant.n.01_1, insectifuge.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "spraying_fruit_trees": [
+  {
+   "literal": "covered(tree.n.01_1, pesticide.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "covered(tree.n.01_2, pesticide.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "make_microwave_popcorn": [
+  {
+   "literal": "real(cooked__popcorn.n.01_1)",
+   "bucket": "C",
+   "reason": "substance came into existence (cooked__popcorn.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "contains(popcorn__bag.n.01_1, cooked__popcorn.n.01_1)",
+   "bucket": "B",
+   "reason": "contains",
+   "initially_true": false
+  }
+ ],
+ "cook_cabbage": [
+  {
+   "literal": "real(cooked__diced__head_cabbage.n.01_1)",
+   "bucket": "C",
+   "reason": "substance came into existence (cooked__diced__head_cabbage.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(cooked__diced__chili.n.01_1)",
+   "bucket": "C",
+   "reason": "substance came into existence (cooked__diced__chili.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "contains(frying_pan.n.01_1, cooked__diced__head_cabbage.n.01_1)",
+   "bucket": "B",
+   "reason": "contains",
+   "initially_true": false
+  },
+  {
+   "literal": "contains(frying_pan.n.01_1, cooked__diced__chili.n.01_1)",
+   "bucket": "B",
+   "reason": "contains",
+   "initially_true": false
+  }
+ ],
+ "chop_an_onion": [
+  {
+   "literal": "real(diced__vidalia_onion.n.01_1)",
+   "bucket": "C",
+   "reason": "substance came into existence (diced__vidalia_onion.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "inside(parer.n.02_1, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (sink.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(chopping_board.n.01_1, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (sink.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "contains(bowl.n.01_1, diced__vidalia_onion.n.01_1)",
+   "bucket": "B",
+   "reason": "contains",
+   "initially_true": false
+  }
+ ],
+ "slicing_vegetables": [
+  {
+   "literal": "real(diced__zucchini.n.01_1)",
+   "bucket": "C",
+   "reason": "substance came into existence (diced__zucchini.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(diced__bell_pepper.n.01_1)",
+   "bucket": "C",
+   "reason": "substance came into existence (diced__bell_pepper.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(diced__beet.n.01_1)",
+   "bucket": "C",
+   "reason": "substance came into existence (diced__beet.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  },
+  {
+   "literal": "not real(bell_pepper.n.02_1)",
+   "bucket": "B",
+   "reason": "object consumed (bell_pepper.n.02)",
+   "initially_true": false
+  },
+  {
+   "literal": "not real(bell_pepper.n.02_2)",
+   "bucket": "B",
+   "reason": "object consumed (bell_pepper.n.02)",
+   "initially_true": false
+  },
+  {
+   "literal": "not real(beet.n.02_1)",
+   "bucket": "B",
+   "reason": "object consumed (beet.n.02)",
+   "initially_true": false
+  },
+  {
+   "literal": "not real(beet.n.02_2)",
+   "bucket": "B",
+   "reason": "object consumed (beet.n.02)",
+   "initially_true": false
+  },
+  {
+   "literal": "not real(zucchini.n.02_1)",
+   "bucket": "B",
+   "reason": "object consumed (zucchini.n.02)",
+   "initially_true": false
+  }
+ ],
+ "chopping_wood": [
+  {
+   "literal": "real(half__log.n.01_1)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__log.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(half__log.n.01_2)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__log.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(half__log.n.01_3)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__log.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(half__log.n.01_4)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__log.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(half__log.n.01_5)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__log.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(half__log.n.01_6)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__log.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(half__log.n.01_7)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__log.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(half__log.n.01_8)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__log.n.01)",
+   "initially_true": false
+  }
+ ],
+ "cook_hot_dogs": [
+  {
+   "literal": "cooked(hotdog.n.02_1)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(hotdog.n.02_2)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  }
+ ],
+ "cook_bacon": [
+  {
+   "literal": "cooked(bacon.n.01_3)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(bacon.n.01_2)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(bacon.n.01_1)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(bacon.n.01_6)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(bacon.n.01_4)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(bacon.n.01_5)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "freeze_pies": [
+  {
+   "literal": "inside(apple_pie.n.01_1, tupperware.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (tupperware.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(apple_pie.n.01_2, tupperware.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (tupperware.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(tupperware.n.01_2, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(tupperware.n.01_1, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "frozen(apple_pie.n.01_1)",
+   "bucket": "B",
+   "reason": "frozen",
+   "initially_true": false
+  },
+  {
+   "literal": "frozen(apple_pie.n.01_2)",
+   "bucket": "B",
+   "reason": "frozen",
+   "initially_true": false
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "canning_food": [
+  {
+   "literal": "real(diced__steak.n.01_1)",
+   "bucket": "C",
+   "reason": "substance came into existence (diced__steak.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(diced__pineapple.n.01_1)",
+   "bucket": "C",
+   "reason": "substance came into existence (diced__pineapple.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "filled(bowl.n.01_1, diced__steak.n.01_1)",
+   "bucket": "B",
+   "reason": "filled",
+   "initially_true": false
+  },
+  {
+   "literal": "not contains(bowl.n.01_1, diced__pineapple.n.01_1)",
+   "bucket": "B",
+   "reason": "contains",
+   "initially_true": true
+  },
+  {
+   "literal": "filled(bowl.n.01_1, diced__pineapple.n.01_1)",
+   "bucket": "B",
+   "reason": "filled",
+   "initially_true": false
+  },
+  {
+   "literal": "not contains(bowl.n.01_1, diced__steak.n.01_1)",
+   "bucket": "B",
+   "reason": "contains",
+   "initially_true": true
+  },
+  {
+   "literal": "inside(bowl.n.01_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": true
+  },
+  {
+   "literal": "inside(bowl.n.01_2, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": true
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  },
+  {
+   "literal": "not open(cabinet.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "make_pizza": [
+  {
+   "literal": "real(pizza.n.01_1)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (pizza.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(pizza.n.01_1, cookie_sheet.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "freeze_fruit": [
+  {
+   "literal": "inside(apple.n.01_1, tupperware.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (tupperware.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(apple.n.01_2, tupperware.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (tupperware.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(strawberry.n.01_2, tupperware.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (tupperware.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(strawberry.n.01_1, tupperware.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (tupperware.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(tupperware.n.01_2, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(tupperware.n.01_1, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "cook_a_brisket": [
+  {
+   "literal": "cooked(brisket.n.01_1)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(brisket.n.01_1, chopping_board.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(frying_pan.n.01_1, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  }
+ ],
+ "sorting_bottles_cans_and_paper": [
+  {
+   "literal": "inside(wine_bottle.n.01_1, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(wine_bottle.n.01_2, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(can__of__soda.n.01_1, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(newspaper.n.03_1, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(magazine.n.02_1, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(can__of__soda.n.01_1, bucket.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(can__of__soda.n.01_2, bucket.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(wine_bottle.n.01_1, bucket.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(newspaper.n.03_1, bucket.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(magazine.n.02_1, bucket.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(can__of__soda.n.01_1, bucket.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(can__of__soda.n.01_2, bucket.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(wine_bottle.n.01_1, bucket.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not inside(wine_bottle.n.01_2, bucket.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(newspaper.n.03_1, bucket.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(magazine.n.02_1, bucket.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  }
+ ],
+ "tidying_living_room": [
+  {
+   "literal": "ontop(pot_plant.n.01_1, coffee_table.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(hardback.n.01_1, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(newspaper.n.03_1, coffee_table.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(notebook.n.01_1, desk.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "putting_away_toys": [
+  {
+   "literal": "inside(toy_figure.n.01_4, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(toy_figure.n.01_3, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(toy_figure.n.01_1, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(toy_figure.n.01_5, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(toy_figure.n.01_6, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(toy_figure.n.01_8, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(toy_figure.n.01_7, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(toy_figure.n.01_2, toy_box.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (toy_box.n.01)",
+   "initially_true": null
+  }
+ ],
+ "re_shelving_library_books": [
+  {
+   "literal": "inside(book.n.02_2, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(book.n.02_1, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(book.n.02_3, bookcase.n.01_*)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  }
+ ],
+ "make_rose_centerpieces": [
+  {
+   "literal": "inside(rose.n.01_1, vase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (vase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(rose.n.01_2, vase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (vase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(rose.n.01_3, vase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (vase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(vase.n.01_1, coffee_table.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "sweeping_garage": [
+  {
+   "literal": "not covered(floor.n.01_1, sand.n.04_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "not covered(floor.n.01_1, dust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "stacking_wood": [
+  {
+   "literal": "touching(log.n.01_3, log.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "touching(log.n.01_2, log.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "touching(log.n.01_1, log.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "touching(log.n.01_4, log.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "touching(log.n.01_6, log.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  },
+  {
+   "literal": "touching(log.n.01_5, log.n.01_1)",
+   "bucket": "C",
+   "reason": "touching",
+   "initially_true": null
+  }
+ ],
+ "organizing_art_supplies": [
+  {
+   "literal": "inside(glue_stick.n.01_1, carryall.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (carryall.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(rubber_eraser.n.01_1, carryall.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (carryall.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(paintbrush.n.01_1, carryall.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (carryall.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(marker.n.03_1, carryall.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (carryall.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(carryall.n.01_1, desk.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "scrubbing_bathroom_floor": [
+  {
+   "literal": "not covered(floor.n.01_1, dirt.n.02_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "bringing_paper_to_recycling": [
+  {
+   "literal": "inside(sack.n.01_1, recycling_bin.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (recycling_bin.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(newspaper.n.03_1, recycling_bin.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (recycling_bin.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(recycling_bin.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "halve_an_egg": [
+  {
+   "literal": "real(half__hard-boiled_egg.n.01_1)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__hard-boiled_egg.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "real(half__hard-boiled_egg.n.01_2)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__hard-boiled_egg.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(half__hard-boiled_egg.n.01_1, plate.n.04_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(half__hard-boiled_egg.n.01_2, plate.n.04_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(carving_knife.n.01_1, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (sink.n.01)",
+   "initially_true": null
+  }
+ ],
+ "installing_smoke_detectors": [
+  {
+   "literal": "attached(fire_alarm.n.02_1, wall_nail.n.01_1)",
+   "bucket": "C",
+   "reason": "attached",
+   "initially_true": false
+  }
+ ],
+ "setting_the_table": [
+  {
+   "literal": "ontop(plate.n.04_1, breakfast_table.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(plate.n.04_2, breakfast_table.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(cupcake.n.01_2, plate.n.04_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(cupcake.n.01_1, plate.n.04_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(tablefork.n.01_1, plate.n.04_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(tablefork.n.01_2, plate.n.04_2)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(table_knife.n.01_2, plate.n.04_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(table_knife.n.01_1, plate.n.04_2)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  }
+ ],
+ "unloading_the_car": [
+  {
+   "literal": "nextto(briefcase.n.01_1, sofa.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(satchel.n.01_1, sofa.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  }
+ ],
+ "turning_out_all_lights_before_sleep": [
+  {
+   "literal": "not toggled_on(switch.n.01_3)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": false
+  },
+  {
+   "literal": "not toggled_on(switch.n.01_1)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": false
+  },
+  {
+   "literal": "not toggled_on(switch.n.01_2)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": false
+  },
+  {
+   "literal": "not toggled_on(table_lamp.n.01_2)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": false
+  },
+  {
+   "literal": "not toggled_on(table_lamp.n.01_1)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": false
+  }
+ ],
+ "boxing_food_after_dinner": [
+  {
+   "literal": "inside(taco.n.02_1, tupperware.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (tupperware.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(taco.n.02_2, tupperware.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (tupperware.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(plate.n.04_1, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(plate.n.04_2, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(tupperware.n.01_1, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "cleaning_up_branches_and_twigs": [
+  {
+   "literal": "inside(branch.n.02_2, recycling_bin.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (recycling_bin.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(branch.n.02_3, recycling_bin.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (recycling_bin.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(branch.n.02_4, recycling_bin.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (recycling_bin.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(branch.n.02_1, recycling_bin.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (recycling_bin.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(recycling_bin.n.01_1, floor.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  }
+ ],
+ "vacuuming_floors": [
+  {
+   "literal": "not covered(floor.n.01_1, dust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "thawing_frozen_food": [
+  {
+   "literal": "not frozen(chicken_breast.n.02_1)",
+   "bucket": "B",
+   "reason": "frozen",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(chicken_breast.n.02_1, plate.n.04_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  },
+  {
+   "literal": "inside(plate.n.04_1, microwave.n.02_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (microwave.n.02)",
+   "initially_true": null
+  },
+  {
+   "literal": "toggled_on(microwave.n.02_1)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": false
+  },
+  {
+   "literal": "not open(microwave.n.02_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  },
+  {
+   "literal": "not frozen(bread_slice.n.01_1)",
+   "bucket": "B",
+   "reason": "frozen",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(bread_slice.n.01_1, plate.n.04_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(plate.n.04_1, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "clean_your_rusty_garden_tools": [
+  {
+   "literal": "not covered(trowel.n.01_1, rust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "not covered(scraper.n.01_1, rust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "inside(trowel.n.01_1, toolbox.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (toolbox.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(scraper.n.01_1, toolbox.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (toolbox.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(toolbox.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "cook_a_frozen_pie": [
+  {
+   "literal": "ontop(apple_pie.n.01_1, tray.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "cooked(apple_pie.n.01_1)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  }
+ ],
+ "organizing_school_stuff": [
+  {
+   "literal": "inside(folder.n.02_1, carryall.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (carryall.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(book.n.02_1, carryall.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (carryall.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(pencil.n.01_1, carryall.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (carryall.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(pen.n.01_1, carryall.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (carryall.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(calculator.n.02_1, carryall.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (carryall.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(carryall.n.01_1, bed.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "carrying_out_garden_furniture": [
+  {
+   "literal": "ontop(lawn_chair.n.01_1, floor.n.01_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(barrow.n.03_1, lawn.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "put_together_a_basic_pruning_kit": [
+  {
+   "literal": "ontop(toolbox.n.01_1, floor.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  },
+  {
+   "literal": "inside(pruner.n.02_1, toolbox.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (toolbox.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(shears.n.01_1, toolbox.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (toolbox.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(toolbox.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "dispose_of_glass": [
+  {
+   "literal": "inside(water_glass.n.02_2, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(water_glass.n.02_4, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(water_glass.n.02_3, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(water_glass.n.02_1, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  }
+ ],
+ "installing_a_modem": [
+  {
+   "literal": "toggled_on(modem.n.01_1)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": false
+  },
+  {
+   "literal": "nextto(modem.n.01_1, television_receiver.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(television_receiver.n.01_1, cabinet.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(modem.n.01_1, cabinet.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "make_cabinet_doors": [
+  {
+   "literal": "attached(cabinet_door.n.01_1, cabinet_base.n.01_1)",
+   "bucket": "C",
+   "reason": "attached",
+   "initially_true": false
+  }
+ ],
+ "polishing_shoes": [
+  {
+   "literal": "ontop(scrub_brush.n.01_1, stand.n.04_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  },
+  {
+   "literal": "not covered(shoe.n.01_1, dust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "not covered(shoe.n.01_2, dust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  },
+  {
+   "literal": "nextto(shoe.n.01_1, shoe.n.01_2)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(shoe.n.01_1, footstool.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(shoe.n.01_2, footstool.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  }
+ ],
+ "clean_up_broken_glass": [
+  {
+   "literal": "inside(broken__glass.n.01_1, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(broken__glass.n.01_2, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(broken__glass.n.01_3, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  }
+ ],
+ "packing_meal_for_delivery": [
+  {
+   "literal": "inside(wrapped_hamburger.n.01_1, sack.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (sack.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(wrapped_hamburger.n.01_3, sack.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (sack.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(wrapped_hamburger.n.01_2, sack.n.01_3)",
+   "bucket": "A",
+   "reason": "inside an open container (sack.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(sack.n.01_1, storage_container.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(sack.n.01_2, storage_container.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(sack.n.01_3, storage_container.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "store_batteries": [
+  {
+   "literal": "inside(battery.n.02_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(battery.n.02_2, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(battery.n.02_3, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  }
+ ],
+ "store_honey": [
+  {
+   "literal": "inside(jar__of__honey.n.01_1, cabinet.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (cabinet.n.01)",
+   "initially_true": null
+  }
+ ],
+ "tidying_bathroom": [
+  {
+   "literal": "ontop(bar_soap.n.01_1, soap_dish.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(tissue_dispenser.n.01_1, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(toilet_tissue.n.01_1, toilet.n.02_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(cork.n.04_1, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  }
+ ],
+ "putting_dirty_dishes_in_sink": [
+  {
+   "literal": "inside(bowl.n.01_1, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (sink.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(bowl.n.01_2, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (sink.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(plate.n.04_1, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (sink.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(plate.n.04_2, sink.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (sink.n.01)",
+   "initially_true": null
+  }
+ ],
+ "make_gift_bags_for_baby_showers": [
+  {
+   "literal": "ontop(sack.n.01_1, coffee_table.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(sack.n.01_2, coffee_table.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(toy_dice.n.01_1, sack.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (sack.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(toy_dice.n.01_2, sack.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (sack.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(wafer.n.02_2, sack.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (sack.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(wafer.n.02_1, sack.n.01_2)",
+   "bucket": "A",
+   "reason": "inside an open container (sack.n.01)",
+   "initially_true": null
+  }
+ ],
+ "collecting_aluminum_cans": [
+  {
+   "literal": "inside(can__of__soda.n.01_1, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(can__of__soda.n.01_5, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(can__of__soda.n.01_6, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(can__of__soda.n.01_4, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(can__of__soda.n.01_2, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(can__of__soda.n.01_3, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  }
+ ],
+ "rearrange_your_room": [
+  {
+   "literal": "ontop(tissue_dispenser.n.01_1, stand.n.04_*)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(pillow.n.01_1, bed.n.01_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(pillow.n.01_2, bed.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "installing_a_fax_machine": [
+  {
+   "literal": "toggled_on(facsimile.n.02_1)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(facsimile.n.02_1, carrel.n.02_*)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "composting_waste": [
+  {
+   "literal": "inside(half__banana.n.01_1, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(half__pomegranate.n.01_1, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  }
+ ],
+ "store_produce": [
+  {
+   "literal": "inside(pomegranate.n.02_2, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(pomegranate.n.02_1, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(mango.n.02_2, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(mango.n.02_1, electric_refrigerator.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (electric_refrigerator.n.01)",
+   "initially_true": null
+  }
+ ],
+ "installing_a_scanner": [
+  {
+   "literal": "toggled_on(scanner.n.02_1)",
+   "bucket": "A",
+   "reason": "toggled_on",
+   "initially_true": false
+  },
+  {
+   "literal": "nextto(scanner.n.02_1, laptop.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  }
+ ],
+ "clean_a_keyboard": [
+  {
+   "literal": "not covered(keyboard.n.01_1, dust.n.01_1)",
+   "bucket": "A",
+   "reason": "covered",
+   "initially_true": false
+  }
+ ],
+ "dispose_of_batteries": [
+  {
+   "literal": "inside(battery.n.02_1, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(battery.n.02_2, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(battery.n.02_3, ashcan.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (ashcan.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(ashcan.n.01_1, floor.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": true
+  }
+ ],
+ "cook_brussels_sprouts": [
+  {
+   "literal": "real(half__brussels_sprouts.n.01_4)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__brussels_sprouts.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(half__brussels_sprouts.n.01_4)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "inside(half__brussels_sprouts.n.01_4, oven.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (oven.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "real(half__brussels_sprouts.n.01_3)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__brussels_sprouts.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(half__brussels_sprouts.n.01_3)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "inside(half__brussels_sprouts.n.01_3, oven.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (oven.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "real(half__brussels_sprouts.n.01_6)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__brussels_sprouts.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(half__brussels_sprouts.n.01_6)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "inside(half__brussels_sprouts.n.01_6, oven.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (oven.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "real(half__brussels_sprouts.n.01_5)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__brussels_sprouts.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(half__brussels_sprouts.n.01_5)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "inside(half__brussels_sprouts.n.01_5, oven.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (oven.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "real(half__brussels_sprouts.n.01_2)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__brussels_sprouts.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(half__brussels_sprouts.n.01_2)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "inside(half__brussels_sprouts.n.01_2, oven.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (oven.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "real(half__brussels_sprouts.n.01_8)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__brussels_sprouts.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(half__brussels_sprouts.n.01_8)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "inside(half__brussels_sprouts.n.01_8, oven.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (oven.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "real(half__brussels_sprouts.n.01_7)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__brussels_sprouts.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(half__brussels_sprouts.n.01_7)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "inside(half__brussels_sprouts.n.01_7, oven.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (oven.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "real(half__brussels_sprouts.n.01_1)",
+   "bucket": "A",
+   "reason": "new rigid object appeared (half__brussels_sprouts.n.01)",
+   "initially_true": false
+  },
+  {
+   "literal": "cooked(half__brussels_sprouts.n.01_1)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "inside(half__brussels_sprouts.n.01_1, oven.n.01_1)",
+   "bucket": "B",
+   "reason": "inside a closed-able container (oven.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "not open(electric_refrigerator.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  },
+  {
+   "literal": "not open(oven.n.01_1)",
+   "bucket": "A",
+   "reason": "open",
+   "initially_true": true
+  }
+ ],
+ "cook_broccolini": [
+  {
+   "literal": "ontop(clove.n.03_1, frying_pan.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "cooked(clove.n.03_1)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(clove.n.03_2, frying_pan.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "cooked(clove.n.03_2)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(broccolini.n.01_1, frying_pan.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "cooked(broccolini.n.01_1)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(broccolini.n.01_2, frying_pan.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "cooked(broccolini.n.01_2)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(broccolini.n.01_3, frying_pan.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "cooked(broccolini.n.01_3)",
+   "bucket": "B",
+   "reason": "cooked",
+   "initially_true": false
+  },
+  {
+   "literal": "ontop(frying_pan.n.01_1, stove.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ],
+ "setup_a_bar_for_a_cocktail_party": [
+  {
+   "literal": "ontop(wine_bottle.n.01_1, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(can__of__soda.n.01_1, can__of__soda.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(can__of__soda.n.01_1, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(can__of__soda.n.01_3, can__of__soda.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(can__of__soda.n.01_3, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(can__of__soda.n.01_2, can__of__soda.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(can__of__soda.n.01_2, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(ice_cube.n.01_4, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(ice_cube.n.01_2, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(ice_cube.n.01_1, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(ice_cube.n.01_5, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(ice_cube.n.01_6, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(ice_cube.n.01_3, bucket.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bucket.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(bucket.n.01_1, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(wineglass.n.01_2, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(wineglass.n.01_1, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(wineglass.n.01_2, wine_bottle.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(wineglass.n.01_1, wineglass.n.01_2)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(corkscrew.n.01_1, countertop.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(corkscrew.n.01_1, wine_bottle.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  }
+ ],
+ "laying_tile_floors": [
+  {
+   "literal": "ontop(tile.n.01_4, floor.n.01_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(tile.n.01_2, floor.n.01_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(tile.n.01_1, floor.n.01_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(tile.n.01_3, floor.n.01_2)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(tile.n.01_4, tile.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(tile.n.01_2, tile.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(tile.n.01_1, tile.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  },
+  {
+   "literal": "nextto(tile.n.01_3, tile.n.01_1)",
+   "bucket": "A",
+   "reason": "nextto",
+   "initially_true": null
+  }
+ ],
+ "sorting_books_on_shelf": [
+  {
+   "literal": "inside(comic_book.n.01_1, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": true
+  },
+  {
+   "literal": "inside(comic_book.n.01_2, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(comic_book.n.01_3, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": true
+  },
+  {
+   "literal": "ontop(comic_book.n.01_1, comic_book.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "ontop(comic_book.n.01_2, comic_book.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(notebook.n.01_2, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(notebook.n.01_1, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": true
+  },
+  {
+   "literal": "ontop(notebook.n.01_2, notebook.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(hardback.n.01_2, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": null
+  },
+  {
+   "literal": "inside(hardback.n.01_1, bookcase.n.01_1)",
+   "bucket": "A",
+   "reason": "inside an open container (bookcase.n.01)",
+   "initially_true": true
+  },
+  {
+   "literal": "ontop(hardback.n.01_2, hardback.n.01_1)",
+   "bucket": "A",
+   "reason": "ontop",
+   "initially_true": null
+  }
+ ]
+}

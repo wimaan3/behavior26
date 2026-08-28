@@ -1,0 +1,101 @@
+task,n_goal_literals,n_A,n_B,n_C,frac_A,n_ground_options,option_sizes,denominator_varies_with_scene,denominator_if_3_extra,wildcard_synsets,est_initially_true,est_reachable_ceiling,predicates
+turning_on_radio,1,1,0,0,1.0,1,1,False,1,,0,1.0,toggled_on
+picking_up_trash,3,3,0,0,1.0,1,3,False,3,,0,1.0,inside inside inside
+putting_away_Halloween_decorations,8,3,5,0,0.375,64,8,True,10,cabinet.n.01|table.n.02,2,0.75,inside inside inside inside inside nextto !open !open
+cleaning_up_plates_and_food,8,6,2,0,0.75,8,8,True,10,electric_refrigerator.n.01|sink.n.01,2,0.75,ontop ontop inside inside inside inside !open !open
+can_meat,9,3,6,0,0.3333,36,9,False,9,,5,0.4444,inside inside !open !open inside inside inside inside !open
+setting_mousetraps,6,4,2,0,0.6667,384,6,False,6,floor.n.01|sink.n.01,0,1.0,ontop ontop ontop ontop under under
+hiding_Easter_eggs,9,9,0,0,1.0,2,9,False,9,tree.n.01,0,1.0,nextto nextto nextto !inside ontop !inside ontop !inside ontop
+picking_up_toys,6,6,0,0,1.0,1,6,False,6,,0,1.0,inside inside inside inside inside inside
+rearranging_kitchen_furniture,4,1,3,0,0.25,2,4,False,4,cabinet.n.01,1,0.75,inside inside inside !open
+putting_up_Christmas_decorations_inside,9,9,0,0,1.0,3888,9,False,9,sofa.n.01|table.n.02,0,1.0,nextto nextto nextto ontop ontop ontop ontop ontop ontop
+set_up_a_coffee_station_in_your_kitchen,6,6,0,0,1.0,1,6,False,6,,1,0.8333,ontop nextto ontop nextto ontop nextto
+putting_dishes_away_after_cleaning,10,2,8,0,0.2,2,10,True,12,cabinet.n.01,2,0.8,inside inside inside inside inside inside inside inside !open !open
+preparing_lunch_box,6,6,0,0,1.0,1,6,False,6,,1,0.8333,inside inside inside inside inside !open
+loading_the_car,3,1,2,0,0.3333,1,3,False,3,,0,1.0,inside inside inside
+carrying_in_groceries,4,2,2,0,0.5,2,4,False,4,electric_refrigerator.n.01,1,0.75,inside inside !open !open
+bringing_in_wood,3,3,0,0,1.0,1,3,False,3,,0,1.0,ontop ontop ontop
+moving_boxes_to_storage,2,2,0,0,1.0,2,2,False,2,,0,1.0,ontop ontop
+bringing_water,3,3,0,0,1.0,1,3,False,3,,1,0.6667,ontop ontop !open
+tidying_bedroom,3,3,0,0,1.0,2,3,False,3,table.n.02,0,1.0,nextto nextto ontop
+outfit_a_basic_toolbox,7,2,5,0,0.2857,1,7,False,7,,2,0.7143,inside inside inside inside inside ontop !open
+sorting_vegetables,13,13,0,0,1.0,27,13,False,13,,0,1.0,inside inside inside inside inside inside inside inside inside inside inside inside inside
+collecting_childrens_toys,7,7,0,0,1.0,2,7,False,7,bookcase.n.01,0,1.0,inside inside inside inside inside inside inside
+putting_shoes_on_rack,10,2,0,8,0.2,1,10,False,10,,0,1.0,touching !touching touching !touching touching !touching touching !touching nextto nextto
+boxing_books_up_for_storage,6,6,0,0,1.0,1,6,False,6,,0,1.0,inside inside inside inside inside inside
+storing_food,8,0,8,0,0.0,256,8,False,8,cabinet.n.01,0,1.0,inside inside inside inside inside inside inside inside
+clearing_food_from_table_into_fridge,5,3,2,0,0.6,4,5,False,5,,1,0.8,inside inside inside inside !open
+assembling_gift_baskets,16,16,0,0,1.0,331776,16,False,16,,0,1.0,inside inside inside inside inside inside inside inside inside inside inside inside inside inside inside inside
+sorting_household_items,8,6,2,0,0.75,1,8,False,8,,1,0.875,under under nextto ontop ontop ontop nextto inside
+getting_organized_for_work,10,9,1,0,0.9,1,10,False,10,,3,0.7,nextto ontop under ontop nextto ontop nextto ontop ontop nextto
+clean_up_your_desk,11,11,0,0,1.0,1,11,False,11,,1,0.9091,inside inside inside inside inside inside inside ontop ontop ontop !open
+setting_the_fire,8,8,0,0,1.0,1,8,False,8,,1,0.875,on_fire ontop inside on_fire ontop inside on_fire !toggled_on
+clean_boxing_gloves,2,2,0,0,1.0,1,2,False,2,,0,1.0,!covered !covered
+wash_a_baseball_cap,2,2,0,0,1.0,1,2,False,2,,0,1.0,!covered !covered
+wash_dog_toys,6,6,0,0,1.0,1,6,False,6,,2,0.6667,!covered !covered !covered !covered !covered !covered
+hanging_pictures,1,0,0,1,0.0,2,1,False,1,wall_nail.n.01,0,1.0,attached
+attach_a_camera_to_a_tripod,1,0,0,1,0.0,1,1,False,1,,0,1.0,attached
+clean_a_patio,1,1,0,0,1.0,1,1,False,1,,0,1.0,!covered
+clean_a_trumpet,1,1,0,0,1.0,1,1,False,1,,0,1.0,!covered
+spraying_for_bugs,2,2,0,0,1.0,1,2,False,2,,0,1.0,covered covered
+spraying_fruit_trees,2,2,0,0,1.0,1,2,False,2,,0,1.0,covered covered
+make_microwave_popcorn,2,0,1,1,0.0,1,2,False,2,,0,1.0,real contains
+cook_cabbage,4,0,2,2,0.0,1,4,False,4,,0,1.0,real real contains contains
+chop_an_onion,4,2,1,1,0.5,1,4,False,4,,0,1.0,real inside inside contains
+slicing_vegetables,9,1,5,3,0.1111,1,9,False,9,,1,0.8889,real real real !open !real !real !real !real !real
+chopping_wood,8,8,0,0,1.0,1,8,False,8,,0,1.0,real real real real real real real real
+cook_hot_dogs,2,0,2,0,0.0,1,2,False,2,,0,1.0,cooked cooked
+cook_bacon,7,1,6,0,0.1429,1,7,False,7,,1,0.8571,cooked cooked cooked cooked cooked cooked !open
+freeze_pies,7,3,4,0,0.4286,2,7,False,7,,1,0.8571,inside inside inside inside frozen frozen !open
+canning_food,10,2,6,2,0.2,4,10,False,10,,6,0.4,real real filled !contains filled !contains inside inside !open !open
+make_pizza,2,2,0,0,1.0,1,2,False,2,,0,1.0,real ontop
+freeze_fruit,7,5,2,0,0.7143,4,7,False,7,,1,0.8571,inside inside inside inside inside inside !open
+cook_a_brisket,3,2,1,0,0.6667,1,3,False,3,,1,0.6667,cooked ontop ontop
+sorting_bottles_cans_and_paper,16,16,0,0,1.0,6,16,False,16,,0,1.0,inside inside !inside !inside !inside inside inside !inside !inside !inside !inside !inside !inside !inside inside inside
+tidying_living_room,4,4,0,0,1.0,1,4,False,4,bookcase.n.01,0,1.0,ontop inside ontop ontop
+putting_away_toys,8,8,0,0,1.0,256,8,False,8,,0,1.0,inside inside inside inside inside inside inside inside
+re_shelving_library_books,3,3,0,0,1.0,1,3,False,3,bookcase.n.01,0,1.0,inside inside inside
+make_rose_centerpieces,4,4,0,0,1.0,1,4,False,4,,0,1.0,inside inside inside ontop
+sweeping_garage,2,2,0,0,1.0,1,2,False,2,,0,1.0,!covered !covered
+stacking_wood,6,0,0,6,0.0,46656,6,False,6,,0,1.0,touching touching touching touching touching touching
+organizing_art_supplies,5,5,0,0,1.0,1,5,False,5,,0,1.0,inside inside inside inside ontop
+scrubbing_bathroom_floor,1,1,0,0,1.0,1,1,False,1,,0,1.0,!covered
+bringing_paper_to_recycling,3,1,2,0,0.3333,1,3,False,3,,1,0.6667,inside inside !open
+halve_an_egg,5,5,0,0,1.0,1,5,False,5,,0,1.0,real real ontop ontop inside
+installing_smoke_detectors,1,0,0,1,0.0,1,1,False,1,,0,1.0,attached
+setting_the_table,8,8,0,0,1.0,8,8,False,8,,0,1.0,ontop ontop ontop ontop nextto nextto nextto nextto
+unloading_the_car,2,2,0,0,1.0,1,2,False,2,,0,1.0,nextto nextto
+turning_out_all_lights_before_sleep,5,5,0,0,1.0,1,5,False,5,,0,1.0,!toggled_on !toggled_on !toggled_on !toggled_on !toggled_on
+boxing_food_after_dinner,6,5,1,0,0.8333,1,6,False,6,,1,0.8333,inside inside ontop ontop inside !open
+cleaning_up_branches_and_twigs,5,1,4,0,0.2,1,5,False,5,,1,0.8,inside inside inside inside ontop
+vacuuming_floors,1,1,0,0,1.0,1,1,False,1,,0,1.0,!covered
+thawing_frozen_food,9,6,3,0,0.6667,4,9,False,9,,3,0.6667,!frozen ontop inside toggled_on !open !open !frozen ontop ontop
+clean_your_rusty_garden_tools,5,3,2,0,0.6,1,5,False,5,,1,0.8,!covered !covered inside inside !open
+cook_a_frozen_pie,2,1,1,0,0.5,1,2,False,2,,0,1.0,ontop cooked
+organizing_school_stuff,6,6,0,0,1.0,1,6,False,6,,0,1.0,inside inside inside inside inside ontop
+carrying_out_garden_furniture,2,2,0,0,1.0,1,2,False,2,,0,1.0,ontop ontop
+put_together_a_basic_pruning_kit,4,2,2,0,0.5,1,4,False,4,,2,0.5,ontop inside inside !open
+dispose_of_glass,4,4,0,0,1.0,1,4,False,4,,0,1.0,inside inside inside inside
+installing_a_modem,4,4,0,0,1.0,2,4,False,4,,0,1.0,toggled_on nextto ontop ontop
+make_cabinet_doors,1,0,0,1,0.0,1,1,False,1,,0,1.0,attached
+polishing_shoes,6,6,0,0,1.0,2,6,False,6,,1,0.8333,ontop !covered !covered nextto nextto nextto
+clean_up_broken_glass,3,3,0,0,1.0,1,3,False,3,,0,1.0,inside inside inside
+packing_meal_for_delivery,6,6,0,0,1.0,6,6,False,6,,0,1.0,inside inside inside ontop ontop ontop
+store_batteries,3,0,3,0,0.0,2,3,False,3,,0,1.0,inside inside inside
+store_honey,1,0,1,0,0.0,1,1,False,1,,0,1.0,inside
+tidying_bathroom,4,4,0,0,1.0,1,4,False,4,,0,1.0,ontop ontop ontop inside
+putting_dirty_dishes_in_sink,4,4,0,0,1.0,1,4,False,4,,0,1.0,inside inside inside inside
+make_gift_bags_for_baby_showers,6,6,0,0,1.0,4,6,False,6,,0,1.0,ontop ontop inside inside inside inside
+collecting_aluminum_cans,6,6,0,0,1.0,1,6,False,6,,0,1.0,inside inside inside inside inside inside
+rearrange_your_room,3,3,0,0,1.0,2,3,False,3,stand.n.04,0,1.0,ontop ontop ontop
+installing_a_fax_machine,2,2,0,0,1.0,2,2,False,2,carrel.n.02,0,1.0,toggled_on ontop
+composting_waste,2,2,0,0,1.0,1,2,False,2,,0,1.0,inside inside
+store_produce,4,0,4,0,0.0,2,4,False,4,,0,1.0,inside inside inside inside
+installing_a_scanner,2,2,0,0,1.0,1,2,False,2,,0,1.0,toggled_on nextto
+clean_a_keyboard,1,1,0,0,1.0,1,1,False,1,,0,1.0,!covered
+dispose_of_batteries,4,4,0,0,1.0,1,4,False,4,,1,0.75,inside inside inside ontop
+cook_brussels_sprouts,26,10,16,0,0.3846,1,26,False,26,,2,0.9231,real cooked inside real cooked inside real cooked inside real cooked inside real cooked inside real cooked inside real cooked inside real cooked inside !open !open
+cook_broccolini,11,6,5,0,0.5455,1,11,False,11,,0,1.0,ontop cooked ontop cooked ontop cooked ontop cooked ontop cooked ontop
+setup_a_bar_for_a_cocktail_party,20,20,0,0,1.0,54,20,False,20,,0,1.0,ontop nextto ontop nextto ontop nextto ontop inside inside inside inside inside inside ontop ontop ontop nextto nextto ontop nextto
+laying_tile_floors,8,8,0,0,1.0,256,8,False,8,,0,1.0,ontop ontop ontop ontop nextto nextto nextto nextto
+sorting_books_on_shelf,11,11,0,0,1.0,1296,11,False,11,,4,0.6364,inside inside inside ontop ontop inside inside ontop inside inside ontop
