@@ -1,0 +1,22 @@
+# FIXTURE ONLY -- not a real robot config.
+#
+# submission/build.py requires a robot config file to package. This stands in for it so
+# the packaging path is testable without a BEHAVIOR-1K checkout. The real file is copied
+# from OmniGibson/omnigibson/eval/r1pro.yaml into configs/robot/r1pro.yaml -- see
+# configs/robot/README.md. Never submit this one.
+model: R1Pro
+name: robot0
+action_dim: 23
+controller_config:
+  base: {name: HolonomicBaseJointController}
+  trunk: {name: JointController}
+  arm_left: {name: JointController}
+  arm_right: {name: JointController}
+  gripper_left: {name: MultiFingerGripperController}
+  gripper_right: {name: MultiFingerGripperController}
+obs_modalities: [rgb, depth, proprio]
+eval:
+  camera_sensor_names:
+    head: robot0:eyes:Camera:0
+    left_wrist: robot0:left_realsense_link:Camera:0
+    right_wrist: robot0:right_realsense_link:Camera:0

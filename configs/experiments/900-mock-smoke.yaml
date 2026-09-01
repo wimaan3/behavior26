@@ -1,0 +1,41 @@
+# GPU-free pipeline test. NOT an experiment -- this config exists to prove the plumbing.
+#
+# Runs against tests/mock_evaluator.py and policy/null_server.py instead of the
+# simulator, so the whole chain (launch -> parse -> failures -> compare -> build)
+# executes in seconds on a laptop. Instances 0-2 are used deliberately: this produces
+# leaderboard-range instance ids so submission/build.py's validation path is exercised
+# without warnings about the dev-set range.
+#
+# Do not read the Q numbers here. They are synthetic.
+
+name: 900-mock-smoke
+description: Pipeline smoke test with no GPU. Mock evaluator + null policy server.
+hypothesis: The chain runs end to end and every stage parses the stage before it.
+
+base_model: null
+checkpoint: null
+
+tasks:
+  - turning_on_radio
+  - picking_up_trash
+  - putting_away_Halloween_decorations
+  - cleaning_up_plates_and_food
+  - can_meat
+  - setting_mousetraps
+instances: [0, 1, 2]
+num_rollouts: 1
+
+host: 127.0.0.1
+env_wrapper: tests.fixtures.mock_wrapper.MockWrapper
+robot_config: tests/fixtures/mock_robot.yaml
+max_steps: 500
+write_video: false
+headless: true
+
+heads: {predicate: false, progress: false, failure: false}
+recovery_conditioning: false
+heuristics: {gripper_auto_reopen: false, early_stop_on_goal: false}
+
+wandb:
+  project: behavior26
+  tags: [mock, smoke]

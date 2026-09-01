@@ -47,7 +47,11 @@ import yaml
 
 # The official entry point. Verify against your BEHAVIOR-1K checkout before a real run:
 #   python -m omnigibson.eval.eval --help
-EVAL_MODULE = "omnigibson.eval.eval"
+#
+# Overridable so the whole harness can be exercised without a GPU against
+# tests/mock_evaluator.py, which speaks the same CLI. Precedence:
+#   --eval-module  >  config key `eval_module`  >  $BEHAVIOR_EVAL_MODULE  >  the real one
+EVAL_MODULE = os.environ.get("BEHAVIOR_EVAL_MODULE", "omnigibson.eval.eval")
 
 
 @dataclass
@@ -103,27 +107,56 @@ def build_jobs(cfg: dict, instances_per_job: int) -> list[Job]:
     return jobs
 
 
-def already_done(job: Job, output_dir: Path) -> bool:
-    """Resume support: skip a job whose result JSONs all exist.
+def completed_keys(output_dir: Path) -> set[tuple[str, int]]:
+    """Index the (task, instance_id) pairs that already have a result on disk.
 
-    The evaluator writes results under <output-dir>/json/. We treat a job as complete only
-    when every instance it covers has produced a file, so a partially-killed job re-runs.
+    Read from the JSON *contents*, not the filenames. The evaluator's filename convention
+    is not documented, and matching on it by substring is actively dangerous: "1" is a
+    substring of "inst10" and "0" of "rollout0", so a filename-based check reports
+    instances as complete that were never run. On a resumed 1,000-rollout sweep those
+    silently become missing instances, and missing instances score ZERO.
+
+    Built once per launch rather than per job -- this is O(files), not O(jobs x files).
     """
     json_dir = output_dir / "json"
     if not json_dir.is_dir():
-        return False
-    existing = {p.name for p in json_dir.glob("*.json")}
-    for inst in job.instances:
-        # Match loosely -- the evaluator's filename convention should be confirmed on the
-        # first real run, then tightened here.
-        if not any(job.task in name and f"{inst}" in name for name in existing):
-            return False
-    return True
+        return set()
+
+    keys: set[tuple[str, int]] = set()
+    for path in json_dir.glob("*.json"):
+        if path.name == "timing_manifest.json":
+            continue
+        try:
+            d = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            # A truncated JSON means the rollout was killed mid-write. Do NOT treat it as
+            # complete -- leaving it out of the index makes the job re-run, which is the
+            # entire point of resume.
+            print(f"  ! ignoring unreadable {path.name} ({exc}); its job will re-run")
+            continue
+        task, inst = d.get("task"), d.get("instance_id")
+        if task is None or inst is None:
+            print(f"  ! {path.name} has no task/instance_id; its job will re-run")
+            continue
+        try:
+            keys.add((str(task), int(inst)))
+        except (TypeError, ValueError):
+            print(f"  ! {path.name} has a non-integer instance_id {inst!r}; its job will re-run")
+    return keys
+
+
+def already_done(job: Job, done: set[tuple[str, int]]) -> bool:
+    """Resume support: a job is complete only when EVERY instance it covers has a result.
+
+    Partially-completed jobs re-run in full. That re-does some finished rollouts, which is
+    the cheap mistake; the expensive one is skipping a rollout that never happened.
+    """
+    return all((job.task, inst) in done for inst in job.instances)
 
 
 def build_command(job: Job, cfg: dict, port: int, output_dir: Path) -> list[str]:
     cmd = [
-        sys.executable, "-m", EVAL_MODULE,
+        sys.executable, "-m", cfg.get("eval_module") or EVAL_MODULE,
         "--task-name", job.task,
         "--host", cfg.get("host", "127.0.0.1"),
         "--port", str(port),
@@ -151,6 +184,10 @@ def build_command(job: Job, cfg: dict, port: int, output_dir: Path) -> list[str]
         cmd += ["--video-fps", str(cfg["video_fps"])]
 
     cmd.append("--headless" if cfg.get("headless", True) else "--no-headless")
+
+    # Pass-through for evaluator flags the config does not model (and for the mock's
+    # own knobs, e.g. --fast --target-q 0.2).
+    cmd += [str(a) for a in cfg.get("extra_eval_args", [])]
     return cmd
 
 
@@ -253,11 +290,20 @@ def main() -> int:
                     help="instances per evaluator process; 0 = all instances of a task in one")
     ap.add_argument("--output-dir", type=Path, default=None,
                     help="default: rollouts/<experiment name>")
+    ap.add_argument("--eval-module", default=None,
+                    help="evaluator module to run; defaults to the official one. "
+                         "Set tests.mock_evaluator to exercise the harness without a GPU")
+    ap.add_argument("--extra-eval-arg", action="append", default=[], metavar="ARG",
+                    help="extra argument appended to every evaluator command; repeatable")
     ap.add_argument("--resume", action="store_true", help="skip jobs whose JSONs already exist")
     ap.add_argument("--dry-run", action="store_true", help="print commands and exit")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
+    if args.eval_module:
+        cfg["eval_module"] = args.eval_module
+    if args.extra_eval_arg:
+        cfg["extra_eval_args"] = list(args.extra_eval_arg)
     output_dir = args.output_dir or Path("rollouts") / cfg["name"]
     log_dir = output_dir / "logs"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -268,8 +314,10 @@ def main() -> int:
 
     if args.resume:
         before = len(jobs)
-        jobs = [j for j in jobs if not already_done(j, output_dir)]
-        print(f"resume: skipping {before - len(jobs)} completed job(s)")
+        done = completed_keys(output_dir)
+        jobs = [j for j in jobs if not already_done(j, done)]
+        print(f"resume: {len(done)} rollout(s) already on disk, "
+              f"skipping {before - len(jobs)} of {before} job(s)")
 
     if not jobs:
         print("nothing to do.")
