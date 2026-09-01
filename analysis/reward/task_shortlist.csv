@@ -1,0 +1,16 @@
+rank,tier,task,D,mean_episode_len,eval_timeout_frames,rel_eval_cost,valid_rate,episodes,n_valid,phi0_mean,must_flip_predicates,n_goal_literals,reward_events_observed,denominator_status,reward_instrumentation
+1,primary,vacuuming_floors,1,2312,3468,0.21,1.0,105,105,0.0,1,1,1.0,CONSISTENT,ok
+2,primary,turning_on_radio,1,2342,3514,0.22,1.0,98,98,0.0,1,1,1.0,CONSISTENT,ok
+3,primary,hanging_pictures,1,2407,3611,0.22,1.0,94,94,0.0,1,1,1.0,CONSISTENT,ok
+4,primary,installing_smoke_detectors,1,2518,3776,0.23,1.0,96,96,0.0,1,1,1.0,CONSISTENT,ok
+5,primary,scrubbing_bathroom_floor,1,3113,4670,0.29,1.0,77,77,0.0,1,1,1.0,CONSISTENT,ok
+6,primary,make_microwave_popcorn,1,3374,5061,0.31,1.0,68,68,0.0,2,2,1.0,COLLAPSED,ok
+7,primary,make_cabinet_doors,1,3535,5303,0.33,1.0,68,68,0.0,1,1,1.0,CONSISTENT,ok
+8,primary,clean_a_keyboard,1,3876,5814,0.36,1.0,62,62,0.0,1,1,1.0,CONSISTENT,ok
+9,primary,installing_a_fax_machine,2,3914,5871,0.36,0.71,62,44,0.0,2,2,2.0,CONSISTENT,ok
+10,primary,attach_a_camera_to_a_tripod,1,3987,5980,0.37,1.0,57,57,0.0,1,1,1.0,CONSISTENT,ok
+11,primary,sweeping_garage,2,4475,6713,0.41,0.963,54,52,0.0,2,2,2.0,CONSISTENT,ok
+12,primary,clean_a_trumpet,1,5695,8542,0.53,0.975,40,39,0.0,1,1,1.0,CONSISTENT,ok
+,medium_D,cook_bacon,7,8547,12820,0.79,0.962,52,50,0.0,6,7,7.0,CONSISTENT,ok
+,medium_D,make_rose_centerpieces,4,4402,6603,0.41,0.889,54,48,0.0938,4,4,3.62,UNDER_FIRES,ok
+,medium_D,chop_an_onion,4,6385,9578,0.59,0.943,70,66,0.0568,4,4,3.77,UNDER_FIRES,ok

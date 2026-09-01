@@ -1,0 +1,1002 @@
+{
+ "turning_on_radio": {
+  "task_index": 0,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 98,
+  "n_valid": 98,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "picking_up_trash": {
+  "task_index": 1,
+  "D": 3,
+  "phi0_mean": 0.028986,
+  "episodes": 71,
+  "n_valid": 69,
+  "valid_rate": 0.9718,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "putting_away_Halloween_decorations": {
+  "task_index": 2,
+  "D": 7,
+  "phi0_mean": 0.087912,
+  "episodes": 45,
+  "n_valid": 39,
+  "valid_rate": 0.8667,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "cleaning_up_plates_and_food": {
+  "task_index": 3,
+  "D": 7,
+  "phi0_mean": 0.15126,
+  "episodes": 51,
+  "n_valid": 51,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "can_meat": {
+  "task_index": 4,
+  "D": 9,
+  "phi0_mean": 0.406566,
+  "episodes": 48,
+  "n_valid": 44,
+  "valid_rate": 0.9167,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "setting_mousetraps": {
+  "task_index": 5,
+  "D": 6,
+  "phi0_mean": 0.199187,
+  "episodes": 43,
+  "n_valid": 41,
+  "valid_rate": 0.9535,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "hiding_Easter_eggs": {
+  "task_index": 6,
+  "D": 9,
+  "phi0_mean": 0.362683,
+  "episodes": 53,
+  "n_valid": 53,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "picking_up_toys": {
+  "task_index": 7,
+  "D": 6,
+  "phi0_mean": 0.122449,
+  "episodes": 51,
+  "n_valid": 49,
+  "valid_rate": 0.9608,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "rearranging_kitchen_furniture": {
+  "task_index": 8,
+  "D": null,
+  "phi0_mean": null,
+  "episodes": 59,
+  "n_valid": 0,
+  "valid_rate": 0.0,
+  "reward_instrumentation": "BROKEN_no_signal",
+  "usable_for_labels": false
+ },
+ "putting_up_Christmas_decorations_inside": {
+  "task_index": 9,
+  "D": 9,
+  "phi0_mean": 0.202279,
+  "episodes": 49,
+  "n_valid": 39,
+  "valid_rate": 0.7959,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "set_up_a_coffee_station_in_your_kitchen": {
+  "task_index": 10,
+  "D": 6,
+  "phi0_mean": 0.241071,
+  "episodes": 66,
+  "n_valid": 56,
+  "valid_rate": 0.8485,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "putting_dishes_away_after_cleaning": {
+  "task_index": 11,
+  "D": 14,
+  "phi0_mean": 0.928571,
+  "episodes": 41,
+  "n_valid": 28,
+  "valid_rate": 0.6829,
+  "reward_instrumentation": "PROVEN_incomplete",
+  "usable_for_labels": false
+ },
+ "preparing_lunch_box": {
+  "task_index": 12,
+  "D": 6,
+  "phi0_mean": 0.196078,
+  "episodes": 43,
+  "n_valid": 34,
+  "valid_rate": 0.7907,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "loading_the_car": {
+  "task_index": 13,
+  "D": 3,
+  "phi0_mean": 0.006944,
+  "episodes": 49,
+  "n_valid": 48,
+  "valid_rate": 0.9796,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "carrying_in_groceries": {
+  "task_index": 14,
+  "D": 4,
+  "phi0_mean": 0.217949,
+  "episodes": 45,
+  "n_valid": 39,
+  "valid_rate": 0.8667,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "bringing_in_wood": {
+  "task_index": 15,
+  "D": 3,
+  "phi0_mean": 0.022222,
+  "episodes": 46,
+  "n_valid": 45,
+  "valid_rate": 0.9783,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "moving_boxes_to_storage": {
+  "task_index": 16,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 45,
+  "n_valid": 22,
+  "valid_rate": 0.4889,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "bringing_water": {
+  "task_index": 17,
+  "D": 3,
+  "phi0_mean": 0.0,
+  "episodes": 51,
+  "n_valid": 43,
+  "valid_rate": 0.8431,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "tidying_bedroom": {
+  "task_index": 18,
+  "D": 3,
+  "phi0_mean": 0.333333,
+  "episodes": 40,
+  "n_valid": 2,
+  "valid_rate": 0.05,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "outfit_a_basic_toolbox": {
+  "task_index": 19,
+  "D": 7,
+  "phi0_mean": 0.142857,
+  "episodes": 54,
+  "n_valid": 54,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "sorting_vegetables": {
+  "task_index": 20,
+  "D": 13,
+  "phi0_mean": 0.703297,
+  "episodes": 55,
+  "n_valid": 21,
+  "valid_rate": 0.3818,
+  "reward_instrumentation": "SUSPECT_incomplete",
+  "usable_for_labels": false
+ },
+ "collecting_childrens_toys": {
+  "task_index": 21,
+  "D": 6,
+  "phi0_mean": 0.064516,
+  "episodes": 48,
+  "n_valid": 31,
+  "valid_rate": 0.6458,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "putting_shoes_on_rack": {
+  "task_index": 22,
+  "D": 10,
+  "phi0_mean": 0.111364,
+  "episodes": 53,
+  "n_valid": 44,
+  "valid_rate": 0.8302,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "boxing_books_up_for_storage": {
+  "task_index": 23,
+  "D": 6,
+  "phi0_mean": 0.184685,
+  "episodes": 46,
+  "n_valid": 37,
+  "valid_rate": 0.8043,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "storing_food": {
+  "task_index": 24,
+  "D": null,
+  "phi0_mean": null,
+  "episodes": 48,
+  "n_valid": 0,
+  "valid_rate": 0.0,
+  "reward_instrumentation": "BROKEN_no_signal",
+  "usable_for_labels": false
+ },
+ "clearing_food_from_table_into_fridge": {
+  "task_index": 25,
+  "D": 5,
+  "phi0_mean": 0.26875,
+  "episodes": 46,
+  "n_valid": 32,
+  "valid_rate": 0.6957,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "assembling_gift_baskets": {
+  "task_index": 26,
+  "D": 16,
+  "phi0_mean": 0.698864,
+  "episodes": 43,
+  "n_valid": 11,
+  "valid_rate": 0.2558,
+  "reward_instrumentation": "SUSPECT_incomplete",
+  "usable_for_labels": false
+ },
+ "sorting_household_items": {
+  "task_index": 27,
+  "D": 8,
+  "phi0_mean": 0.132812,
+  "episodes": 50,
+  "n_valid": 48,
+  "valid_rate": 0.96,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "getting_organized_for_work": {
+  "task_index": 28,
+  "D": 10,
+  "phi0_mean": 0.413953,
+  "episodes": 50,
+  "n_valid": 43,
+  "valid_rate": 0.86,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "clean_up_your_desk": {
+  "task_index": 29,
+  "D": 11,
+  "phi0_mean": 0.125392,
+  "episodes": 40,
+  "n_valid": 29,
+  "valid_rate": 0.725,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "setting_the_fire": {
+  "task_index": 30,
+  "D": 8,
+  "phi0_mean": 0.125,
+  "episodes": 42,
+  "n_valid": 34,
+  "valid_rate": 0.8095,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "clean_boxing_gloves": {
+  "task_index": 31,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 40,
+  "n_valid": 40,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "wash_a_baseball_cap": {
+  "task_index": 32,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 48,
+  "n_valid": 48,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "wash_dog_toys": {
+  "task_index": 33,
+  "D": 3,
+  "phi0_mean": 0.333333,
+  "episodes": 54,
+  "n_valid": 54,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "hanging_pictures": {
+  "task_index": 34,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 94,
+  "n_valid": 94,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "attach_a_camera_to_a_tripod": {
+  "task_index": 35,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 57,
+  "n_valid": 57,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "clean_a_patio": {
+  "task_index": 36,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 53,
+  "n_valid": 53,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "clean_a_trumpet": {
+  "task_index": 37,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 40,
+  "n_valid": 39,
+  "valid_rate": 0.975,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "spraying_for_bugs": {
+  "task_index": 38,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 64,
+  "n_valid": 63,
+  "valid_rate": 0.9844,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "spraying_fruit_trees": {
+  "task_index": 39,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 200,
+  "n_valid": 197,
+  "valid_rate": 0.985,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "make_microwave_popcorn": {
+  "task_index": 40,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 68,
+  "n_valid": 68,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "cook_cabbage": {
+  "task_index": 41,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 46,
+  "n_valid": 46,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "chop_an_onion": {
+  "task_index": 42,
+  "D": 4,
+  "phi0_mean": 0.056818,
+  "episodes": 70,
+  "n_valid": 66,
+  "valid_rate": 0.9429,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "slicing_vegetables": {
+  "task_index": 43,
+  "D": 9,
+  "phi0_mean": 0.036036,
+  "episodes": 44,
+  "n_valid": 37,
+  "valid_rate": 0.8409,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "chopping_wood": {
+  "task_index": 44,
+  "D": 4,
+  "phi0_mean": 0.020408,
+  "episodes": 55,
+  "n_valid": 49,
+  "valid_rate": 0.8909,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "cook_hot_dogs": {
+  "task_index": 45,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 55,
+  "n_valid": 55,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "cook_bacon": {
+  "task_index": 46,
+  "D": 7,
+  "phi0_mean": 0.0,
+  "episodes": 52,
+  "n_valid": 50,
+  "valid_rate": 0.9615,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "freeze_pies": {
+  "task_index": 47,
+  "D": 7,
+  "phi0_mean": 0.231003,
+  "episodes": 47,
+  "n_valid": 47,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "canning_food": {
+  "task_index": 48,
+  "D": 10,
+  "phi0_mean": 0.638462,
+  "episodes": 43,
+  "n_valid": 39,
+  "valid_rate": 0.907,
+  "reward_instrumentation": "SUSPECT_incomplete",
+  "usable_for_labels": false
+ },
+ "make_pizza": {
+  "task_index": 49,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 134,
+  "n_valid": 134,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "freeze_fruit": {
+  "task_index": 50,
+  "D": 4,
+  "phi0_mean": 0.243902,
+  "episodes": 56,
+  "n_valid": 41,
+  "valid_rate": 0.7321,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "cook_a_brisket": {
+  "task_index": 51,
+  "D": 3,
+  "phi0_mean": 0.09697,
+  "episodes": 66,
+  "n_valid": 55,
+  "valid_rate": 0.8333,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "sorting_bottles_cans_and_paper": {
+  "task_index": 52,
+  "D": 3,
+  "phi0_mean": 0.02381,
+  "episodes": 46,
+  "n_valid": 42,
+  "valid_rate": 0.913,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "tidying_living_room": {
+  "task_index": 53,
+  "D": 4,
+  "phi0_mean": 0.147727,
+  "episodes": 56,
+  "n_valid": 22,
+  "valid_rate": 0.3929,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "putting_away_toys": {
+  "task_index": 54,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 41,
+  "n_valid": 41,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "re_shelving_library_books": {
+  "task_index": 55,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 52,
+  "n_valid": 52,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "make_rose_centerpieces": {
+  "task_index": 56,
+  "D": 4,
+  "phi0_mean": 0.09375,
+  "episodes": 54,
+  "n_valid": 48,
+  "valid_rate": 0.8889,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "sweeping_garage": {
+  "task_index": 57,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 54,
+  "n_valid": 52,
+  "valid_rate": 0.963,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "stacking_wood": {
+  "task_index": 58,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 44,
+  "n_valid": 44,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "organizing_art_supplies": {
+  "task_index": 59,
+  "D": 5,
+  "phi0_mean": 0.082759,
+  "episodes": 77,
+  "n_valid": 58,
+  "valid_rate": 0.7532,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "scrubbing_bathroom_floor": {
+  "task_index": 60,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 77,
+  "n_valid": 77,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "bringing_paper_to_recycling": {
+  "task_index": 61,
+  "D": 3,
+  "phi0_mean": 0.100775,
+  "episodes": 44,
+  "n_valid": 43,
+  "valid_rate": 0.9773,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "halve_an_egg": {
+  "task_index": 62,
+  "D": 5,
+  "phi0_mean": 0.069091,
+  "episodes": 75,
+  "n_valid": 55,
+  "valid_rate": 0.7333,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "installing_smoke_detectors": {
+  "task_index": 63,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 96,
+  "n_valid": 96,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "setting_the_table": {
+  "task_index": 64,
+  "D": 4,
+  "phi0_mean": 0.104167,
+  "episodes": 40,
+  "n_valid": 24,
+  "valid_rate": 0.6,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "unloading_the_car": {
+  "task_index": 65,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 42,
+  "n_valid": 36,
+  "valid_rate": 0.8571,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "turning_out_all_lights_before_sleep": {
+  "task_index": 66,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 48,
+  "n_valid": 40,
+  "valid_rate": 0.8333,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "boxing_food_after_dinner": {
+  "task_index": 67,
+  "D": 5,
+  "phi0_mean": 0.238095,
+  "episodes": 70,
+  "n_valid": 42,
+  "valid_rate": 0.6,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "cleaning_up_branches_and_twigs": {
+  "task_index": 68,
+  "D": 2,
+  "phi0_mean": 0.353659,
+  "episodes": 57,
+  "n_valid": 41,
+  "valid_rate": 0.7193,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "vacuuming_floors": {
+  "task_index": 69,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 105,
+  "n_valid": 105,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "thawing_frozen_food": {
+  "task_index": 70,
+  "D": 7,
+  "phi0_mean": 0.203647,
+  "episodes": 57,
+  "n_valid": 47,
+  "valid_rate": 0.8246,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "clean_your_rusty_garden_tools": {
+  "task_index": 71,
+  "D": 5,
+  "phi0_mean": 0.074419,
+  "episodes": 49,
+  "n_valid": 43,
+  "valid_rate": 0.8776,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "cook_a_frozen_pie": {
+  "task_index": 72,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 55,
+  "n_valid": 47,
+  "valid_rate": 0.8545,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "organizing_school_stuff": {
+  "task_index": 73,
+  "D": 6,
+  "phi0_mean": 0.240741,
+  "episodes": 47,
+  "n_valid": 27,
+  "valid_rate": 0.5745,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "carrying_out_garden_furniture": {
+  "task_index": 74,
+  "D": 2,
+  "phi0_mean": 0.016129,
+  "episodes": 45,
+  "n_valid": 31,
+  "valid_rate": 0.6889,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "put_together_a_basic_pruning_kit": {
+  "task_index": 75,
+  "D": 4,
+  "phi0_mean": 0.257143,
+  "episodes": 42,
+  "n_valid": 35,
+  "valid_rate": 0.8333,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "dispose_of_glass": {
+  "task_index": 76,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 49,
+  "n_valid": 49,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "installing_a_modem": {
+  "task_index": 77,
+  "D": 3,
+  "phi0_mean": 0.133333,
+  "episodes": 103,
+  "n_valid": 85,
+  "valid_rate": 0.8252,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "make_cabinet_doors": {
+  "task_index": 78,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 68,
+  "n_valid": 68,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "polishing_shoes": {
+  "task_index": 79,
+  "D": 5,
+  "phi0_mean": 0.113514,
+  "episodes": 44,
+  "n_valid": 37,
+  "valid_rate": 0.8409,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "clean_up_broken_glass": {
+  "task_index": 80,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 53,
+  "n_valid": 53,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "packing_meal_for_delivery": {
+  "task_index": 81,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 53,
+  "n_valid": 36,
+  "valid_rate": 0.6792,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "store_batteries": {
+  "task_index": 82,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 61,
+  "n_valid": 61,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "store_honey": {
+  "task_index": 83,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 72,
+  "n_valid": 72,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "tidying_bathroom": {
+  "task_index": 84,
+  "D": 4,
+  "phi0_mean": 0.290698,
+  "episodes": 53,
+  "n_valid": 43,
+  "valid_rate": 0.8113,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "putting_dirty_dishes_in_sink": {
+  "task_index": 85,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 40,
+  "n_valid": 16,
+  "valid_rate": 0.4,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "make_gift_bags_for_baby_showers": {
+  "task_index": 86,
+  "D": 3,
+  "phi0_mean": 0.144928,
+  "episodes": 51,
+  "n_valid": 23,
+  "valid_rate": 0.451,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "collecting_aluminum_cans": {
+  "task_index": 87,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 47,
+  "n_valid": 47,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "rearrange_your_room": {
+  "task_index": 88,
+  "D": 2,
+  "phi0_mean": 0.013158,
+  "episodes": 53,
+  "n_valid": 38,
+  "valid_rate": 0.717,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "installing_a_fax_machine": {
+  "task_index": 89,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 62,
+  "n_valid": 44,
+  "valid_rate": 0.7097,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "composting_waste": {
+  "task_index": 90,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 65,
+  "n_valid": 45,
+  "valid_rate": 0.6923,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "store_produce": {
+  "task_index": 91,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 48,
+  "n_valid": 48,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "installing_a_scanner": {
+  "task_index": 92,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 57,
+  "n_valid": 36,
+  "valid_rate": 0.6316,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "clean_a_keyboard": {
+  "task_index": 93,
+  "D": 1,
+  "phi0_mean": 0.0,
+  "episodes": 62,
+  "n_valid": 62,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "dispose_of_batteries": {
+  "task_index": 94,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 50,
+  "n_valid": 13,
+  "valid_rate": 0.26,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "cook_brussels_sprouts": {
+  "task_index": 95,
+  "D": 3,
+  "phi0_mean": 0.243902,
+  "episodes": 44,
+  "n_valid": 41,
+  "valid_rate": 0.9318,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "cook_broccolini": {
+  "task_index": 96,
+  "D": 3,
+  "phi0_mean": 0.012821,
+  "episodes": 52,
+  "n_valid": 52,
+  "valid_rate": 1.0,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": true
+ },
+ "setup_a_bar_for_a_cocktail_party": {
+  "task_index": 97,
+  "D": 9,
+  "phi0_mean": 0.265233,
+  "episodes": 51,
+  "n_valid": 31,
+  "valid_rate": 0.6078,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "laying_tile_floors": {
+  "task_index": 98,
+  "D": 2,
+  "phi0_mean": 0.0,
+  "episodes": 49,
+  "n_valid": 32,
+  "valid_rate": 0.6531,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ },
+ "sorting_books_on_shelf": {
+  "task_index": 99,
+  "D": 6,
+  "phi0_mean": 0.37037,
+  "episodes": 62,
+  "n_valid": 27,
+  "valid_rate": 0.4355,
+  "reward_instrumentation": "ok",
+  "usable_for_labels": false
+ }
+}

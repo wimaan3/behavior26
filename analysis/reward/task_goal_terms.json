@@ -1,0 +1,402 @@
+{
+ "0": {
+  "task_name": "turning_on_radio",
+  "N_goal_conjuncts": 1
+ },
+ "1": {
+  "task_name": "picking_up_trash",
+  "N_goal_conjuncts": 1
+ },
+ "2": {
+  "task_name": "putting_away_Halloween_decorations",
+  "N_goal_conjuncts": 4
+ },
+ "3": {
+  "task_name": "cleaning_up_plates_and_food",
+  "N_goal_conjuncts": 4
+ },
+ "4": {
+  "task_name": "can_meat",
+  "N_goal_conjuncts": 4
+ },
+ "5": {
+  "task_name": "setting_mousetraps",
+  "N_goal_conjuncts": 2
+ },
+ "6": {
+  "task_name": "hiding_Easter_eggs",
+  "N_goal_conjuncts": 2
+ },
+ "7": {
+  "task_name": "picking_up_toys",
+  "N_goal_conjuncts": 3
+ },
+ "8": {
+  "task_name": "rearranging_kitchen_furniture",
+  "N_goal_conjuncts": 1
+ },
+ "9": {
+  "task_name": "putting_up_Christmas_decorations_inside",
+  "N_goal_conjuncts": 5
+ },
+ "10": {
+  "task_name": "set_up_a_coffee_station_in_your_kitchen",
+  "N_goal_conjuncts": 6
+ },
+ "11": {
+  "task_name": "putting_dishes_away_after_cleaning",
+  "N_goal_conjuncts": 2
+ },
+ "12": {
+  "task_name": "preparing_lunch_box",
+  "N_goal_conjuncts": 5
+ },
+ "13": {
+  "task_name": "loading_the_car",
+  "N_goal_conjuncts": 3
+ },
+ "14": {
+  "task_name": "carrying_in_groceries",
+  "N_goal_conjuncts": 3
+ },
+ "15": {
+  "task_name": "bringing_in_wood",
+  "N_goal_conjuncts": 1
+ },
+ "16": {
+  "task_name": "moving_boxes_to_storage",
+  "N_goal_conjuncts": 1
+ },
+ "17": {
+  "task_name": "bringing_water",
+  "N_goal_conjuncts": 2
+ },
+ "18": {
+  "task_name": "tidying_bedroom",
+  "N_goal_conjuncts": 3
+ },
+ "19": {
+  "task_name": "outfit_a_basic_toolbox",
+  "N_goal_conjuncts": 7
+ },
+ "20": {
+  "task_name": "sorting_vegetables",
+  "N_goal_conjuncts": 3
+ },
+ "21": {
+  "task_name": "collecting_childrens_toys",
+  "N_goal_conjuncts": 1
+ },
+ "22": {
+  "task_name": "putting_shoes_on_rack",
+  "N_goal_conjuncts": 4
+ },
+ "23": {
+  "task_name": "boxing_books_up_for_storage",
+  "N_goal_conjuncts": 1
+ },
+ "24": {
+  "task_name": "storing_food",
+  "N_goal_conjuncts": 4
+ },
+ "25": {
+  "task_name": "clearing_food_from_table_into_fridge",
+  "N_goal_conjuncts": 4
+ },
+ "26": {
+  "task_name": "assembling_gift_baskets",
+  "N_goal_conjuncts": 4
+ },
+ "27": {
+  "task_name": "sorting_household_items",
+  "N_goal_conjuncts": 7
+ },
+ "28": {
+  "task_name": "getting_organized_for_work",
+  "N_goal_conjuncts": 10
+ },
+ "29": {
+  "task_name": "clean_up_your_desk",
+  "N_goal_conjuncts": 8
+ },
+ "30": {
+  "task_name": "setting_the_fire",
+  "N_goal_conjuncts": 3
+ },
+ "31": {
+  "task_name": "clean_boxing_gloves",
+  "N_goal_conjuncts": 1
+ },
+ "32": {
+  "task_name": "wash_a_baseball_cap",
+  "N_goal_conjuncts": 1
+ },
+ "33": {
+  "task_name": "wash_dog_toys",
+  "N_goal_conjuncts": 3
+ },
+ "34": {
+  "task_name": "hanging_pictures",
+  "N_goal_conjuncts": 1
+ },
+ "35": {
+  "task_name": "attach_a_camera_to_a_tripod",
+  "N_goal_conjuncts": 1
+ },
+ "36": {
+  "task_name": "clean_a_patio",
+  "N_goal_conjuncts": 1
+ },
+ "37": {
+  "task_name": "clean_a_trumpet",
+  "N_goal_conjuncts": 1
+ },
+ "38": {
+  "task_name": "spraying_for_bugs",
+  "N_goal_conjuncts": 1
+ },
+ "39": {
+  "task_name": "spraying_fruit_trees",
+  "N_goal_conjuncts": 2
+ },
+ "40": {
+  "task_name": "make_microwave_popcorn",
+  "N_goal_conjuncts": 2
+ },
+ "41": {
+  "task_name": "cook_cabbage",
+  "N_goal_conjuncts": 4
+ },
+ "42": {
+  "task_name": "chop_an_onion",
+  "N_goal_conjuncts": 4
+ },
+ "43": {
+  "task_name": "slicing_vegetables",
+  "N_goal_conjuncts": 7
+ },
+ "44": {
+  "task_name": "chopping_wood",
+  "N_goal_conjuncts": 8
+ },
+ "45": {
+  "task_name": "cook_hot_dogs",
+  "N_goal_conjuncts": 1
+ },
+ "46": {
+  "task_name": "cook_bacon",
+  "N_goal_conjuncts": 2
+ },
+ "47": {
+  "task_name": "freeze_pies",
+  "N_goal_conjuncts": 4
+ },
+ "48": {
+  "task_name": "canning_food",
+  "N_goal_conjuncts": 7
+ },
+ "49": {
+  "task_name": "make_pizza",
+  "N_goal_conjuncts": 2
+ },
+ "50": {
+  "task_name": "freeze_fruit",
+  "N_goal_conjuncts": 4
+ },
+ "51": {
+  "task_name": "cook_a_brisket",
+  "N_goal_conjuncts": 3
+ },
+ "52": {
+  "task_name": "sorting_bottles_cans_and_paper",
+  "N_goal_conjuncts": 3
+ },
+ "53": {
+  "task_name": "tidying_living_room",
+  "N_goal_conjuncts": 4
+ },
+ "54": {
+  "task_name": "putting_away_toys",
+  "N_goal_conjuncts": 1
+ },
+ "55": {
+  "task_name": "re_shelving_library_books",
+  "N_goal_conjuncts": 1
+ },
+ "56": {
+  "task_name": "make_rose_centerpieces",
+  "N_goal_conjuncts": 4
+ },
+ "57": {
+  "task_name": "sweeping_garage",
+  "N_goal_conjuncts": 2
+ },
+ "58": {
+  "task_name": "stacking_wood",
+  "N_goal_conjuncts": 1
+ },
+ "59": {
+  "task_name": "organizing_art_supplies",
+  "N_goal_conjuncts": 5
+ },
+ "60": {
+  "task_name": "scrubbing_bathroom_floor",
+  "N_goal_conjuncts": 1
+ },
+ "61": {
+  "task_name": "bringing_paper_to_recycling",
+  "N_goal_conjuncts": 3
+ },
+ "62": {
+  "task_name": "halve_an_egg",
+  "N_goal_conjuncts": 5
+ },
+ "63": {
+  "task_name": "installing_smoke_detectors",
+  "N_goal_conjuncts": 1
+ },
+ "64": {
+  "task_name": "setting_the_table",
+  "N_goal_conjuncts": 4
+ },
+ "65": {
+  "task_name": "unloading_the_car",
+  "N_goal_conjuncts": 2
+ },
+ "66": {
+  "task_name": "turning_out_all_lights_before_sleep",
+  "N_goal_conjuncts": 2
+ },
+ "67": {
+  "task_name": "boxing_food_after_dinner",
+  "N_goal_conjuncts": 5
+ },
+ "68": {
+  "task_name": "cleaning_up_branches_and_twigs",
+  "N_goal_conjuncts": 2
+ },
+ "69": {
+  "task_name": "vacuuming_floors",
+  "N_goal_conjuncts": 1
+ },
+ "70": {
+  "task_name": "thawing_frozen_food",
+  "N_goal_conjuncts": 7
+ },
+ "71": {
+  "task_name": "clean_your_rusty_garden_tools",
+  "N_goal_conjuncts": 5
+ },
+ "72": {
+  "task_name": "cook_a_frozen_pie",
+  "N_goal_conjuncts": 2
+ },
+ "73": {
+  "task_name": "organizing_school_stuff",
+  "N_goal_conjuncts": 6
+ },
+ "74": {
+  "task_name": "carrying_out_garden_furniture",
+  "N_goal_conjuncts": 2
+ },
+ "75": {
+  "task_name": "put_together_a_basic_pruning_kit",
+  "N_goal_conjuncts": 4
+ },
+ "76": {
+  "task_name": "dispose_of_glass",
+  "N_goal_conjuncts": 1
+ },
+ "77": {
+  "task_name": "installing_a_modem",
+  "N_goal_conjuncts": 3
+ },
+ "78": {
+  "task_name": "make_cabinet_doors",
+  "N_goal_conjuncts": 1
+ },
+ "79": {
+  "task_name": "polishing_shoes",
+  "N_goal_conjuncts": 5
+ },
+ "80": {
+  "task_name": "clean_up_broken_glass",
+  "N_goal_conjuncts": 1
+ },
+ "81": {
+  "task_name": "packing_meal_for_delivery",
+  "N_goal_conjuncts": 2
+ },
+ "82": {
+  "task_name": "store_batteries",
+  "N_goal_conjuncts": 1
+ },
+ "83": {
+  "task_name": "store_honey",
+  "N_goal_conjuncts": 1
+ },
+ "84": {
+  "task_name": "tidying_bathroom",
+  "N_goal_conjuncts": 4
+ },
+ "85": {
+  "task_name": "putting_dirty_dishes_in_sink",
+  "N_goal_conjuncts": 2
+ },
+ "86": {
+  "task_name": "make_gift_bags_for_baby_showers",
+  "N_goal_conjuncts": 3
+ },
+ "87": {
+  "task_name": "collecting_aluminum_cans",
+  "N_goal_conjuncts": 1
+ },
+ "88": {
+  "task_name": "rearrange_your_room",
+  "N_goal_conjuncts": 2
+ },
+ "89": {
+  "task_name": "installing_a_fax_machine",
+  "N_goal_conjuncts": 2
+ },
+ "90": {
+  "task_name": "composting_waste",
+  "N_goal_conjuncts": 2
+ },
+ "91": {
+  "task_name": "store_produce",
+  "N_goal_conjuncts": 1
+ },
+ "92": {
+  "task_name": "installing_a_scanner",
+  "N_goal_conjuncts": 2
+ },
+ "93": {
+  "task_name": "clean_a_keyboard",
+  "N_goal_conjuncts": 1
+ },
+ "94": {
+  "task_name": "dispose_of_batteries",
+  "N_goal_conjuncts": 2
+ },
+ "95": {
+  "task_name": "cook_brussels_sprouts",
+  "N_goal_conjuncts": 3
+ },
+ "96": {
+  "task_name": "cook_broccolini",
+  "N_goal_conjuncts": 3
+ },
+ "97": {
+  "task_name": "setup_a_bar_for_a_cocktail_party",
+  "N_goal_conjuncts": 9
+ },
+ "98": {
+  "task_name": "laying_tile_floors",
+  "N_goal_conjuncts": 2
+ },
+ "99": {
+  "task_name": "sorting_books_on_shelf",
+  "N_goal_conjuncts": 6
+ }
+}
