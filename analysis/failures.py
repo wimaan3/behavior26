@@ -28,6 +28,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,8 +46,42 @@ class Thresholds:
     timeout_ratio: float = 0.98     # steps / max_steps above this counts as a timeout
 
 
+def _num(value, default: float = 0.0) -> float:
+    """Coerce a possibly-missing numeric cell to a float.
+
+    NOT `value or default`: pandas fills absent columns with NaN, and NaN is TRUTHY, so
+    `nan or 0.0` evaluates to nan. That silently propagated missing distance data into
+    the comparisons below, where every `nan < threshold` is False and the row fell
+    through to ACTIVE_NO_PROGRESS -- the one bucket that says "the robot moved and
+    manipulated and still failed", i.e. the bucket you would spend GPU time
+    investigating. Missing data must not land there.
+    """
+    if value is None:
+        return default
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return default
+    return default if math.isnan(f) else f
+
+
 def tag_row(row: pd.Series, th: Thresholds) -> str:
+    """Assign one failure label.
+
+    Precedence, and why:
+      1. CRASHED   -- no usable result at all. Never let this masquerade as a score.
+      2. SOLVED / PARTIAL -- you got points; that is the headline regardless of timing.
+      3. Among zero-score rollouts, the most diagnostic label wins: being stuck
+         (IMMOBILE) or never reaching (NO_MANIPULATION) explains the episode better than
+         the fact that it also ran out of steps. TIMEOUT is reserved for the rollout that
+         moved, manipulated, and still burned the whole budget.
+    """
     q = row.get("q_score")
+    # A rollout whose JSON carried no q_score field at all. parse.py scores it 0.0 for
+    # leaderboard purposes but flags it here, because 0.0-from-crash and 0.0-from-failure
+    # need different fixes.
+    if bool(row.get("q_missing", False)):
+        return "CRASHED"
     if q is None or pd.isna(q):
         return "CRASHED"
 
@@ -55,13 +90,20 @@ def tag_row(row: pd.Series, th: Thresholds) -> str:
     if q > 0:
         return "PARTIAL"
 
-    base = row.get("dist_base") or 0.0
-    arms = (row.get("dist_left") or 0.0) + (row.get("dist_right") or 0.0)
+    base = _num(row.get("dist_base"))
+    arms = _num(row.get("dist_left")) + _num(row.get("dist_right"))
 
     if base < th.base_moved_m and arms < th.arm_moved_m:
         return "IMMOBILE"
     if arms < th.arm_moved_m:
         return "NO_MANIPULATION"
+
+    # Ran to the step limit. normalized_time is steps/max_steps in the published schema;
+    # when it is absent we cannot tell, so we do not guess.
+    norm_time = row.get("normalized_time")
+    if norm_time is not None and not pd.isna(norm_time) and _num(norm_time) >= th.timeout_ratio:
+        return "TIMEOUT"
+
     return "ACTIVE_NO_PROGRESS"
 
 
@@ -95,7 +137,7 @@ def report(df: pd.DataFrame, sample: int = 0) -> None:
             subset = df[df["failure_tag"] == tag_name].head(sample)
             print(f"\n  {tag_name}:")
             for _, r in subset.iterrows():
-                print(f"    {r['task']}  inst={r['instance_id']}  q={r['q_score']:.2f}  "
+                print(f"    {r['task']}  inst={r['instance_id']}  q={r['q_score']:.3f}  "
                       f"({r['file']})")
 
 

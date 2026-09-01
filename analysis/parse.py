@@ -63,7 +63,12 @@ def load_rollouts(output_dir: Path) -> pd.DataFrame:
             "rollout_id": d.get("rollout_id"),
             "steps": d.get("steps"),
             "success": bool(d.get("success", False)),
+            # Scored as 0.0 when absent -- per the rules a missing result counts as zero.
+            # But record separately THAT it was absent: a crashed rollout and a rollout
+            # that legitimately achieved nothing both read 0.0, and they call for
+            # completely different responses (fix the infra vs. fix the policy).
             "q_score": _dig(d, "q_score", "final", default=0.0),
+            "q_missing": _dig(d, "q_score", "final") is None,
             "sim_steps": _dig(d, "time", "simulator_steps"),
             "sim_time": _dig(d, "time", "simulator_time"),
             "normalized_time": _dig(d, "time", "normalized_time"),
@@ -90,8 +95,12 @@ def summarize(df: pd.DataFrame, universe: int | None = None) -> dict:
     n_tasks = universe or attempted
 
     total_q = per_task.sum()
+    n_missing = int(df["q_missing"].sum()) if "q_missing" in df else 0
     return {
         "rollouts": len(df),
+        # Non-zero here means some rollouts produced no score and are being counted as
+        # zeros. That is an infrastructure number, not a policy number -- chase it.
+        "rollouts_missing_q": n_missing,
         "tasks_attempted": attempted,
         "task_universe": n_tasks,
         "mean_q_over_attempted": round(per_task.mean(), 4),
@@ -119,6 +128,12 @@ def main() -> int:
     print("-" * 52)
     for k, v in stats.items():
         print(f"  {k:<26} {v}")
+
+    if stats["rollouts_missing_q"]:
+        print(f"\n  !! {stats['rollouts_missing_q']} rollout(s) have no q_score and are "
+              "counted as zero.")
+        print("  !! That is a crash or a truncated write, not a policy result. "
+              "Check the job logs.")
 
     if args.universe and stats["tasks_attempted"] < args.universe:
         missing = args.universe - stats["tasks_attempted"]
