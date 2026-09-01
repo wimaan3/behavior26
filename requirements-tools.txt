@@ -4,3 +4,18 @@
 pandas>=2.0
 pyyaml>=6.0
 tabulate>=0.9
+
+# GPU-free pipeline testing: policy/null_server.py + tests/mock_evaluator.py.
+# Deliberately light -- the null server must run standalone in a bare venv.
+websockets>=12.0
+msgpack>=1.0
+pytest>=7.0
+
+# Optional, imported lazily where used:
+#   scipy         analysis/compare.py -- exact t-interval; falls back to a normal
+#                 approximation (and says so) when absent.
+#   msgpack-numpy policy/wire.py -- required to send/receive real ndarray observations.
+#                 The null policy and mock evaluator do not need it; the REAL evaluator
+#                 almost certainly does. Install before the first GPU run.
+# scipy>=1.10
+# msgpack-numpy>=0.4.8

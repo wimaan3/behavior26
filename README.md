@@ -18,13 +18,51 @@ a scripted policy, a random-action sanity check. That is what makes ablations ch
 ```
 policy/     the model + websocket server (what the evaluator talks to)
 harness/    parallel rollout orchestration — the thing that makes iteration possible
-analysis/   rollout JSON -> dataframe -> failure taxonomy
+analysis/   rollout JSON -> dataframe -> failure taxonomy -> paired A/B
 submission/ package + validate the final zip
+tests/      mock evaluator + regression tests — the whole pipeline, no GPU
 configs/    one committed YAML per experiment; robot config
 scripts/    cloud setup, data download, first-rollout timing
 docker/     policy server image (a required submission artifact)
 docs/       project charter
 ```
+
+## Testing the pipeline without a GPU
+
+GPU time is the scarcest resource here, and a bug found on a rented card is a bug paid
+for twice. Two pieces make the entire chain runnable on a laptop in seconds:
+
+| Piece | What it is |
+|---|---|
+| `policy/null_server.py` | Websocket server returning all-zero actions. No model, no GPU. Also a real baseline — a null policy scores ~0.093, because Q is scored on the final state and many tasks start with predicates already satisfied. |
+| `tests/mock_evaluator.py` | Speaks the real evaluator's CLI and websocket protocol and writes rollout JSONs in the real schema. No simulator. |
+
+`harness/launch.py --eval-module` swaps the mock in for the real evaluator, so the whole
+chain runs unchanged:
+
+```bash
+# terminal 1 — one null server per eval worker
+python -m policy.null_server --base-port 8000 --num-servers 3
+
+# terminal 2 — the full chain, ~2 seconds
+python -m harness.launch --config configs/experiments/900-mock-smoke.yaml \
+    --eval-module tests.mock_evaluator --workers 3 --base-port 8000 \
+    --extra-eval-arg=--fast --output-dir rollouts/mockA
+python -m analysis.parse    rollouts/mockA --universe 100 --per-task
+python -m analysis.failures rollouts/mockA --sample 2
+python -m submission.build  --rollouts rollouts/mockA \
+    --wrapper tests/fixtures/mock_wrapper.py \
+    --robot-config tests/fixtures/mock_robot.yaml
+
+pytest tests/test_pipeline.py -q
+```
+
+**This proves plumbing and schema, never behaviour.** The Q numbers it produces are
+synthetic. A green run says the pipeline is wired correctly, not that the policy is good.
+
+The protocol is implemented against the published docs and is **not yet verified against
+a BEHAVIOR-1K checkout** — see the assumption list at the top of `policy/wire.py` and
+confirm all of it on the first real run.
 
 ## Why the harness matters more than it looks
 
@@ -99,6 +137,27 @@ tasks. Two consequences worth internalising:
    mean 0.10. Every task at Q=0.15 gives 0.15. Reliably completing the *first* predicate
    of all 100 tasks outscores perfectly solving fifteen.
 
+## Comparing two runs: always pair
+
+The evaluator is nondeterministic and we run one rollout per instance. Comparing two
+*independent* 36-rollout sweeps needs roughly **ΔQ > 0.115** to clear the noise — wider
+than the gap between 1st and 5th place in 2025. An unpaired A/B at dev-loop size cannot
+resolve the differences we care about.
+
+Run both arms on the **same instances** and difference per instance instead. The
+instance-to-instance variance — most of the total, because some instances are simply
+harder — cancels, and the detectable difference drops to about **0.033**. Same GPU spend,
+~3.5x the resolution.
+
+```bash
+python -m analysis.compare rollouts/baseline rollouts/candidate --per-instance
+```
+
+It reports mean ΔQ, standard error, a 95% CI on the paired difference, and what the same
+rollouts would have resolved unpaired. If the two runs do not cover identical
+`(task, instance_id, rollout_id)` keys it warns loudly and refuses to report — a broken
+pairing throws away the entire advantage. This is why the dev subset stays frozen.
+
 ## Targets
 
 | Tier | Mean Q | Meaning |
@@ -118,7 +177,20 @@ tasks. Two consequences worth internalising:
 | `analysis/failures.py` | Working, thresholds uncalibrated — tune after watching real rollouts. |
 | `submission/build.py` | Working. |
 | `policy/server.py` | **Skeleton.** Protocol documented, API not yet verified. Use vendor serve scripts until then. |
+| `policy/null_server.py` | Working standalone. Zero-action baseline + pipeline exerciser. Protocol unverified against a real checkout. |
+| `policy/wire.py` | Working. Single source of truth for the wire format; lists every unverified assumption. |
+| `tests/mock_evaluator.py` | Working. Same CLI + protocol + output schema as the real evaluator, no simulator. |
+| `analysis/compare.py` | Working. Paired A/B with CI and a coverage guard. |
+| `tests/test_pipeline.py` | 16 tests, all passing. |
 | `docker/policy-server/` | Skeleton. |
+| `policy/wrapper.py` | **Missing.** Required for submission; `tests/fixtures/mock_wrapper.py` is a test stand-in, not a substitute. |
+| `configs/robot/r1pro.yaml` | **Missing.** Copy it from the BEHAVIOR-1K checkout; see `configs/robot/README.md`. |
+
+## License
+
+MIT — see [LICENSE](LICENSE). The challenge's $1,000 Outstanding Open Source prize goes
+to the top-performing open-source submission, so this is an eligibility requirement, not
+a formality.
 
 ## Links
 
