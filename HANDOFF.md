@@ -1,6 +1,6 @@
 # HANDOFF — training
 
-Branch `local/training` (from `local/test-harness`), **not pushed**.
+Branch `local/training` (from `local/test-harness`), 7 commits, **not pushed**.
 
 The evaluation side is done and documented in the section below. This session
 built the training side, which was entirely missing and is the critical path.
@@ -13,14 +13,29 @@ built the training side, which was entirely missing and is the critical path.
 | 2. Configs that fit | `pi05_b1k_frozen_vlm`, `pi05_b1k_lora`, `pi05_b1k_frozen_vlm_progress` + `scripts/estimate_memory.py`. |
 | 3. Progress head | Linear readout on `suffix_out`, BCE loss, config knobs for weight and dimensionality. |
 | 4. Gradient proof | `tests/test_progress_head.py`, 14 tests, ~80s on CPU. Gradients reach the head. |
-| 5. Launch script | `scripts/train_cloud.sh`. `--dry-run` verified; **never run end to end**. |
+| 5. Launch script | `scripts/train_cloud.sh`. `--dry-run` walks the whole plan; **never run end to end**. |
+
+Measured state (`scripts/estimate_memory.py`), parameters + AdamW + EMA +
+gradients, before activations:
+
+| config | trainable | state | verdict |
+|---|---|---|---|
+| `pi05_b1k` (stock, full FT) | 3.353B | 75.0 G | does not fit; reproduces openpi's ">70 GB" |
+| `pi05_b1k_frozen_vlm` | 0.430B | 13.5 G | **expected to be the one we run** |
+| `pi05_b1k_lora` | 0.052B | 7.2 G | cheaper, untested path |
+| `pi05_b1k_frozen_vlm_progress` | 0.430B | 13.5 G | our contribution |
 
 ```bash
 git clone -b behavior https://github.com/wensi-ai/openpi.git ../openpi
 scripts/apply_openpi_patches.sh
-OPENPI_ROOT=../openpi pytest tests/test_progress_head.py -q
+OPENPI_ROOT=../openpi pytest tests/test_progress_head.py -q   # 15 passed, ~70s
 OPENPI_ROOT=../openpi python scripts/estimate_memory.py
+bash scripts/train_cloud.sh --dry-run
 ```
+
+The two test suites need two environments (`requirements-tools.txt` vs
+`requirements-training.txt`); `pytest tests/` in either fails the other on a
+missing import. See `pytest.ini`. Verified separately: 16 passed / 15 passed.
 
 ## Traps found in the fork (each would have cost a run)
 
@@ -38,7 +53,12 @@ OPENPI_ROOT=../openpi python scripts/estimate_memory.py
    rebuilds the dataclass field by field instead of using
    `dataclasses.replace`, so a progress label would never reach the model while
    the config claimed the head was enabled.
-4. **pi05 starts with its adaRMS gates closed.** Zero-init modulation Denses
+4. **The LoRA freeze filter has the same hole as (1).** `get_freeze_filter`
+   only covers `.*llm.*`, so stock LoRA trains all ~414M SigLIP parameters —
+   0.467B trainable and 14.2 G, *more* than full-expert fine-tuning, which is
+   not what the ">22.5 GB" row in openpi's README suggests you are buying.
+   `lora_freeze_filter` brings it to 0.052B / 7.2 G.
+5. **pi05 starts with its adaRMS gates closed.** Zero-init modulation Denses
    mean that at step 0 only six parameter groups get gradient, and `suffix_out`
    does not depend on the images or the prompt at all. Not a bug — but a step-0
    `grad_norm` check on the expert's MLP reads as a broken model.
