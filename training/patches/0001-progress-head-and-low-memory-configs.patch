@@ -247,7 +247,7 @@ index ae7c459..bbdfd2e 100644
      @override
      def sample_actions(
 diff --git a/src/openpi/models/pi0_config.py b/src/openpi/models/pi0_config.py
-index 584d83f..30b54fc 100644
+index 584d83f..4497415 100644
 --- a/src/openpi/models/pi0_config.py
 +++ b/src/openpi/models/pi0_config.py
 @@ -34,11 +34,40 @@ class Pi0Config(_model.BaseModelConfig):
@@ -291,7 +291,7 @@ index 584d83f..30b54fc 100644
          if self.pytorch_compile_mode is not None:
              assert self.pytorch_compile_mode in [
                  "default",
-@@ -115,3 +144,29 @@ class Pi0Config(_model.BaseModelConfig):
+@@ -115,3 +144,50 @@ class Pi0Config(_model.BaseModelConfig):
          if not filters:
              return nnx.Nothing
          return nnx.All(*filters)
@@ -321,6 +321,27 @@ index 584d83f..30b54fc 100644
 +    """
 +    frozen = VLM_PATHS if freeze_image_tower else nnx_utils.PathRegex(".*llm.*")
 +    return nnx.All(frozen, nnx.Not(ACTION_EXPERT_PATHS))
++
++
++IMAGE_TOWER_PATHS = nnx_utils.PathRegex(".*img.*")
++
++
++def lora_freeze_filter(config: Pi0Config, *, freeze_image_tower: bool = True) -> nnx.filterlib.Filter:
++    """`config.get_freeze_filter()`, extended to cover the SigLIP tower.
++
++    `get_freeze_filter` only ever builds regexes over `.*llm.*`, and nothing in
++    the model puts LoRA in the vision tower, so a LoRA config leaves all ~415M
++    SigLIP parameters fully trainable. Measured: a pi05 LoRA config with both
++    variants set trains 0.467B parameters, of which 0.414B is the vision tower
++    -- more than full-expert fine-tuning (0.430B), and not what "LoRA" implies.
++
++    Args:
++        freeze_image_tower: set False to reproduce openpi's stock behaviour.
++    """
++    base = config.get_freeze_filter()
++    if not freeze_image_tower:
++        return base
++    return nnx.Any(base, IMAGE_TOWER_PATHS)
 diff --git a/src/openpi/policies/b1k_policy.py b/src/openpi/policies/b1k_policy.py
 index 2939988..2be518c 100644
 --- a/src/openpi/policies/b1k_policy.py
@@ -341,7 +362,7 @@ index 2939988..2be518c 100644
  
  
 diff --git a/src/openpi/training/config.py b/src/openpi/training/config.py
-index ec6cd0f..6498ee1 100644
+index ec6cd0f..6bb237a 100644
 --- a/src/openpi/training/config.py
 +++ b/src/openpi/training/config.py
 @@ -377,6 +377,10 @@ class LeRobotB1KDataConfig(DataConfigFactory):
@@ -396,7 +417,7 @@ index ec6cd0f..6498ee1 100644
  # Use `get_config` if you need to get a config by name in your code.
  _CONFIGS = [
      #
-@@ -772,6 +803,93 @@ _CONFIGS = [
+@@ -772,6 +803,99 @@ _CONFIGS = [
          assets_base_dir="./outputs/assets",
          checkpoint_base_dir="./outputs/checkpoints",
      ),
@@ -443,13 +464,19 @@ index ec6cd0f..6498ee1 100644
 +        data=_b1k_data(),
 +        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
 +        # Must match the model variants above exactly, per openpi's own comment
-+        # on the pi0 LoRA config.
-+        freeze_filter=pi0_config.Pi0Config(
-+            action_horizon=32,
-+            pi05=True,
-+            paligemma_variant="gemma_2b_lora",
-+            action_expert_variant="gemma_300m_lora",
-+        ).get_freeze_filter(),
++        # on the pi0 LoRA config. Wrapped in lora_freeze_filter because
++        # get_freeze_filter only builds regexes over `.*llm.*` and nothing puts
++        # LoRA in the vision tower, so on its own it leaves all ~414M SigLIP
++        # parameters fully trainable -- more trainable weight than
++        # pi05_b1k_frozen_vlm, which is not what "LoRA" is for.
++        freeze_filter=pi0_config.lora_freeze_filter(
++            pi0_config.Pi0Config(
++                action_horizon=32,
++                pi05=True,
++                paligemma_variant="gemma_2b_lora",
++                action_expert_variant="gemma_300m_lora",
++            )
++        ),
 +        ema_decay=None,
 +        save_interval=10_000,
 +        num_train_steps=50_000,

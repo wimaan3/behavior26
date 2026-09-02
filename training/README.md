@@ -219,6 +219,48 @@ the state of upstream issue #672. Budget debugging time.
 
 ---
 
+## Measured memory
+
+`scripts/estimate_memory.py`, sizing the shipped configs from the real model
+graph. STATE is resident training state — parameters, AdamW moments, EMA,
+gradients — before a single activation.
+
+| config | total | trainable | STATE | fits |
+|---|---|---|---|---|
+| `pi05_b1k` (stock, full FT) | 3.353B | 3.353B | **75.0 G** | 80GB card only, and barely |
+| `pi05_b1k_frozen_vlm` | 3.353B | 0.430B | 13.5 G | RTX 4090 up |
+| `pi05_b1k_lora` | 3.403B | 0.052B | 7.2 G | RTX 4090 up |
+| `pi05_b1k_frozen_vlm_progress` | 3.353B | 0.430B | 13.5 G | RTX 4090 up |
+
+75.0 G for the stock config independently reproduces openpi's own ">70 GB"
+figure, which is a good sign the model of `init_train_state` is right.
+
+**Expect Option A (`pi05_b1k_frozen_vlm`) to be the one that runs.** LoRA is
+cheaper on paper but is the untested path; A is a filter change to code that
+already works, and 13.5 G leaves ~27 G of activation headroom even on a 40 GB
+card. Use LoRA if activations turn out to blow the budget at the batch size you
+want, since `fsdp_devices` is the only other lever and it costs throughput.
+
+Note that openpi has **no gradient accumulation** (grep: no `accum` anywhere in
+`src/` or `scripts/`), so a smaller batch is a genuinely smaller effective
+batch.
+
+## The LoRA filter has the same hole
+
+`Pi0Config.get_freeze_filter` only ever builds regexes over `.*llm.*`, and
+nothing in the model puts LoRA in the vision tower. So a LoRA config as openpi
+ships it leaves **all ~414M SigLIP parameters fully trainable**:
+
+| filter | trainable | STATE |
+|---|---|---|
+| `cfg.get_freeze_filter()` (stock) | 0.467B | 14.2 G |
+| `lora_freeze_filter(cfg)` | 0.052B | 7.2 G |
+
+0.467B is *more* trainable weight than full-expert fine-tuning, which is not
+what "LoRA" implies and not what the ">22.5 GB" row in openpi's README suggests
+you are buying. `pi05_b1k_lora` uses `lora_freeze_filter`; pinned by
+`test_lora_freeze_filter_covers_the_vision_tower`.
+
 ## The freeze filter trap
 
 `nnx_utils.PathRegex(".*llm.*")` does **not** mean "the VLM". Measured on

@@ -72,39 +72,43 @@ stage() {
 
 # ---------------------------------------------------------------- preflight
 # Everything here is seconds. Everything it guards is minutes to hours.
+#
+# Under --dry-run the environment checks WARN instead of dying, so the whole
+# plan can be walked through on a laptop with no GPU, no uv and no dataset.
+# That is the point: this script should be readable end to end before it is
+# trusted with eight hours of rented hardware.
 
 log "preflight"
 
-[ -d "$OPENPI_ROOT/src/openpi" ] || die "OPENPI_ROOT=$OPENPI_ROOT is not an openpi checkout"
-cd "$OPENPI_ROOT"
+# `gate` fails the run normally, but only warns during a dry run.
+gate() { if [ "$DRY_RUN" = 1 ]; then warn "$*"; else die "$*"; fi; }
 
-command -v uv >/dev/null 2>&1 || die "uv not found -- openpi's scripts are invoked through it"
-command -v nvidia-smi >/dev/null 2>&1 || die "no nvidia-smi; wrong instance type?"
-nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader || die "nvidia-smi failed"
+[ -d "$OPENPI_ROOT/src/openpi" ] || gate "OPENPI_ROOT=$OPENPI_ROOT is not an openpi checkout"
+cd "$OPENPI_ROOT" 2>/dev/null || true
 
-VISIBLE_GPUS="$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l)"
+command -v uv >/dev/null 2>&1 || gate "uv not found -- openpi's scripts are invoked through it"
+
+if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader; then
+  VISIBLE_GPUS="$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l)"
+else
+  gate "no working nvidia-smi; wrong instance type?"
+  VISIBLE_GPUS=1
+fi
+
 NUM_GPUS="${NUM_GPUS:-$VISIBLE_GPUS}"
 [ "$NUM_GPUS" -ge 1 ] || die "NUM_GPUS=$NUM_GPUS"
-# openpi asserts this itself, but it does so after building the model and
-# downloading the base checkpoint. Fail in the first second instead.
+# openpi asserts this itself, but only after building the model and downloading
+# the base checkpoint. Fail in the first second instead. This one is a hard
+# error even in a dry run -- it is arithmetic, and it is the whole reason to
+# dry-run a change to BATCH_SIZE or NUM_GPUS.
 [ $((BATCH_SIZE % NUM_GPUS)) -eq 0 ] \
   || die "BATCH_SIZE=$BATCH_SIZE must divide evenly across NUM_GPUS=$NUM_GPUS"
 
-# The config must exist and must be one that fits. estimate_memory.py builds it
-# abstractly, so this also catches a config that cannot even be constructed --
-# a typo'd freeze filter, a bad variant name -- before any GPU work.
-uv run python -c "
-import openpi.training.config as c; cfg = c.get_config('${CONFIG}')
-assert cfg.ema_decay is None or cfg.freeze_filter.__class__.__name__ == 'Nothing', (
-    'ema_decay is on for a partially-frozen config: EMA keeps an fp32 copy of ALL '
-    'params and undoes most of the memory saving. Set ema_decay=None.')
-print(f'config {cfg.name}: batch={cfg.batch_size} steps={cfg.num_train_steps} ema={cfg.ema_decay}')
-" || die "config '${CONFIG}' failed to load"
-
-# msgpack-numpy: the policy server encodes ndarray observations with it. Absent,
-# serving fails at the first observation -- after training has already finished.
-uv run python -c "import msgpack_numpy" 2>/dev/null \
-  || die "msgpack-numpy missing. It is needed to SERVE this checkpoint; install it now, not after the run: uv pip install msgpack-numpy"
+# NOTE: the config check lives AFTER `stage install`, not here. `uv run` in the
+# preflight resolves and downloads the whole dependency tree (~2GB, CUDA wheels
+# included) on first use -- putting the expensive thing inside the cheap check,
+# which is the exact mistake this preflight exists to avoid. It also made
+# --dry-run download 2GB. Everything above this line is pure shell.
 
 # The pinned BEHAVIOR tag moves (v3.9.1 -> v3.9.2 already). Report the tag this
 # box will evaluate against; a mismatch invalidates the numbers, not the run.
@@ -113,17 +117,22 @@ log "BEHAVIOR tag on this box: ${BEHAVIOR_TAG:-<unset>} -- confirm against
 
 # Dataset must be LOCAL and non-empty. A network mount here turns an 8-hour run
 # into a 30-hour one and the symptom is just "training is slow".
-[ -d "$DATASET_ROOT" ] || die "DATASET_ROOT=$DATASET_ROOT does not exist. Fetch the data first (scripts/download_data.sh)."
-[ -n "$(ls -A "$DATASET_ROOT" 2>/dev/null)" ] || die "DATASET_ROOT=$DATASET_ROOT is empty"
-DATASET_FS="$(df -PT "$DATASET_ROOT" | awk 'NR==2 {print $2}')"
-case "$DATASET_FS" in
-  nfs*|cifs|fuse*|9p) warn "DATASET_ROOT is on a ${DATASET_FS} mount. Copy it to local disk -- data loading will dominate the run." ;;
-esac
-log "dataset: $DATASET_ROOT ($(du -sh "$DATASET_ROOT" 2>/dev/null | cut -f1), ${DATASET_FS})"
+if [ ! -d "$DATASET_ROOT" ]; then
+  gate "DATASET_ROOT=$DATASET_ROOT does not exist. Fetch the data first (scripts/download_data.sh)."
+elif [ -z "$(ls -A "$DATASET_ROOT" 2>/dev/null)" ]; then
+  gate "DATASET_ROOT=$DATASET_ROOT is empty"
+else
+  DATASET_FS="$(df -PT "$DATASET_ROOT" | awk 'NR==2 {print $2}')"
+  case "$DATASET_FS" in
+    nfs*|cifs|fuse*|9p) warn "DATASET_ROOT is on a ${DATASET_FS} mount. Copy it to local disk -- data loading will dominate the run." ;;
+  esac
+  log "dataset: $DATASET_ROOT ($(du -sh "$DATASET_ROOT" 2>/dev/null | cut -f1), ${DATASET_FS})"
+fi
 
 # Disk headroom for checkpoints. A 3.4B-param model is ~13GB per fp32 save.
-AVAIL_GB="$(df -PBG "$OPENPI_ROOT" | awk 'NR==2 {gsub("G","",$4); print $4}')"
-[ "$AVAIL_GB" -ge 60 ] || warn "only ${AVAIL_GB}GB free under $OPENPI_ROOT; checkpoints are ~13GB each"
+AVAIL_GB="$(df -PBG "$OPENPI_ROOT" 2>/dev/null | awk 'NR==2 {gsub("G","",$4); print $4}')"
+[ -n "${AVAIL_GB:-}" ] && [ "$AVAIL_GB" -lt 60 ] \
+  && warn "only ${AVAIL_GB}GB free under $OPENPI_ROOT; checkpoints are ~13GB each"
 
 if [ -z "${WANDB_API_KEY:-}" ]; then
   warn "WANDB_API_KEY unset -- running with --nowandb_enabled. You will have no loss curve."
@@ -143,6 +152,37 @@ log "plan: config=${CONFIG} exp=${EXP_NAME} gpus=${NUM_GPUS} batch=${BATCH_SIZE}
 # Guarded by a stamp: a retry after a training failure must not re-sync deps.
 
 stage install uv sync
+
+# --------------------------------------------------------- config validation
+# Cheap NOW that the environment exists. Building the model abstractly costs
+# seconds and no GPU, and it catches a config that cannot be constructed at all
+# -- a typo'd freeze filter, a bad variant name -- plus the EMA mistake, before
+# norm stats and long before training.
+
+CONFIG_CHECK='
+import flax.nnx as nnx
+import openpi.training.config as c
+cfg = c.get_config("'"${CONFIG}"'")
+frozen_is_nothing = cfg.freeze_filter is nnx.Nothing or isinstance(cfg.freeze_filter, nnx.Nothing)
+if not frozen_is_nothing and cfg.ema_decay is not None:
+    raise SystemExit(
+        "ema_decay is on for a partially-frozen config. EMA keeps an fp32 copy of "
+        "ALL params, which undoes most of the memory saving. Set ema_decay=None.")
+print(f"config {cfg.name}: batch={cfg.batch_size} steps={cfg.num_train_steps} "
+      f"ema={cfg.ema_decay} frozen={not frozen_is_nothing}")
+'
+if [ "$DRY_RUN" = 1 ]; then
+  printf '    [dry-run] uv run python -c <config check for %s>\n' "$CONFIG"
+else
+  uv run python -c "$CONFIG_CHECK" || die "config '${CONFIG}' failed validation"
+
+  # msgpack-numpy: the policy server encodes ndarray observations with it.
+  # Absent, serving fails at the first observation -- after training has already
+  # finished and the box is costing money by the hour.
+  uv run python -c "import msgpack_numpy" 2>/dev/null \
+    || die "msgpack-numpy missing. It is needed to SERVE this checkpoint; install it now, not after the run:
+    uv pip install msgpack-numpy"
+fi
 
 # --------------------------------------------------------------- norm stats
 # Training aborts with a missing-norm-stats error if this is skipped, but only

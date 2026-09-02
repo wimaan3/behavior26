@@ -60,7 +60,45 @@ def _import_openpi():
     # openpi_client is a local workspace package, not installed by a plain
     # `pip install jax flax`.
     sys.path.insert(0, str(root / "packages" / "openpi-client" / "src"))
+    _stub_lerobot_if_unavailable()
     return root
+
+
+def _stub_lerobot_if_unavailable() -> None:
+    """Let this tool run without the LeRobot data stack.
+
+    `openpi.training.config` imports `openpi.training.lerobot_compat`, which
+    imports LeRobot's dataset classes purely to re-export them as type
+    references (`data_cls: Any = _lerobot_compat.LeRobotDataset`). Pulling in
+    that stack means lerobot + datasets + av + torchvision, none of which this
+    tool touches: it sizes the model graph, not the data pipeline.
+
+    On a box that ran `uv sync` the real import succeeds and this does nothing.
+    """
+    import importlib
+
+    try:
+        importlib.import_module("openpi.training.lerobot_compat")
+        return
+    except Exception as exc:  # noqa: BLE001 - any failure in that chain is the same to us
+        reason = f"{type(exc).__name__}: {exc}"
+
+    import types
+
+    stub = types.ModuleType("openpi.training.lerobot_compat")
+    for name in ("LeRobotDataset", "LeRobotDatasetMetadata", "MultiLeRobotDataset"):
+        setattr(stub, name, type(name, (), {}))
+    stub.tasks_from_metadata = lambda metadata: {}  # type: ignore[attr-defined]
+    stub.__doc__ = "behavior26 stub -- see scripts/estimate_memory.py"
+    sys.modules["openpi.training.lerobot_compat"] = stub
+
+    print(
+        f"note: LeRobot is unavailable ({reason}).\n"
+        "      Using placeholder dataset classes. Parameter counts and memory are\n"
+        "      unaffected -- they come from the model graph -- but nothing here\n"
+        "      validates the data pipeline.",
+        file=sys.stderr,
+    )
 
 
 @dataclasses.dataclass(frozen=True)

@@ -353,3 +353,35 @@ def test_freeze_filter_regression_llm_regex_freezes_the_wrong_half(openpi, abstr
     assert not any("llm" in p and "_1" in p for p in trainable), (
         "expected the naive regex to freeze the action expert too"
     )
+
+
+def test_lora_freeze_filter_covers_the_vision_tower(openpi):
+    """openpi's own LoRA freeze filter leaves all ~414M SigLIP params trainable.
+
+    `get_freeze_filter` only ever builds regexes over `.*llm.*`, and nothing in
+    the model puts LoRA in the vision tower. Measured on the real variants, the
+    stock filter trains 0.467B parameters -- more than full-expert fine-tuning --
+    of which 0.414B is the vision tower. `lora_freeze_filter` fixes that; this
+    pins both halves so a regression in either is visible.
+    """
+    import flax.nnx as nnx
+    import jax
+
+    _, pi0_config, _, _ = openpi
+    cfg = tiny_config(
+        pi0_config, paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"
+    )
+    model = nnx.eval_shape(lambda: cfg.create(jax.random.key(0)))
+
+    def trainable(filt):
+        return _param_paths(model, nnx.All(nnx.Param, nnx.Not(filt)))
+
+    stock = trainable(cfg.get_freeze_filter())
+    fixed = trainable(pi0_config.lora_freeze_filter(cfg))
+
+    assert any("img" in p for p in stock), "expected the stock LoRA filter to leave the tower trainable"
+    assert not any("img" in p for p in fixed), "lora_freeze_filter did not cover the vision tower"
+    # LoRA adapters themselves must stay trainable -- otherwise nothing trains.
+    assert any("lora" in p for p in fixed), sorted(fixed)[:10]
+    # And the action decoder, or the model cannot adapt its output at all.
+    assert "action_out_proj/kernel" in fixed

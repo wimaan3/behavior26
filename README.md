@@ -83,14 +83,19 @@ bash scripts/train_cloud.sh --dry-run        # print the plan, run nothing
 **A full fine-tune does not fit.** openpi's own README puts it above 70 GB, and
 `pi05_b1k` is a full fine-tune with EMA still on. Three configs that do fit:
 
-| Config | Trains | Note |
-|---|---|---|
-| `pi05_b1k_frozen_vlm` | the action expert (~0.43B) | Preferred. No new code path. |
-| `pi05_b1k_lora` | LoRA adapters | Untested for pi05 upstream — budget debugging. |
-| `pi05_b1k_frozen_vlm_progress` | action expert + progress head | Our contribution. A clean A/B against the first. |
+| Config | Trainable | State | Note |
+|---|---|---|---|
+| `pi05_b1k` (stock) | 3.353B | 75.0 G | Full fine-tune. Does not fit. |
+| `pi05_b1k_frozen_vlm` | 0.430B | 13.5 G | **Preferred.** No new code path. |
+| `pi05_b1k_lora` | 0.052B | 7.2 G | Cheaper, but untested for pi05 upstream. |
+| `pi05_b1k_frozen_vlm_progress` | 0.430B | 13.5 G | Our contribution. A clean A/B against the second. |
 
-Run `scripts/estimate_memory.py` for the numbers; it measures the shipped
-configs rather than repeating a table that can drift.
+Numbers from `scripts/estimate_memory.py`, which sizes the shipped configs from
+the real model graph rather than repeating a table that can drift. They cover
+parameters, optimizer moments, EMA and gradients — not activations, which scale
+with batch size. Expect **Option A** to be the one that runs: LoRA is cheaper on
+paper but is the untested path, and 13.5 G leaves ~27 G of activation headroom
+on a 40 GB card.
 
 Two traps that cost a run each, both now pinned by tests:
 
@@ -101,6 +106,9 @@ Two traps that cost a run each, both now pinned by tests:
 - **A new head aborts checkpoint loading.** `CheckpointWeightLoader` validates
   structural equality after merging, so a parameter absent from `pi05_base` and
   not matched by `missing_regex` fails at startup — after the ~7 GB download.
+- **The LoRA filter has the same hole.** `get_freeze_filter` only covers
+  `.*llm.*`, so stock LoRA trains all 414M SigLIP parameters — 0.467B trainable,
+  *more* than full-expert fine-tuning. Use `pi0_config.lora_freeze_filter()`.
 
 openpi has **no gradient accumulation**. A smaller batch is a genuinely smaller
 effective batch, not just a slower step.
