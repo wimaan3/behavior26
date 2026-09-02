@@ -1,0 +1,45 @@
+# Extra packages needed to run the GPU-free training checks on a laptop:
+#   pytest tests/test_progress_head.py
+#   python scripts/estimate_memory.py
+#
+# On a rented box you do NOT need this file -- `uv sync` inside the openpi
+# checkout installs everything, and scripts/train_cloud.sh does that for you.
+# This is only for reproducing the CPU checks outside that environment.
+#
+#   python -m venv ~/.venvs/openpi-cpu
+#   ~/.venvs/openpi-cpu/bin/pip install -r requirements-training.txt \
+#       --extra-index-url https://download.pytorch.org/whl/cpu
+#
+# Versions match openpi's pyproject.toml, except jax: openpi pins jax[cuda12],
+# and there is no GPU here.
+jax==0.5.3
+flax==0.10.2
+jaxtyping==0.2.36
+beartype==0.19.0
+chex==0.1.90
+einops>=0.8.0
+augmax>=0.3.4
+equinox>=0.11.8
+dm-tree>=0.1.8
+ml_collections==1.0.0
+orbax-checkpoint==0.11.13
+treescope>=0.1.7
+numpydantic>=1.6.6
+sentencepiece>=0.2.0
+safetensors
+tyro>=0.9.5
+draccus
+tqdm-loggable>=0.2
+polars>=1.30.0
+imageio>=2.36.1
+filelock>=3.16.1
+rich>=14.0.0
+fsspec[gcs]>=2024.6.0
+transformers
+torch==2.7.1
+pytest>=7.0
+
+# lerobot is imported for type references only by openpi.training.lerobot_compat,
+# which config.py imports. Install it WITHOUT its dependency tree -- the full set
+# is large, pulls its own torch/opencv stack, and none of it is exercised here:
+#   pip install --no-deps lerobot
