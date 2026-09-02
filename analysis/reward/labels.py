@@ -267,8 +267,41 @@ class Dataset:
 # reward map + refusal
 # ---------------------------------------------------------------------------
 
-def load_reward_map(path: os.PathLike | str) -> dict:
-    return json.loads(pathlib.Path(path).read_text())
+def load_reward_map(path: os.PathLike | str,
+                    remeasure: os.PathLike | str | None = None) -> dict:
+    """Load the reward map, overlaying full-corpus measurements where they exist.
+
+    The map is measured on the first parquet shard(s) of each task -- 28.4% of the
+    corpus. `D` survives that; `phi0` and `valid_rate` do not.
+    `installing_a_fax_machine` reads phi0 = 0 on its 62-episode sample and 0.1075
+    across all 200, so a refusal gate reading the sample alone is blind to exactly
+    the defect it exists to catch. full_corpus_remeasure.csv wins where present.
+    """
+    path = pathlib.Path(path)
+    rmap = json.loads(path.read_text())
+    for rec in rmap.values():
+        rec.setdefault("measurement_scope", "sample-28pct")
+
+    if remeasure is None:
+        remeasure = path.parent / "full_corpus_remeasure.csv"
+    remeasure = pathlib.Path(remeasure)
+    if not remeasure.exists():
+        return rmap
+
+    for _, r in pd.read_csv(remeasure).iterrows():
+        rec = rmap.get(r["task_name"])
+        if rec is None or pd.isna(r["D"]):
+            continue
+        rec.update({
+            "D": int(r["D"]),
+            "phi0_mean": float(r["phi0_mean"]),
+            "phi0_frac_gt0": float(r["phi0_frac_gt0"]),
+            "valid_rate": float(r["valid_rate"]),
+            "episodes": int(r["n_episodes"]),
+            "n_valid": int(r["n_valid"]),
+            "measurement_scope": "full-200ep",
+        })
+    return rmap
 
 
 def check_task_usable(task: str, reward_map: dict,
@@ -292,9 +325,10 @@ def check_task_usable(task: str, reward_map: dict,
                                 "measurable, so no progress label can be built")
 
     phi0 = float(rec.get("phi0_mean", 0.0))
-    evidence = (f"mean phi0 = {phi0:.4f} with D = {D}, so {phi0 * D:.1f} of {D} goal "
-                f"units never fire even in demos that reach the goal; labels would "
-                f"encode a task already {phi0:.0%} complete at t=0")
+    evidence = (f"mean phi0 = {phi0:.4f} ({rec.get('measurement_scope', 'sample-28pct')}) "
+                f"with D = {D}, so {phi0 * D:.1f} of {D} goal units never fire even in "
+                f"demos that reach the goal; labels would encode a task already "
+                f"{phi0:.0%} complete at t=0")
 
     instr = rec.get("reward_instrumentation")
     if instr not in ("ok", None):
@@ -312,6 +346,37 @@ def check_task_usable(task: str, reward_map: dict,
 
 
 # ---------------------------------------------------------------------------
+# denominator audit (README warning 3)
+# ---------------------------------------------------------------------------
+
+def denominator_status(task: str, D: int, phi0_mean: float,
+                       census_path: os.PathLike | str | None = None) -> tuple[str, int | None]:
+    """Compare D against the BDDL predicates that must flip. (status, must_flip).
+
+    phi0 only shows firing relative to D. If D was itself collapsed below the true
+    goal size, phi0 = 0 merely confirms D and the events agree and says nothing about
+    whether D matches the goal -- a second, independent defect mode phi0 cannot see.
+    """
+    if census_path is None:
+        census_path = pathlib.Path(__file__).resolve().parent.parent / "census" / "goal_census_detail.json"
+    census_path = pathlib.Path(census_path)
+    if not census_path.exists():
+        return "UNKNOWN", None
+    census = json.loads(census_path.read_text())
+    lits = census.get(task)
+    if lits is None:
+        return "UNKNOWN", None
+    # initially_true is True / False / None(unknown); count anything not proven
+    # already-satisfied as a predicate that must flip.
+    must_flip = sum(1 for l in lits if l["initially_true"] is not True)
+    if D < must_flip:
+        return "COLLAPSED", must_flip
+    if D * (1.0 - phi0_mean) < D - 1e-6:
+        return "UNDER_FIRES", must_flip
+    return "CONSISTENT", must_flip
+
+
+# ---------------------------------------------------------------------------
 # per-task build
 # ---------------------------------------------------------------------------
 
@@ -319,7 +384,8 @@ def build_task_labels(task: str, ds: Dataset, reward_map: dict,
                       out_dir: os.PathLike | str,
                       max_episodes: int | None = None,
                       max_phi0: float = DEFAULT_MAX_PHI0,
-                      min_valid_rate: float = DEFAULT_MIN_VALID_RATE) -> dict:
+                      min_valid_rate: float = DEFAULT_MIN_VALID_RATE,
+                      refuse_collapsed: bool = False) -> dict:
     """Emit labels.parquet + manifest.json for one task. Raises TaskRefused."""
     rec = check_task_usable(task, reward_map, max_phi0, min_valid_rate)
     D = int(rec["D"])
@@ -334,6 +400,12 @@ def build_task_labels(task: str, ds: Dataset, reward_map: dict,
     if not ds.magnitudes_are_multiples_of_unit(task_index, D):
         raise TaskRefused(task, f"not every reward magnitude is an integer multiple of "
                                 f"1/{D} -- D is wrong")
+
+    dstatus, must_flip = denominator_status(task, D, float(rec.get("phi0_mean", 0.0)))
+    if refuse_collapsed and dstatus == "COLLAPSED":
+        raise TaskRefused(task, f"denominator {dstatus} -- D = {D} but {must_flip} BDDL "
+                                f"predicates must flip, so {must_flip - D} of the goal is "
+                                f"invisible to the reward. phi0 cannot see this")
 
     frame = ds.rewards_frame(task_index)
     episodes = ds.episode_indices(task_index)
@@ -391,6 +463,9 @@ def build_task_labels(task: str, ds: Dataset, reward_map: dict,
         "frames": int(sum(len(p) for p in parts)),
         "rollback_rewards_zeroed": rewards_repaired,
         "episodes_nonmonotonic": nonmonotone,
+        "denominator_status": dstatus,
+        "must_flip_predicates": must_flip,
+        "measurement_scope": rec.get("measurement_scope"),
         "reward_instrumentation": rec.get("reward_instrumentation"),
         "corpus_valid_rate": rec.get("valid_rate"),
         "dataset_root": str(ds.root),
@@ -423,6 +498,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     p.add_argument("--max-episodes", type=int, default=None)
     p.add_argument("--max-phi0", type=float, default=DEFAULT_MAX_PHI0)
     p.add_argument("--min-valid-rate", type=float, default=DEFAULT_MIN_VALID_RATE)
+    p.add_argument("--refuse-collapsed", action="store_true",
+                   help="also refuse tasks whose D is below the BDDL must-flip count")
     p.add_argument("--strict", action="store_true", help="abort on the first refusal")
     a = p.parse_args(argv)
 
@@ -442,7 +519,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for task in tasks:
         try:
             man = build_task_labels(task, ds, rmap, out, a.max_episodes,
-                                    a.max_phi0, a.min_valid_rate)
+                                    a.max_phi0, a.min_valid_rate, a.refuse_collapsed)
         except TaskRefused as exc:
             refused.append({"task": task, "reason": exc.reason})
             d = out / task
@@ -454,9 +531,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 2
             continue
         emitted.append(man)
+        flag = "" if man["denominator_status"] == "CONSISTENT" else f"  [{man['denominator_status']}]"
         print(f"ok       {task}: D={man['D']} eps={man['episodes_used']}"
               f"/{man['episodes_considered']} frames={man['frames']} "
-              f"mean_phi0={man['mean_phi0']:.4f}")
+              f"mean_phi0={man['mean_phi0']:.4f}{flag}")
+        if man["denominator_status"] == "COLLAPSED":
+            print(f"WARNING  {task}: D = {man['D']} but {man['must_flip_predicates']} BDDL "
+                  f"predicates must flip -- part of the goal is invisible to the reward. "
+                  f"Trainable, but it cannot demonstrate that shaping works.", file=sys.stderr)
 
     summary = {
         "generated_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),

@@ -106,20 +106,49 @@ head; **`satisfied_count`** is the raw integer goal-unit count.
 | `valid_rate < 0.70` | too little of the task survives validation |
 | `D` measured locally != `D` in the reward map | the pull disagrees with the map; refuse rather than pick one |
 | a magnitude is not a multiple of `1/D` | `D` is wrong |
+| `denominator_status == COLLAPSED`, with `--refuse-collapsed` | warning 3: `D` below the BDDL must-flip count. Off by default -- such a task is self-consistent and trainable, it just cannot demonstrate that shaping works. It always warns and always lands in the manifest. |
+
+**`load_reward_map` overlays `full_corpus_remeasure.csv` on the sample-scope map where a
+full measurement exists**, and every manifest records `measurement_scope`. Without this the
+refusal gate is blind to exactly the defect warning 4 describes: reading the sample alone,
+`installing_a_fax_machine` passes with `phi0 = 0`; reading the full corpus it is refused at
+`phi0 = 0.1075`.
 
 Refusals carry the evidence, not just a verdict:
 
 ```
 REFUSED  putting_dishes_away_after_cleaning: reward_instrumentation = 'PROVEN_incomplete'
-  -- mean phi0 = 0.9286 with D = 14, so 13.0 of 14 goal units never fire even in demos
-  that reach the goal; labels would encode a task already 93% complete at t=0
+  -- mean phi0 = 0.9275 (full-200ep) with D = 14, so 13.0 of 14 goal units never fire
+  even in demos that reach the goal; labels would encode a task already 93% complete at t=0
+REFUSED  installing_a_fax_machine: reward instrumentation suspect -- mean phi0 = 0.1075
+  (full-200ep) with D = 2, so 0.2 of 2 goal units never fire even in demos that reach the
+  goal; labels would encode a task already 11% complete at t=0. Threshold is phi0 <= 0.05
 REFUSED  rearranging_kitchen_furniture: no reward signal at all in the demos
   -- D is not measurable, so no progress label can be built
+WARNING  make_microwave_popcorn: D = 1 but 2 BDDL predicates must flip -- part of the goal
+  is invisible to the reward. Trainable, but it cannot demonstrate that shaping works.
 ```
+
+### The recommended slate, end to end
+
+```
+$ python -m analysis.reward.labels --data-root ~/behavior-data --out labels/ \
+      --refuse-collapsed --tasks turning_on_radio hanging_pictures vacuuming_floors \
+                                 installing_smoke_detectors cook_bacon
+ok  turning_on_radio           D=1 eps=200/200 frames=429,928   mean_phi0=0.0000
+ok  hanging_pictures           D=1 eps=198/200 frames=471,238   mean_phi0=0.0000
+ok  vacuuming_floors           D=1 eps=199/200 frames=480,185   mean_phi0=0.0000
+ok  installing_smoke_detectors D=1 eps=200/200 frames=513,754   mean_phi0=0.0000
+ok  cook_bacon                 D=7 eps=197/200 frames=1,510,054 mean_phi0=0.0000
+5 task(s) emitted, 0 refused
+```
+
+**3,405,159 labelled frames over 994 episodes**, every task `CONSISTENT`, `phi0 = 0`,
+`full-200ep`. About 8 MB of parquet.
 
 ### Tests
 
-`tests/test_labels.py` -- **26 tests, all against real parquet, no synthetic fixtures**
+`tests/test_labels.py` -- **31 tests, all against real parquet, no synthetic fixtures**
 except two three-line arrays that pin the repair rule itself. Requires chunks 000, 008,
 011, 046, 069 locally; skips cleanly otherwise.
 
@@ -355,7 +384,7 @@ shortlist carried: `make_microwave_popcorn` (collapsed denominator),
 | File | What it is |
 |---|---|
 | `labels.py` | **The label pipeline.** Parquet in, per-frame `progress` + `satisfied_count` out, with refusals. |
-| `tests/test_labels.py` | 26 tests against real parquet, including the refusal case and the corpus regression pin. |
+| `tests/test_labels.py` | 31 tests against real parquet, including the refusal case and the corpus regression pin. |
 | `measure_corpus.py` | Re-measures `D`, `phi0`, validity on **all 200** episodes of every locally-held task; also emits corpus-wide lengths. |
 | `build_shortlist.py` | Regenerates `task_shortlist.csv` and `bddl_audit.csv`. |
 | `og_state_decoder.py` | Decodes OmniGibson flat state vectors into named object poses/joints via the `scene_file` attr in each HDF5. Handles the assisted-grasp sentinel block and carry-forward of absent objects. |

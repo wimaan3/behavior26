@@ -298,3 +298,51 @@ def test_zero_headroom_episode_is_excluded_from_real_task_labels(tmp_path, ds, r
     man = labels.build_task_labels("vacuuming_floors", ds, rmap, tmp_path)
     assert man["drop_reasons"].get("no_headroom") == 1
     assert man["mean_phi0"] == pytest.approx(0.0, abs=1e-6)
+
+
+# --------------------------------------------------------------------------
+# the refusal gate must not read stale sample-scope phi0
+# --------------------------------------------------------------------------
+
+def test_reward_map_prefers_full_corpus_phi0_over_the_sample():
+    """installing_a_fax_machine reads phi0=0 on its 62-episode shard sample and
+    0.1075 across all 200. The refusal gate must see the full-corpus number."""
+    rmap = labels.load_reward_map(REWARD_MAP)
+    rec = rmap["installing_a_fax_machine"]
+    assert rec["phi0_mean"] == pytest.approx(0.1075, abs=1e-3)
+    assert rec["measurement_scope"] == "full-200ep"
+
+
+def test_refuses_a_task_that_only_under_fires_at_full_scale():
+    rmap = labels.load_reward_map(REWARD_MAP)
+    with pytest.raises(labels.TaskRefused) as exc:
+        labels.check_task_usable("installing_a_fax_machine", rmap)
+    assert "0.1075" in str(exc.value)
+
+
+def test_sample_scope_is_kept_for_tasks_with_no_full_measurement():
+    rmap = labels.load_reward_map(REWARD_MAP)
+    rec = rmap["cook_a_frozen_pie"]
+    assert rec["measurement_scope"] == "sample-28pct"
+
+
+# --------------------------------------------------------------------------
+# collapsed denominators (warning 3)
+# --------------------------------------------------------------------------
+
+def test_manifest_records_the_denominator_status(tmp_path, ds, rmap):
+    man = labels.build_task_labels("make_microwave_popcorn", ds, rmap, tmp_path, max_episodes=3)
+    assert man["denominator_status"] == "COLLAPSED"
+    assert man["must_flip_predicates"] == 2 and man["D"] == 1
+
+    clean = labels.build_task_labels("turning_on_radio", ds, rmap, tmp_path, max_episodes=3)
+    assert clean["denominator_status"] == "CONSISTENT"
+
+
+def test_collapsed_denominator_is_refused_when_asked(tmp_path, ds, rmap):
+    """phi0 is blind to a D collapsed below the goal, so it needs its own switch."""
+    with pytest.raises(labels.TaskRefused) as exc:
+        labels.build_task_labels("make_microwave_popcorn", ds, rmap, tmp_path,
+                                 max_episodes=3, refuse_collapsed=True)
+    assert "COLLAPSED" in str(exc.value)
+    assert not (tmp_path / "make_microwave_popcorn" / "labels.parquet").exists()
