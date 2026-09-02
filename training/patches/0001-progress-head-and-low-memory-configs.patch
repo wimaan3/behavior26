@@ -1,0 +1,521 @@
+diff --git a/scripts/b1k/train_b1k.py b/scripts/b1k/train_b1k.py
+index b53dc5c..e88c223 100644
+--- a/scripts/b1k/train_b1k.py
++++ b/scripts/b1k/train_b1k.py
+@@ -348,15 +348,24 @@ def train_step(
+     def loss_fn(
+         model: _model.BaseModel, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions
+     ):
++        # behavior26: models with auxiliary heads expose the terms separately. A
++        # single fused number cannot tell you whether the progress head is
++        # learning or the action loss is just carrying the average down, and that
++        # is the question a run exists to answer.
++        if hasattr(model, "compute_losses"):
++            losses = model.compute_losses(rng, observation, actions, train=True)
++            return jnp.mean(losses["loss"]), {k: jnp.mean(v) for k, v in losses.items()}
+         chunked_loss = model.compute_loss(rng, observation, actions, train=True)
+-        return jnp.mean(chunked_loss)
++        return jnp.mean(chunked_loss), {}
+ 
+     train_rng = jax.random.fold_in(rng, state.step)
+     observation, actions = batch
+ 
+     # Filter out frozen params.
+     diff_state = nnx.DiffState(0, config.trainable_filter)
+-    loss, grads = nnx.value_and_grad(loss_fn, argnums=diff_state)(model, train_rng, observation, actions)
++    (loss, loss_terms), grads = nnx.value_and_grad(loss_fn, argnums=diff_state, has_aux=True)(
++        model, train_rng, observation, actions
++    )
+ 
+     params = state.params.filter(config.trainable_filter)
+     updates, new_opt_state = state.tx.update(grads, state.opt_state, params)
+@@ -388,6 +397,8 @@ def train_step(
+         "loss": loss,
+         "grad_norm": optax.global_norm(grads),
+         "param_norm": optax.global_norm(kernel_params),
++        # behavior26: action_loss / progress_loss, when the model reports them.
++        **{k: v for k, v in loss_terms.items() if k != "loss"},
+     }
+     return new_state, info
+ 
+diff --git a/src/openpi/models/model.py b/src/openpi/models/model.py
+index 29618b4..fe8e9c5 100644
+--- a/src/openpi/models/model.py
++++ b/src/openpi/models/model.py
+@@ -106,6 +106,12 @@ class Observation(Generic[ArrayT]):
+     # Token loss mask (for FAST autoregressive model).
+     token_loss_mask: at.Bool[ArrayT, "*b l"] | None = None
+ 
++    # behavior26: supervision target for the auxiliary progress head, in [0, 1].
++    # Width 1 is scalar progress; width P is the per-predicate vector. None at
++    # inference and for any dataset that does not carry the label, in which case
++    # the progress loss term is skipped entirely.
++    progress: at.Float[ArrayT, "*b p"] | None = None
++
+     @classmethod
+     def from_dict(cls, data: at.PyTree[ArrayT]) -> "Observation[ArrayT]":
+         """This method defines the mapping between unstructured data (i.e., nested dict) to the structured Observation format."""
+@@ -126,6 +132,7 @@ class Observation(Generic[ArrayT]):
+             tokenized_prompt_mask=data.get("tokenized_prompt_mask"),
+             token_ar_mask=data.get("token_ar_mask"),
+             token_loss_mask=data.get("token_loss_mask"),
++            progress=data.get("progress"),
+         )
+ 
+     def to_dict(self) -> at.PyTree[ArrayT]:
+@@ -197,6 +204,9 @@ def preprocess_observation(
+         else:
+             out_masks[key] = jnp.asarray(observation.image_masks[key])
+ 
++    # NOTE(behavior26): this rebuilds Observation field by field rather than using
++    # dataclasses.replace, so every new field must be listed here or it is
++    # silently dropped before the model ever sees it.
+     return Observation(
+         images=out_images,
+         image_masks=out_masks,
+@@ -205,6 +215,7 @@ def preprocess_observation(
+         tokenized_prompt_mask=observation.tokenized_prompt_mask,
+         token_ar_mask=observation.token_ar_mask,
+         token_loss_mask=observation.token_loss_mask,
++        progress=observation.progress,
+     )
+ 
+ 
+diff --git a/src/openpi/models/pi0.py b/src/openpi/models/pi0.py
+index ae7c459..bbdfd2e 100644
+--- a/src/openpi/models/pi0.py
++++ b/src/openpi/models/pi0.py
+@@ -81,7 +81,7 @@ class Pi0(_model.BaseModel):
+         img = nnx_bridge.ToNNX(
+             _siglip.Module(
+                 num_classes=paligemma_config.width,
+-                variant="So400m/14",
++                variant=config.siglip_variant,
+                 pool_type="none",
+                 scan=True,
+                 dtype_mm=config.dtype,
+@@ -99,9 +99,68 @@ class Pi0(_model.BaseModel):
+             self.action_time_mlp_out = nnx.Linear(action_expert_config.width, action_expert_config.width, rngs=rngs)
+         self.action_out_proj = nnx.Linear(action_expert_config.width, config.action_dim, rngs=rngs)
+ 
++        # ------------------------------------------------------------ behavior26
++        # Auxiliary progress head, alongside action_out_proj and reading the same
++        # tensor (suffix_out). Kept outside `PaliGemma`, so no freeze filter that
++        # matches ".*llm.*" or ".*img.*" can accidentally freeze it.
++        self.progress_dim = config.progress_dim if config.progress_head else 0
++        self.progress_loss_weight = config.progress_loss_weight
++        if config.progress_head:
++            hidden = config.progress_hidden_dim
++            self.progress_hidden = (
++                nnx.Linear(action_expert_config.width, hidden, rngs=rngs) if hidden else None
++            )
++            self.progress_out_proj = nnx.Linear(
++                hidden or action_expert_config.width, config.progress_dim, rngs=rngs
++            )
++        else:
++            self.progress_hidden = None
++            self.progress_out_proj = None
++
+         # This attribute gets automatically set by model.train() and model.eval().
+         self.deterministic = True
+ 
++    @at.typecheck
++    def _progress_logits(
++        self, suffix_out: at.Float[at.Array, "b s emb"]
++    ) -> at.Float[at.Array, "b {self.progress_dim}"]:
++        """Logits for task progress, read off the action-expert output tokens.
++
++        Deliberately reads `suffix_out`, not `prefix_out`: `sample_actions` runs
++        the prefix once into a KV cache and thereafter passes `[None, suffix]`,
++        so `prefix_out` is None at inference (there is an `assert prefix_out is
++        None` to that effect) and a prefix head could never condition actions.
++
++        Mean-pools the action tokens rather than probing per layer, because
++        gemma.Module builds its blocks with nn.scan over depth
++        (variable_axes={"params": 0}), which stacks every layer's parameters on a
++        leading axis and leaves no per-layer output to hang a probe on.
++        """
++        pooled = jnp.mean(suffix_out[:, -self.action_horizon :], axis=1)
++        if self.progress_hidden is not None:
++            pooled = nnx.swish(self.progress_hidden(pooled))
++        return self.progress_out_proj(pooled.astype(jnp.float32))
++
++    @at.typecheck
++    def _progress_loss(
++        self, suffix_out: at.Float[at.Array, "b s emb"], target: at.Float[at.Array, "b p"]
++    ) -> at.Float[at.Array, " b"]:
++        """Binary cross-entropy against a target in [0, 1], averaged over targets.
++
++        BCE rather than MSE so that the scalar case (a soft target in [0, 1]) and
++        the per-predicate case (hard 0/1 per goal predicate) use the same loss and
++        the same head, and progress_dim can grow from 1 to P without a rewrite.
++        """
++        logits = self._progress_logits(suffix_out)
++        if target.shape[-1] != self.progress_dim:
++            raise ValueError(
++                f"progress target has width {target.shape[-1]} but the head emits {self.progress_dim}; "
++                "set model.progress_dim to the number of supervised targets"
++            )
++        # log(1 + exp(-|x|)) + max(x, 0) - x * y -- the numerically stable form.
++        per_target = jnp.maximum(logits, 0) - logits * target + jnp.log1p(jnp.exp(-jnp.abs(logits)))
++        return jnp.mean(per_target, axis=-1)
++
+     @at.typecheck
+     def embed_prefix(
+         self, obs: _model.Observation
+@@ -189,6 +248,30 @@ class Pi0(_model.BaseModel):
+     def compute_loss(
+         self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
+     ) -> at.Float[at.Array, "*b ah"]:
++        """Flow-matching loss, plus the weighted progress term when the head is on.
++
++        Signature and return shape are unchanged from upstream so that
++        `scripts/train.py` and `scripts/b1k/train_b1k.py` (both of which do
++        `jnp.mean(chunked_loss)`) keep working untouched. The progress term is
++        broadcast across the action-horizon axis, so that mean is exactly
++        `mean(action_loss) + weight * mean(progress_loss)`.
++
++        Use `compute_losses` instead when you want the terms separately -- you
++        want them separately, because a progress loss that is not falling is the
++        one thing that tells you the head is not learning.
++        """
++        return self.compute_losses(rng, observation, actions, train=train)["loss"]
++
++    @at.typecheck
++    def compute_losses(
++        self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
++    ) -> dict[str, at.Float[at.Array, "*b ah"]]:
++        """Loss components, each already broadcast to the `*b ah` shape.
++
++        Keys: `action_loss` always; `progress_loss` and `loss` additionally when
++        the head is enabled and `observation.progress` is populated. `loss` is
++        the sum that should actually be optimized.
++        """
+         preprocess_rng, noise_rng, time_rng = jax.random.split(rng, 3)
+         observation = _model.preprocess_observation(preprocess_rng, observation, train=train)
+ 
+@@ -211,7 +294,50 @@ class Pi0(_model.BaseModel):
+         )
+         v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])
+ 
+-        return jnp.mean(jnp.square(v_t - u_t), axis=-1)
++        action_loss = jnp.mean(jnp.square(v_t - u_t), axis=-1)
++        losses = {"action_loss": action_loss, "loss": action_loss}
++
++        # The head is only supervised when a label actually arrived. An enabled
++        # head with no label trains nothing rather than failing, so the caller
++        # must check `progress_loss` is present -- see scripts/train_b1k.py.
++        if self.progress_dim and observation.progress is not None:
++            progress_loss = self._progress_loss(suffix_out, observation.progress)
++            progress_loss = jnp.broadcast_to(progress_loss[:, None], action_loss.shape)
++            losses["progress_loss"] = progress_loss
++            losses["loss"] = action_loss + self.progress_loss_weight * progress_loss
++
++        return losses
++
++    @at.typecheck
++    def predict_progress(
++        self, rng: at.KeyArrayLike, observation: _model.Observation
++    ) -> at.Float[at.Array, "b {self.progress_dim}"]:
++        """Progress in [0, 1] for the current observation.
++
++        Evaluated at flow time t=1, where the suffix is pure noise, so the readout
++        depends on the observation only -- through cross-attention to the prefix
++        -- and not on whatever partially-denoised action chunk happens to be in
++        flight. Training applies the loss at every t, which acts as augmentation
++        over noise levels.
++        """
++        if not self.progress_dim:
++            raise ValueError("progress head is not enabled on this model (config.progress_head=False)")
++        observation = _model.preprocess_observation(None, observation, train=False)
++        batch_size = observation.state.shape[0]
++
++        prefix_tokens, prefix_mask, prefix_ar_mask = self.embed_prefix(observation)
++        noise = jax.random.normal(rng, (batch_size, self.action_horizon, self.action_dim))
++        time = jnp.ones((batch_size,))
++        suffix_tokens, suffix_mask, suffix_ar_mask, adarms_cond = self.embed_suffix(observation, noise, time)
++
++        input_mask = jnp.concatenate([prefix_mask, suffix_mask], axis=1)
++        ar_mask = jnp.concatenate([prefix_ar_mask, suffix_ar_mask], axis=0)
++        attn_mask = make_attn_mask(input_mask, ar_mask)
++        positions = jnp.cumsum(input_mask, axis=1) - 1
++        (_, suffix_out), _ = self.PaliGemma.llm(
++            [prefix_tokens, suffix_tokens], mask=attn_mask, positions=positions, adarms_cond=[None, adarms_cond]
++        )
++        return nnx.sigmoid(self._progress_logits(suffix_out))
+ 
+     @override
+     def sample_actions(
+diff --git a/src/openpi/models/pi0_config.py b/src/openpi/models/pi0_config.py
+index 584d83f..30b54fc 100644
+--- a/src/openpi/models/pi0_config.py
++++ b/src/openpi/models/pi0_config.py
+@@ -34,11 +34,40 @@ class Pi0Config(_model.BaseModelConfig):
+ 
+     pytorch_compile_mode: str | None = "max-autotune"
+ 
++    # ---------------------------------------------------------------- behavior26
++    # SigLIP image-tower variant. "So400m/14" is the pretrained size and the only
++    # one any released checkpoint loads into -- do not change it for a real run.
++    # It is a config field purely so tests can build a tiny model ("mu/16": width
++    # 32, depth 1) and run a real forward+backward on CPU. This was hardcoded in
++    # Pi0.__init__, which made every Pi0 instance -- however small its gemma
++    # variants -- carry a 400M-parameter vision tower.
++    siglip_variant: str = "So400m/14"
++
++    # Auxiliary progress head. Reads the action expert's output tokens (the
++    # suffix), NOT the prefix: prefix_out is None during sample_actions, so a
++    # prefix head could never condition anything at inference time.
++    progress_head: bool = False
++    # Target width. 1 = a scalar in [0, 1]. >1 = the per-predicate vector, one
++    # satisfied/unsatisfied probability per BDDL goal predicate.
++    progress_dim: int = 1
++    # If set, insert one swish hidden layer of this width before the readout.
++    progress_hidden_dim: int | None = None
++    # Weight on the progress term when it is added to the flow-matching loss.
++    progress_loss_weight: float = 0.0
++
+     def __post_init__(self):
+         if self.max_token_len is None:
+             object.__setattr__(self, "max_token_len", 200 if self.pi05 else 48)
+         if self.discrete_state_input is None:
+             object.__setattr__(self, "discrete_state_input", self.pi05)
++        if self.progress_head and self.progress_dim < 1:
++            raise ValueError(f"progress_dim must be >= 1 when progress_head is set, got {self.progress_dim}")
++        if self.progress_loss_weight and not self.progress_head:
++            # Silently ignoring this would train a model with no progress signal
++            # while the config claims otherwise -- a whole run wasted.
++            raise ValueError(
++                "progress_loss_weight is set but progress_head is False; enable the head or zero the weight"
++            )
+         if self.pytorch_compile_mode is not None:
+             assert self.pytorch_compile_mode in [
+                 "default",
+@@ -115,3 +144,29 @@ class Pi0Config(_model.BaseModelConfig):
+         if not filters:
+             return nnx.Nothing
+         return nnx.All(*filters)
++
++
++# ------------------------------------------------------------------ behavior26
++# Both experts live inside the single `PaliGemma/llm` module -- the action
++# expert's leaves are the ones with a `_1` suffix (see gemma._name). So
++# PathRegex(".*llm.*") freezes the action expert as well, and leaves the 415M
++# SigLIP tower trainable: measured on gemma_2b + gemma_300m it freezes 2.936B
++# and trains 0.417B, of which 0.415B is the vision tower. That is the opposite
++# of "freeze the VLM, train the action expert". Use this instead.
++VLM_PATHS = nnx_utils.PathRegex(".*(llm|img).*")
++ACTION_EXPERT_PATHS = nnx_utils.PathRegex(".*llm.*_1.*")
++
++
++def freeze_vlm_filter(*, freeze_image_tower: bool = True) -> nnx.filterlib.Filter:
++    """Freeze the VLM (PaliGemma LLM + SigLIP tower), train only the action expert.
++
++    Everything outside `PaliGemma` -- action_in_proj, action_out_proj, the time
++    MLPs and any auxiliary head such as `progress_head` -- stays trainable,
++    because neither regex matches those paths.
++
++    Args:
++        freeze_image_tower: if False, the SigLIP vision tower stays trainable.
++            Costs ~415M more trainable parameters (~5 GB of optimizer state).
++    """
++    frozen = VLM_PATHS if freeze_image_tower else nnx_utils.PathRegex(".*llm.*")
++    return nnx.All(frozen, nnx.Not(ACTION_EXPERT_PATHS))
+diff --git a/src/openpi/policies/b1k_policy.py b/src/openpi/policies/b1k_policy.py
+index 2939988..2be518c 100644
+--- a/src/openpi/policies/b1k_policy.py
++++ b/src/openpi/policies/b1k_policy.py
+@@ -99,6 +99,14 @@ class B1KInputs(transforms.DataTransformFn):
+         if "prompt" in data:
+             inputs["prompt"] = data["prompt"]
+ 
++        # behavior26: label for the auxiliary progress head. Forwarded only when
++        # the dataset carries it, so datasets without the column are unaffected
++        # and the model skips the progress term entirely. Observation.from_dict
++        # picks it up under this same key.
++        if "progress" in data:
++            progress = np.asarray(data["progress"], dtype=np.float32)
++            inputs["progress"] = progress[..., None] if progress.ndim == 0 else progress
++
+         return inputs
+ 
+ 
+diff --git a/src/openpi/training/config.py b/src/openpi/training/config.py
+index ec6cd0f..6498ee1 100644
+--- a/src/openpi/training/config.py
++++ b/src/openpi/training/config.py
+@@ -377,6 +377,10 @@ class LeRobotB1KDataConfig(DataConfigFactory):
+     robot_config_name: str = tyro.MISSING
+     extra_delta_transform: bool = True
+     action_sequence_keys: Sequence[str] = ("action",)
++    # behavior26: dataset column holding the progress label for the auxiliary
++    # head. None (the default) leaves the pipeline byte-for-byte as it was; set
++    # it only once the column exists, or RepackTransform fails on the first batch.
++    progress_key: str | None = None
+ 
+     def _build_delta_mappings(self, robot_config) -> list[tuple[list[int], list[int]]]:
+         state_slices = []
+@@ -422,6 +426,8 @@ class LeRobotB1KDataConfig(DataConfigFactory):
+                 "prompt": "prompt",
+             }
+         )
++        if self.progress_key is not None:
++            repack_mapping["progress"] = self.progress_key
+ 
+         repack_transform = _transforms.Group(inputs=[_transforms.RepackTransform(repack_mapping)])
+ 
+@@ -668,6 +674,31 @@ class TrainConfig:
+             raise ValueError("Cannot resume and overwrite at the same time.")
+ 
+ 
++# ------------------------------------------------------------------ behavior26
++# Shared data config for our B1K runs, so the three configs below differ only in
++# what they train, never in what they train on -- otherwise an A/B between them
++# is not an A/B.
++B1K_TASK = "turning_on_radio"
++B1K_DATASET_ROOT = f"./data/b1k/{B1K_TASK}"
++
++
++def _b1k_data(*, progress_key: str | None = None) -> LeRobotB1KDataConfig:
++    return LeRobotB1KDataConfig(
++        repo_id=B1K_TASK,
++        base_config=DataConfig(
++            data_cls=_lerobot_compat.LeRobotDataset,
++            # Override on the command line with
++            #   --data.base_config.dataset_root=<LOCAL_PATH>
++            # scripts/train_cloud.sh always passes an explicit local path.
++            dataset_root=B1K_DATASET_ROOT,
++            prompt_from_task=True,
++            dataset_kwargs={"tolerance_s": 5e-4},
++        ),
++        robot_config_name="b1k/R1Pro",
++        progress_key=progress_key,
++    )
++
++
+ # Use `get_config` if you need to get a config by name in your code.
+ _CONFIGS = [
+     #
+@@ -772,6 +803,93 @@ _CONFIGS = [
+         assets_base_dir="./outputs/assets",
+         checkpoint_base_dir="./outputs/checkpoints",
+     ),
++    # ---------------------------------------------------------------- behavior26
++    # `pi05_b1k` above is a FULL fine-tune: 3.353B trainable params, and with
++    # ema_decay=0.99 still on it needs ~80 GB of optimizer state alone. openpi's
++    # own README puts full fine-tuning at ">70 GB". The three configs below are
++    # the ones that fit. Run `python scripts/estimate_memory.py` (behavior26) for
++    # the measured numbers -- do not trust the comments over the tool.
++    #
++    # Option A -- freeze the VLM, train the action expert. Preferred: no new code
++    # path, ~0.43B trainable, and closest to what the GR00T baseline does.
++    TrainConfig(
++        name="pi05_b1k_frozen_vlm",
++        model=pi0_config.Pi0Config(action_horizon=32, pi05=True),
++        data=_b1k_data(),
++        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
++        # NOT PathRegex(".*llm.*"). Both experts live inside `PaliGemma/llm`, so
++        # that regex freezes the action expert and leaves the 415M SigLIP tower
++        # trainable -- the exact opposite of the intent. See freeze_vlm_filter.
++        freeze_filter=pi0_config.freeze_vlm_filter(),
++        # Frozen params are cast to bf16 and excluded from optimizer state; EMA
++        # would put a full fp32 copy of all 3.353B params back on the card and
++        # undo most of the saving. openpi turns EMA off for every low-memory
++        # config for the same reason.
++        ema_decay=None,
++        save_interval=10_000,
++        num_train_steps=50_000,
++        assets_base_dir="./outputs/assets",
++        checkpoint_base_dir="./outputs/checkpoints",
++    ),
++    # Option B -- LoRA. Untested for pi05: openpi ships LoRA configs for pi0 and
++    # pi0-FAST only (`pi0_libero_low_mem_finetune`, `pi0_fast_libero_low_mem_finetune`),
++    # and nothing in this fork combines `pi05=True` with a `*_lora` variant.
++    # Budget debugging time before relying on it.
++    TrainConfig(
++        name="pi05_b1k_lora",
++        model=pi0_config.Pi0Config(
++            action_horizon=32,
++            pi05=True,
++            paligemma_variant="gemma_2b_lora",
++            action_expert_variant="gemma_300m_lora",
++        ),
++        data=_b1k_data(),
++        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
++        # Must match the model variants above exactly, per openpi's own comment
++        # on the pi0 LoRA config.
++        freeze_filter=pi0_config.Pi0Config(
++            action_horizon=32,
++            pi05=True,
++            paligemma_variant="gemma_2b_lora",
++            action_expert_variant="gemma_300m_lora",
++        ).get_freeze_filter(),
++        ema_decay=None,
++        save_interval=10_000,
++        num_train_steps=50_000,
++        assets_base_dir="./outputs/assets",
++        checkpoint_base_dir="./outputs/checkpoints",
++    ),
++    # Option A plus the progress head -- our actual contribution. Identical to
++    # pi05_b1k_frozen_vlm in every other respect so the pair is a clean A/B.
++    #
++    # progress_key is left None until the dataset carries the column; the head is
++    # built and the parameters exist, but with no label the progress term is
++    # skipped and this trains identically to pi05_b1k_frozen_vlm. Set
++    #   --data.progress_key=<COLUMN>
++    # to turn the supervision on.
++    TrainConfig(
++        name="pi05_b1k_frozen_vlm_progress",
++        model=pi0_config.Pi0Config(
++            action_horizon=32,
++            pi05=True,
++            progress_head=True,
++            progress_dim=1,
++            progress_loss_weight=0.1,
++        ),
++        data=_b1k_data(progress_key=None),
++        # progress_head is absent from the pi05_base checkpoint. Without it here,
++        # startup aborts in check_pytree_equality -- see CheckpointWeightLoader.
++        weight_loader=weight_loaders.CheckpointWeightLoader(
++            "gs://openpi-assets/checkpoints/pi05_base/params",
++            missing_regex=".*(lora|progress).*",
++        ),
++        freeze_filter=pi0_config.freeze_vlm_filter(),
++        ema_decay=None,
++        save_interval=10_000,
++        num_train_steps=50_000,
++        assets_base_dir="./outputs/assets",
++        checkpoint_base_dir="./outputs/checkpoints",
++    ),
+     #
+     # Fine-tuning Libero configs.
+     #
+diff --git a/src/openpi/training/weight_loaders.py b/src/openpi/training/weight_loaders.py
+index 2162198..75320d8 100644
+--- a/src/openpi/training/weight_loaders.py
++++ b/src/openpi/training/weight_loaders.py
+@@ -46,12 +46,22 @@ class CheckpointWeightLoader(WeightLoader):
+     """
+ 
+     params_path: str
++    # behavior26: parameters expected to be absent from the checkpoint, which
++    # should keep their fresh random init.
++    #
++    # This is NOT optional for a new head. `_merge_params` returns only the
++    # intersection of checkpoint and model, plus whatever matches this regex;
++    # the caller (`_load_weights_and_validate`) then runs `check_pytree_equality`
++    # against the full model params, which raises on any key the merge dropped.
++    # A head not named here aborts training at startup -- after the ~7 GB base
++    # checkpoint has already been downloaded.
++    missing_regex: str = ".*lora.*"
+ 
+     def load(self, params: at.Params) -> at.Params:
+         # We are loading np.ndarray and relying on the training code to properly convert and shard the params.
+         loaded_params = _model.restore_params(download.maybe_download(self.params_path), restore_type=np.ndarray)
+-        # Add all missing LoRA weights.
+-        return _merge_params(loaded_params, params, missing_regex=".*lora.*")
++        # Add all missing LoRA weights (and anything else missing_regex allows).
++        return _merge_params(loaded_params, params, missing_regex=self.missing_regex)
+ 
+ 
+ @dataclasses.dataclass(frozen=True)
