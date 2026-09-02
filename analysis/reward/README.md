@@ -1,9 +1,17 @@
-# Reward-shaping artifacts for BEHAVIOR-1K
+# Reward-shaping artifacts and the label pipeline for BEHAVIOR-1K
 
-Everything here was measured on the LeRobot demo set on the Jetson: **5,677 episodes across
-100 challenge tasks**. `D` is measured for **98** of them (2 tasks emit no reward signal at all).
+`labels.py` turns LeRobot parquet into per-frame progress targets. Everything else here
+is the measurement that makes those labels trustworthy, plus the task selection that
+follows from it. Nothing needs a GPU.
 
-These files are the input to reward-shaped labelling. Nothing here needs a GPU to reproduce.
+Two measurement scopes appear throughout, and the difference matters:
+
+| Scope | What | Where |
+|---|---|---|
+| **sample** | 5,677 of 20,000 episodes (**28.4%**) -- the first parquet shard(s) of each task | `behavior1k_task_table.csv`, `behavior1k_episode_stats.csv`, `behavior1k_reward_map.json` |
+| **full** | all 200 episodes of a task | `full_corpus_remeasure.csv` (21 tasks pulled locally), `full_corpus_lengths.csv` (lengths for all 100) |
+
+`D` survives the sampling. **`phi0` does not** -- see warning 4.
 
 ---
 
@@ -11,43 +19,334 @@ These files are the input to reward-shaped labelling. Nothing here needs a GPU t
 
 For each task, from the demo rewards alone:
 
-1. **Measure the denominator.** `D = 1 / min|reward|` over all non-zero reward samples in the task.
-2. **Verify it.** Every observed reward magnitude must be an integer multiple of `1/D`.
-   If any magnitude is not, `D` is wrong and the task is rejected.
-3. **Build the potential.** With `cumsum_t` the running reward sum and `cumsum_final` its
-   end-of-episode value:
+1. **Measure the denominator.** `D = 1 / min|reward|` over all non-zero reward samples.
+2. **Verify it.** Every observed magnitude must be an integer multiple of `1/D`.
+3. **Repair rollback debits.** Zero any negative that would drive the running reward sum
+   below zero. The demo collector rolls the simulator back and replays; the reward
+   function then debits credit it never issued in this trace. No real predicate flip can
+   take the sum below zero -- you cannot un-satisfy a unit that was never satisfied. A
+   negative that leaves the sum at or above zero is a genuine flip-back and is **kept**.
+4. **Build the potential.** With `cumsum_t` the repaired running sum:
 
    ```
    phi_t = D * (1 - cumsum_final + cumsum_t)
    ```
 
-   `phi_t` counts **goal units still outstanding at time t**. It decreases by exactly 1
-   each time a goal predicate flips, and reaches 0 at a successful terminal state.
+   `phi_t` is the number of goal units satisfied at frame `t`. Divide by `D` for
+   normalised progress in `[0, 1]`. It ends at `D` (progress 1.0) on a successful demo.
 
-### Validation
+### Validation gates
 
 An episode is kept only if all of:
 
-- **Terminal agreement** — the reward trace agrees with `next.terminated`.
-- **Range** — `phi_0` in `[0, 1]` after normalising by `D`.
-- **Integrality** — `phi_0 * D` is an integer.
-
-Episodes failing any check are dropped. **~17% of episodes are dropped** corpus-wide
-(4,723 of 5,677 valid = 83.2%). Integrality holds on **4,723 / 4,723** kept episodes — it
-never fails once the first two checks pass.
+| Gate | Drop reason |
+|---|---|
+| terminates, and is not truncated | `not_terminated` / `truncated` |
+| `phi0` in `[0, 1]` | `phi0_out_of_range` |
+| `phi0 * D` is an integer | `phi0_not_integral` |
+| `phi0 < 1` -- some headroom exists | `no_headroom` |
+| progress stays in `[0, 1]` for **every** frame, not just `t=0` | `progress_out_of_range` |
 
 ### The identity that makes the audit possible
 
-Because `phi_0 * D` is always an integer:
+Because `phi0 * D` is always an integer:
 
 ```
-phi_0 * D        ==  goal units that NEVER fired during the demo
-D * (1 - phi_0)  ==  reward events actually observed
+phi0 * D        ==  goal units that NEVER fired during the demo
+D * (1 - phi0)  ==  reward events actually observed
 ```
 
-A demo that reaches the goal should credit every unit, so **a clean task has `phi_0 = 0`**.
-Any `phi_0 > 0` on a successful demo means reward under-fired. This is what caught
+A demo that reaches the goal should credit every unit, so **a clean task has `phi0 = 0`**.
+Any `phi0 > 0` on a successful demo means the reward under-fired. This is what caught
 `putting_dishes_away_after_cleaning`.
+
+---
+
+## The label pipeline
+
+```
+python -m analysis.reward.labels --data-root ~/behavior-data --out labels/ \
+    --tasks turning_on_radio cook_bacon
+python -m analysis.reward.labels --data-root ~/behavior-data --out labels/ \
+    --tasks-from analysis/reward/task_shortlist.csv
+```
+
+`--data-root` is a **local** LeRobot pull. Nothing in `labels.py` issues a network
+request: the episode-to-shard map comes from `meta/episodes/`, on disk. That is
+deliberate -- see the rate-limit note at the bottom.
+
+Per task it writes:
+
+```
+<out>/<task>/labels.parquet    index, episode_index, frame_index, task_index,
+                               progress (float32, [0,1]), satisfied_count (float32, [0,D])
+<out>/<task>/manifest.json     D, magnitudes, episodes used/dropped, drop reasons,
+                               mean/max phi0, frames, rollback debits zeroed,
+                               non-monotonic episodes, provenance
+<out>/<task>/REFUSED.json      written instead, when the task is refused
+<out>/manifest.json            run summary: tasks emitted, tasks refused with reasons
+```
+
+`index` is the LeRobot dataset-global row index, so a data loader joins labels to frames
+with a single key and no re-derivation. `(episode_index, frame_index)` is also emitted.
+
+Both targets are present, as required: **`progress`** is normalised to `[0, 1]` for the
+head; **`satisfied_count`** is the raw integer goal-unit count.
+
+### Refusals
+
+`labels.py` refuses a task rather than emitting labels it cannot stand behind:
+
+| Condition | Why |
+|---|---|
+| not in the reward map | `D` has never been measured, and `D` must never be guessed |
+| no reward signal / `D` unmeasurable | nothing to build a potential from |
+| `reward_instrumentation != "ok"` | known-defective instrumentation |
+| `phi0_mean > 0.05` | reward under-fires; labels would encode a scene already partly done |
+| `valid_rate < 0.70` | too little of the task survives validation |
+| `D` measured locally != `D` in the reward map | the pull disagrees with the map; refuse rather than pick one |
+| a magnitude is not a multiple of `1/D` | `D` is wrong |
+
+Refusals carry the evidence, not just a verdict:
+
+```
+REFUSED  putting_dishes_away_after_cleaning: reward_instrumentation = 'PROVEN_incomplete'
+  -- mean phi0 = 0.9286 with D = 14, so 13.0 of 14 goal units never fire even in demos
+  that reach the goal; labels would encode a task already 93% complete at t=0
+REFUSED  rearranging_kitchen_furniture: no reward signal at all in the demos
+  -- D is not measurable, so no progress label can be built
+```
+
+### Tests
+
+`tests/test_labels.py` -- **26 tests, all against real parquet, no synthetic fixtures**
+except two three-line arrays that pin the repair rule itself. Requires chunks 000, 008,
+011, 046, 069 locally; skips cleanly otherwise.
+
+The suite includes the under-instrumented task as an explicit refusal test
+(`test_refuses_the_under_instrumented_reference_task`, and
+`test_build_refuses_and_writes_no_labels_for_the_defective_task`), and a regression test
+that reproduces `behavior1k_episode_stats.csv` -- per-episode `phi0`, repair count and
+validity -- from raw parquet for `turning_on_radio`, `vacuuming_floors` and `cook_bacon`.
+**255 of 255 episodes match exactly.** Disabling the repair fails 8 tests, so the pin has
+teeth.
+
+The same check over all five locally-held tasks (355 episodes, including
+`putting_dishes_away_after_cleaning` and `rearranging_kitchen_furniture`) reproduces
+`nnz`, `nneg`, `dropped`, `phi0`, `T` and terminal flags exactly, 355/355.
+
+---
+
+## Warning 1 -- `task_goal_terms.json` is not a source of `D`
+
+It counts **top-level BDDL conjuncts**, which is not what the reward divides by. It agrees
+with measured `D` on only **67 of 98** tasks. The failure is quantifiers: `picking_up_trash`
+has 1 top-level conjunct (`forall` over three cans) but the reward uses `D = 3`.
+
+**Always measure `D` from the reward trace. Retained for reference only.**
+
+## Warning 2 -- the instrumentation defect
+
+On some tasks the reward under-fires: the demo reaches the goal but reward never credits
+every unit. **Validation does not catch this** -- such episodes pass every gate, because
+the gates check internal consistency, not agreement with the BDDL goal. The signature is
+`phi0`.
+
+| Task | D | phi0 | Reward events (of D) | Status |
+|---|---|---|---|---|
+| `putting_dishes_away_after_cleaning` | 14 | 0.928 | 1.0 of 14 | **PROVEN incomplete** (full 200 ep) |
+| `sorting_vegetables` | 13 | 0.703 | 3.9 of 13 | SUSPECTED (sample) |
+| `assembling_gift_baskets` | 16 | 0.699 | 4.8 of 16 | SUSPECTED (sample) |
+| `canning_food` | 10 | 0.638 | 3.6 of 10 | SUSPECTED (sample) |
+| `rearranging_kitchen_furniture` | – | – | none | **BROKEN -- no signal** |
+| `storing_food` | – | – | none | **BROKEN -- no signal** |
+
+`putting_dishes_away_after_cleaning` is the proven case, and it holds on all 200 episodes:
+`D = 14`, every episode fires reward **exactly once**, `phi0 = 13/14` in 200 of 200.
+
+## Warning 3 -- `phi0 = 0` does NOT prove complete instrumentation
+
+`phi0` measures firing *relative to D*. If `D` was collapsed below the true goal size
+before measurement, `phi0 = 0` merely confirms `D` and the observed events agree. It says
+nothing about whether `D` matches the BDDL goal, and `phi0` is blind to this.
+
+Comparing measured `D` against BDDL predicates that must flip (`../census/`):
+**32 tasks** have `D` < must-flip count, and **14 of them are `phi0 = 0`, valid, and would
+otherwise rank** -- listed in `task_shortlist.csv` under
+`tier = excluded_collapsed_denominator`. `sorting_bottles_cans_and_paper` is the clearest:
+16 predicates must flip, `D = 3`, and 3 does not even divide 16.
+
+**A task is trustworthy only when `phi0 = 0` AND `D` equals the must-flip count.**
+`denominator_status` reports this as `CONSISTENT` / `COLLAPSED` / `UNDER_FIRES`.
+
+## Warning 4 -- the committed corpus stats are a 28.4% sample, and `phi0` does not survive it (new)
+
+`behavior1k_task_table.csv` and friends were measured over the first parquet shard(s) of
+each task: **5,677 of 20,000 episodes**. `D` is a min over magnitudes and is unchanged --
+re-measured on all 200 episodes for 21 tasks, `D` matched the committed value **21 of 21**.
+
+`phi0` and `valid_rate` do **not** survive:
+
+| Task | sample phi0 | sample eps | full phi0 | episodes with phi0 > 0 (of 200) |
+|---|---|---|---|---|
+| `installing_a_fax_machine` | 0.0 | 62 | **0.1075** | **43** |
+| `make_rose_centerpieces` | 0.0938 | 54 | **0.1356** | 81 |
+| `chop_an_onion` | 0.0568 | 70 | 0.0650 | 48 |
+| `sweeping_garage` | 0.0 | 54 | 0.0100 | 4 |
+| `spraying_fruit_trees` | 0.0 | 200* | 0.0075 | 3 |
+
+`installing_a_fax_machine` was **rank 9 of the previous shortlist on the strength of
+`phi0 = 0`**. It is not a `phi0 = 0` task; 21.5% of its episodes under-fire. It has been
+removed. Any task in `task_shortlist.csv` marked `measurement = sample-28pct` has **not**
+been checked this way.
+
+\* its shard happened to hold all 200 episodes, but under the older, stricter gate set.
+
+## Warning 5 -- zero-headroom episodes (new)
+
+One `vacuuming_floors` episode and two `hanging_pictures` episodes **terminate having
+fired no reward at all**: `phi0 = 1`, so progress is the constant `1.0` for every frame.
+The label would teach that a freshly-reset scene is already complete. These pass range
+(1 is in `[0,1]`) and integrality (`1*D` is integral), so nothing in the original recipe
+rejected them. `labels.py` drops them as `no_headroom`. They are invisible in the sample.
+
+## Warning 6 -- non-monotonic progress
+
+A genuine predicate flip-back survives repair by design, so progress can dip mid-episode.
+This is not rare on multi-unit tasks: **44 of 197** valid `cook_bacon` episodes,
+**146 of 200** `chop_an_onion`, **131 of 188** `make_rose_centerpieces`. Every manifest
+reports `episodes_nonmonotonic`. `labels.py` does not smooth it -- the dips are real
+predicate state -- but a progress head trained with a monotonicity prior will fight them.
+Decide this before training, not after.
+
+---
+
+## Task selection
+
+Budget is 2–8 tasks at ~64 GPU-hours each. Criteria, in the stated priority order:
+
+1. **`phi0 = 0` in every episode** (necessary, not sufficient -- warning 3).
+2. **Short mean episode length** -- eval timeout is `1.5x` the task's own mean demo
+   length, so a short task is far cheaper to evaluate.
+3. **`valid_rate >= 0.70`**.
+4. **Enough episodes** -- all 200 for every task below.
+
+Plus the task-3 exclusion: a `COLLAPSED` denominator removes a task from the primary tier.
+
+### Why length dominates
+
+Full-corpus mean demo length runs **2,150 to 27,000+ frames** (corpus mean 10,546 over all
+20,000 episodes). Eval cost is essentially linear in the timeout, so task choice alone
+swings the eval bill by an order of magnitude. `rel_eval_cost` is normalised to the corpus
+mean: the top pick costs **0.20x** an average task. The whole recommended four costs
+**0.90x a single average task**.
+
+### Ranked shortlist
+
+Ranks 1–11 are measured on **all 200 episodes** with this pipeline. Full detail in
+`task_shortlist.csv`; the audit columns are in `bddl_audit.csv`.
+
+| # | Task | D | Mean len | Timeout | Rel cost | Valid | phi0>0 | Non-mono | Denominator |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | `turning_on_radio` | 1 | 2,150 | 3,224 | 0.20x | 1.000 | 0 | 1 | CONSISTENT |
+| 2 | `hanging_pictures` | 1 | 2,387 | 3,581 | 0.23x | 0.990 | 0 | 0 | CONSISTENT |
+| 3 | `vacuuming_floors` | 1 | 2,412 | 3,618 | 0.23x | 0.995 | 0 | 0 | CONSISTENT |
+| 4 | `installing_smoke_detectors` | 1 | 2,569 | 3,853 | 0.24x | 1.000 | 0 | 0 | CONSISTENT |
+| 5 | `scrubbing_bathroom_floor` | 1 | 3,154 | 4,731 | 0.30x | 1.000 | 0 | 0 | CONSISTENT |
+| 6 | `make_cabinet_doors` | 1 | 3,442 | 5,164 | 0.33x | 1.000 | 0 | 0 | CONSISTENT |
+| 7 | `clean_a_keyboard` | 1 | 3,876 | 5,814 | 0.37x | 1.000 | 0 | 0 | CONSISTENT |
+| 8 | `attach_a_camera_to_a_tripod` | 1 | 3,912 | 5,867 | 0.37x | 1.000 | 0 | 0 | CONSISTENT |
+| 9 | `clean_a_trumpet` | 1 | 5,307 | 7,961 | 0.50x | 0.990 | 0 | 0 | CONSISTENT |
+| 10 | `store_honey` | 1 | 6,767 | 10,150 | 0.64x | 1.000 | 0 | 8 | CONSISTENT |
+| 11 | **`cook_bacon`** | **7** | 7,680 | 11,519 | 0.73x | 0.985 | 0 | 44 | CONSISTENT |
+| 12 | `cook_a_frozen_pie` | 2 | 8,668 | 13,002 | 0.82x | 0.855 | – | – | CONSISTENT *(sample only)* |
+
+**Recommended 4 if the budget is tight:** `turning_on_radio`, `hanging_pictures`,
+`vacuuming_floors`, `installing_smoke_detectors` -- all `D = 1`, `phi0 = 0` on all 200
+episodes, validity >= 0.99, `CONSISTENT`, and together **0.90x the eval cost of one
+average task**. Varied in skill: a toggle, two `attached()` placements, and surface
+cleaning.
+
+**Recommended 5th: `cook_bacon`.** See below.
+
+### Medium-D: state the tradeoff, then note it mostly is not one
+
+The `phi0 = 0` set skews hard to `D = 1`: 30 tasks qualify on criteria 1, 3 and 4, warning 3
+removes 14, and of the 16 that remain almost all are binary
+rewards, where a shaping target carries almost no information -- progress is 0 until it
+is 1. We want at least one task with real progress structure.
+
+**`cook_bacon` is the only `D >= 4` task in the entire corpus with `phi0 = 0`.** Every
+other task with `D >= 4` is `UNDER_FIRES` or `COLLAPSED` -- verified across all 98 tasks
+with a measurable `D` in `bddl_audit.csv`. It has `D = 7` (6 bacon slices cooking
+independently, plus a fridge-closed literal already true at init, so 6 units are real
+work), `phi0 = 0` in 200 of 200 episodes, validity 0.985, `CONSISTENT`, and at **0.73x**
+it is cheaper than previously believed (its sampled mean length overstated by 10%).
+
+So the tradeoff is far smaller than the earlier analysis claimed: `cook_bacon` ranks 11 in
+the primary tier on its own merits. It costs about as much as three of the top four
+together, and its one real cost is warning 6 -- 44 of 197 episodes have non-monotonic
+progress.
+
+The two next-best `D >= 4` candidates are genuinely compromised at full scale, and are
+listed as `medium_D` in the shortlist for completeness, **not** as recommendations:
+
+| Task | D | Rel cost | Valid | phi0 (full) | eps with phi0>0 | Non-mono | Verdict |
+|---|---|---|---|---|---|---|---|
+| `make_rose_centerpieces` | 4 | 0.43x | 0.940 | 0.136 | 81/200 | 131 | UNDER_FIRES -- worse than the sample said |
+| `chop_an_onion` | 4 | 0.61x | 1.000 | 0.065 | 48/200 | 146 | UNDER_FIRES -- 73% non-monotonic |
+
+**Suggested 5-task slate:** the recommended 4 plus `cook_bacon`. Total **1.63x** the eval
+cost of a single average task. If a sixth is wanted, `scrubbing_bathroom_floor` (0.30x).
+
+### The organizers' two suggestions
+
+- **`turning_on_radio` -- rank 1.** Confirmed excellent, and it improves on the fuller
+  measurement: shortest task in the corpus at 2,150 frames (the sample overstated it by
+  8%), validity 1.000 across all 200 episodes, `D = 1` matching its single `toggled_on`
+  literal. Take it.
+- **`make_microwave_popcorn` -- excluded.** It is short (3,238) and `phi0 = 0` with
+  validity 1.000 on all 200 episodes, so on the stated criteria it looks clean. The audit
+  says otherwise: its goal is **two** literals -- `real(cooked__popcorn)` and
+  `contains(popcorn__bag, cooked__popcorn)` -- and `D = 1`. Both must flip; reward fires
+  once. `COLLAPSED`. Per task 3 it is excluded from the shortlist. It would train
+  (self-consistent, full headroom) but half its goal is invisible to the reward, so it can
+  never demonstrate that shaping works.
+
+---
+
+## Instrumentation audit (task 3)
+
+Method: read each task's BDDL goal literals from `../census/goal_census_detail.json`, count
+those not already true at init (**must flip**), and compare against reward events actually
+observed, `D * (1 - phi0)`. Literals with unknown init state are counted as needing to
+flip. Full table for all 98 tasks with a measurable `D` in `bddl_audit.csv`.
+
+| Task | D | Must flip | Literals | Reward events | Verdict |
+|---|---|---|---|---|---|
+| `turning_on_radio` | 1 | 1 | 1 | 1.00 | **clean** |
+| `hanging_pictures` | 1 | 1 | 1 | 1.00 | **clean** |
+| `vacuuming_floors` | 1 | 1 | 1 | 1.00 | **clean** |
+| `installing_smoke_detectors` | 1 | 1 | 1 | 1.00 | **clean** |
+| `scrubbing_bathroom_floor` | 1 | 1 | 1 | 1.00 | **clean** |
+| `make_cabinet_doors` | 1 | 1 | 1 | 1.00 | **clean** |
+| `clean_a_keyboard` | 1 | 1 | 1 | 1.00 | **clean** |
+| `attach_a_camera_to_a_tripod` | 1 | 1 | 1 | 1.00 | **clean** |
+| `clean_a_trumpet` | 1 | 1 | 1 | 1.00 | **clean** |
+| `store_honey` | 1 | 1 | 1 | 1.00 | **clean** |
+| `cook_bacon` | 7 | 6 | 7 | 7.00 | **clean** (1 literal already true at init) |
+| `cook_a_frozen_pie` | 2 | 2 | 2 | 2.00 | **clean** *(sample only)* |
+| `make_microwave_popcorn` | 1 | 2 | 2 | 1.00 | **do not use** -- `COLLAPSED`, excluded |
+| `installing_a_fax_machine` | 2 | 2 | 2 | 1.78 | **do not use** -- `UNDER_FIRES` at full scale, excluded |
+| `make_rose_centerpieces` | 4 | 4 | 4 | 3.46 | **suspect** -- 81/200 episodes under-fire |
+| `chop_an_onion` | 4 | 4 | 4 | 3.74 | **suspect** -- 48/200 episodes under-fire |
+| `sweeping_garage` | 2 | 2 | 2 | 1.98 | **suspect** -- 4/200, marginal; dropped from the list |
+| `putting_dishes_away_after_cleaning` | 14 | 8 | 10 | 1.02 | **do not use** -- reference defect |
+
+**Result: 11 of the top 12 are clean**, and the twelfth is clean on a sample it has not
+been possible to confirm at full scale. The audit removed three tasks that the previous
+shortlist carried: `make_microwave_popcorn` (collapsed denominator),
+`installing_a_fax_machine` and `sweeping_garage` (under-fire, only visible at full scale).
 
 ---
 
@@ -55,259 +354,45 @@ Any `phi_0 > 0` on a successful demo means reward under-fired. This is what caug
 
 | File | What it is |
 |---|---|
-| `og_state_decoder.py` | Decodes OmniGibson flat state vectors into named object poses/joints, using the `scene_file` attr in each HDF5. Handles the assisted-grasp sentinel block and carry-forward of absent objects. |
-| `behavior1k_reward_map.json` | Per task: `D`, `phi0_mean`, episode counts, validity, `reward_instrumentation`, `usable_for_labels`. The file to load at training time. |
-| `behavior1k_task_table.csv` | 100 rows, full per-task measurement detail (magnitudes, multiflip, repair rates, phi0 distribution). |
-| `behavior1k_episode_stats.csv` | 5,677 rows, one per episode. |
-| `lerobot_sweep_ep_stats.csv` | 316-episode sweep with each validation gate broken out (`term_ok`, `inrange`, `integral`). |
+| `labels.py` | **The label pipeline.** Parquet in, per-frame `progress` + `satisfied_count` out, with refusals. |
+| `tests/test_labels.py` | 26 tests against real parquet, including the refusal case and the corpus regression pin. |
+| `measure_corpus.py` | Re-measures `D`, `phi0`, validity on **all 200** episodes of every locally-held task; also emits corpus-wide lengths. |
+| `build_shortlist.py` | Regenerates `task_shortlist.csv` and `bddl_audit.csv`. |
+| `og_state_decoder.py` | Decodes OmniGibson flat state vectors into named object poses/joints via the `scene_file` attr in each HDF5. Handles the assisted-grasp sentinel block and carry-forward of absent objects. |
+| `behavior1k_reward_map.json` | Per task: `D`, `phi0_mean`, counts, validity, `reward_instrumentation`, `usable_for_labels`. The file `labels.py` loads. **Sample-scope.** |
+| `behavior1k_task_table.csv` | 100 rows, per-task measurement detail. **Sample-scope.** |
+| `behavior1k_episode_stats.csv` | 5,677 rows, one per episode. **Sample-scope.** The regression test pins against this. |
+| `full_corpus_lengths.csv` | All 100 tasks, mean/median/p90 length over all 20,000 episodes, plus eval timeout and relative cost. |
+| `full_corpus_remeasure.csv` | 21 tasks re-measured over all 200 episodes with this pipeline. |
+| `task_shortlist.csv` | Training-candidate ranking (task 2), with the audit columns. |
+| `bddl_audit.csv` | Task-3 audit for all 98 tasks with a measurable `D`. |
+| `lerobot_sweep_ep_stats.csv` | 316-episode sweep with each validation gate broken out. |
+| `lerobot_reward_ep_stats.csv` | The original 12-task reward reconnaissance. |
 | `reward_denominators.json` | The 12 tasks used to derive the recipe: observed `D` vs top-level conjuncts vs quantifier-expanded count. |
-| `task_goal_terms.json` | Top-level BDDL conjunct counts. **Not a source of `D`** — see below. |
-| `task_shortlist.csv` | Training-candidate ranking (task 2). |
-| `build_shortlist.py` | Regenerates `task_shortlist.csv` and the audit columns. |
+| `task_goal_terms.json` | Top-level BDDL conjunct counts. **Not a source of `D`** -- warning 1. |
 
 ---
 
-## Warning 1 — `task_goal_terms.json` is not a source of `D`
+## Dataset provenance
 
-It counts **top-level BDDL conjuncts**, which is not what the reward divides by. It agrees
-with the measured `D` on only **67 of 98** tasks. The failure is quantifiers: `picking_up_trash`
-has 1 top-level conjunct (`forall` over three cans) but the reward uses `D = 3`.
+The demo repo `behavior-1k/2026-challenge-demos` was patched twice:
 
-**Always measure `D` from the reward trace. Retained for reference only.**
+| Commit | Date | What |
+|---|---|---|
+| `e6c97564` | 2026-07-28 | base `qvel` states |
+| `4f50b447` | **2026-08-05** | arm, trunk and gripper `qvel` in `observation.state`, plus `meta/stats.json` |
 
----
+`4f50b447` is still `main` -- no commits since. Every measurement here was taken from a
+pull at that revision. Both patches touch `observation.state` only; `next.reward`,
+`next.terminated` and `next.truncated` are untouched by either, so the reward analysis
+would have been valid pre-patch too. A policy trained on pre-patch `observation.state`
+would not be.
 
-## Warning 2 — the instrumentation defect
+## Do not let `compute_norm_stats.py` resolve episodes over the network
 
-On some tasks the reward under-fires: the demo reaches the goal but reward never credits
-every unit. **Validation does not catch this** — such episodes pass all three gates, because
-the gates check internal consistency, not whether the reward matches the BDDL goal.
+`compute_norm_stats.py --config-name pi05_b1k` issues a **per-episode** resolver request
+across every task and trips HuggingFace's 5,000-requests-per-5-minutes limit. Point the
+**dataset config** at a local path before running it. Organizer-confirmed.
 
-The signature is `phi_0`, which counts units that never fired:
-
-- **`phi_0 = 0`** — every unit fired. Good instrumentation.
-- **high `phi_0`** — suspect. Most of the goal was never credited.
-
-### Named tasks
-
-| Task | D | phi0 | Reward events (of D) | Status |
-|---|---|---|---|---|
-| `putting_dishes_away_after_cleaning` | 14 | 0.929 | 1.0 of 14 | **PROVEN incomplete** |
-| `sorting_vegetables` | 13 | 0.703 | 3.9 of 13 | SUSPECTED |
-| `assembling_gift_baskets` | 16 | 0.699 | 4.8 of 16 | SUSPECTED |
-| `canning_food` | 10 | 0.638 | 3.6 of 10 | SUSPECTED |
-| `rearranging_kitchen_furniture` | – | – | none | **BROKEN — no signal** |
-| `storing_food` | – | – | none | **BROKEN — no signal** |
-
-**`putting_dishes_away_after_cleaning` is the proven case**: `D = 14`, but a successful demo
-fires reward **exactly once**. Thirteen of fourteen goal units are never credited. Its BDDL goal
-is 8 `inside(plate, cabinet)` literals plus 2 `not open(cabinet)` literals, and the denominator
-is scene-dependent (`cabinet.n.01_*` wildcard), so `D` varies. `rearranging_kitchen_furniture`
-and `storing_food` emit **no reward at all** (validity 0.0) and have no measurable `D`.
-
----
-
-## Warning 3 — `phi_0 = 0` does NOT prove complete instrumentation (new)
-
-Found while running the task-3 audit. This **corrects the rule stated above** and it changes
-which tasks are safe.
-
-`phi_0` measures firing *relative to D*. If `D` itself was collapsed below the true goal size
-**before** measurement, `phi_0 = 0` merely confirms `D` and the observed events agree — it says
-nothing about whether `D` matches the BDDL goal. This is a second, independent defect mode,
-and `phi_0` is blind to it.
-
-Comparing measured `D` against BDDL predicates that must flip (`analysis/census/`), on
-scene-invariant tasks only:
-
-- **32 tasks** have `D` < predicates that must flip.
-- **18 of them have `phi_0 = 0` in every episode and are marked `ok`** — completely invisible
-  to the existing validation.
-- That is **18 of the 41 `phi_0 = 0` tasks (44%)**.
-
-Worst offenders, all `phi_0 = 0` and all previously marked `ok`:
-
-| Task | D | Must flip | Hidden units |
-|---|---|---|---|
-| `putting_away_toys` | 1 | 8 | 7 |
-| `laying_tile_floors` | 2 | 8 | 6 |
-| `stacking_wood` | 1 | 6 | 5 |
-| `collecting_aluminum_cans` | 1 | 6 | 5 |
-| `packing_meal_for_delivery` | 2 | 6 | 4 |
-| `turning_out_all_lights_before_sleep` | 2 | 5 | 3 |
-| `dispose_of_glass` | 1 | 4 | 3 |
-| `store_produce` | 1 | 4 | 3 |
-
-`sorting_bottles_cans_and_paper` is the clearest: 16 predicates must flip, `D = 3`, and 3 does
-not even divide 16. `putting_away_toys` and `stacking_wood` are `D = 1` binary rewards standing
-in for 8- and 6-predicate goals.
-
-**Consequence:** a task is only trustworthy when `phi_0 = 0` **and** `D` equals the number of
-BDDL predicates that must flip. `task_shortlist.csv` reports this as `denominator_status`
-(`CONSISTENT` / `COLLAPSED` / `UNDER_FIRES`).
-
----
-
-## Task selection (task 2)
-
-Budget is 2–8 tasks at ~64 GPU-hours each. Criteria, in the stated priority order:
-
-1. **`phi_0 = 0` in every episode** — full headroom and (necessary, not sufficient — see
-   warning 3) evidence of complete instrumentation. **41 of 98** tasks qualify.
-2. **Short mean episode length** — the eval timeout is `1.5 x` the task's own mean demo
-   length, so a short task is far cheaper to evaluate. **This is the criterion that had not
-   been applied before, and it reshuffles the list completely.**
-3. **Validity rate >= 70%** — drops 41 to **34**. (Redundant with `usable_for_labels`, which
-   already gates on exactly this threshold.)
-4. **Enough episodes** — every task below has >= 39 valid episodes.
-
-### Why length dominates
-
-Mean demo length across the corpus runs **2,312 to 27,584 frames — a 12x spread** (corpus
-mean 10,842). Eval cost is essentially linear in the timeout, so task choice alone swings the
-eval bill by an order of magnitude. `rel_eval_cost` in the shortlist is normalised to the
-corpus mean: **the top pick costs 0.21x an average task; `boxing_books_up_for_storage` would
-cost 2.5x.** Picking the eight shortest `phi_0 = 0` tasks instead of eight average ones cuts
-the eval budget by roughly **70%**.
-
-### Ranked shortlist
-
-Full detail in `task_shortlist.csv`.
-
-| # | Task | D | Mean len | Timeout | Rel cost | Valid | Eps | Denominator |
-|---|---|---|---|---|---|---|---|---|
-| 1 | `vacuuming_floors` | 1 | 2312 | 3468 | 0.21x | 1.0 | 105 | CONSISTENT |
-| 2 | `turning_on_radio` | 1 | 2342 | 3514 | 0.22x | 1.0 | 98 | CONSISTENT |
-| 3 | `hanging_pictures` | 1 | 2407 | 3611 | 0.22x | 1.0 | 94 | CONSISTENT |
-| 4 | `installing_smoke_detectors` | 1 | 2518 | 3776 | 0.23x | 1.0 | 96 | CONSISTENT |
-| 5 | `scrubbing_bathroom_floor` | 1 | 3113 | 4670 | 0.29x | 1.0 | 77 | CONSISTENT |
-| 6 | `make_microwave_popcorn` | 1 | 3374 | 5061 | 0.31x | 1.0 | 68 | COLLAPSED |
-| 7 | `make_cabinet_doors` | 1 | 3535 | 5303 | 0.33x | 1.0 | 68 | CONSISTENT |
-| 8 | `clean_a_keyboard` | 1 | 3876 | 5814 | 0.36x | 1.0 | 62 | CONSISTENT |
-| 9 | `installing_a_fax_machine` | 2 | 3914 | 5871 | 0.36x | 0.71 | 62 | CONSISTENT |
-| 10 | `attach_a_camera_to_a_tripod` | 1 | 3987 | 5980 | 0.37x | 1.0 | 57 | CONSISTENT |
-| 11 | `sweeping_garage` | 2 | 4475 | 6713 | 0.41x | 0.963 | 54 | CONSISTENT |
-| 12 | `clean_a_trumpet` | 1 | 5695 | 8542 | 0.53x | 0.975 | 40 | CONSISTENT |
-
-**Recommended 4 if the budget is tight:** `vacuuming_floors`, `turning_on_radio`,
-`hanging_pictures`, `installing_smoke_detectors` — all `D = 1`, `phi_0 = 0`, validity 1.00,
-`CONSISTENT` denominators, 94–105 episodes each, and all under 0.25x eval cost.
-They are also varied in skill: surface cleaning, a toggle, and two `attached()` placements.
-
-### The organizers' two suggestions
-
-- **`turning_on_radio` — rank 2.** Confirmed excellent. Shortest but one, validity 1.00,
-  98 episodes, `D = 1` matching its single `toggled_on` literal. Take it.
-- **`make_microwave_popcorn` — rank 6 on cost, but flagged `COLLAPSED`.** It is short (3,374)
-  and `phi_0 = 0` with validity 1.00, so on the stated criteria it looks clean. The audit says
-  otherwise: its goal is **two** literals — `real(cooked__popcorn)` and
-  `contains(popcorn__bag, cooked__popcorn)` — and `D = 1`. Both must flip; reward fires once.
-  It is safe to train on (self-consistent, full headroom) but it carries **zero** progress
-  structure and one of its two subgoals is invisible to the reward. **Usable, not a
-  demonstration of reward shaping.**
-
-### Medium-D candidates (deliberate)
-
-The `phi_0 = 0` set skews hard to `D = 1–2` — of the 34 qualifying tasks, **23 are `D = 1`**
-and only **one** has `D >= 4`. A reward that is nearly binary gives a shaping contribution
-almost nothing to learn from, so we should carry at least one task with real progress
-structure even at higher cost:
-
-| Task | D | Mean len | Rel cost | Valid | phi0 | Denominator | Why |
-|---|---|---|---|---|---|---|---|
-| `cook_bacon` | 7 | 8547 | 0.79x | 0.962 | 0.0 | CONSISTENT | **No tradeoff.** The only D>=4 task with phi0=0. 6 bacon slices cook independently — 7 clean units. |
-| `make_rose_centerpieces` | 4 | 4402 | 0.41x | 0.889 | 0.0938 | UNDER_FIRES | Shortest medium-D task (0.41x). 3 roses + vase placement. Mild under-fire. |
-| `chop_an_onion` | 4 | 6385 | 0.59x | 0.943 | 0.0568 | UNDER_FIRES | 70 episodes, validity 0.94. Mixed predicate types (slice, place, contain). |
-
-**The tradeoff, stated explicitly.** Criterion 1 and the need for progress structure pull in
-opposite directions: `phi_0 = 0` selects for goals so simple they cannot under-fire, which is
-exactly the set with no shaping signal. Medium-D tasks cost **2–4x more per eval** and mostly
-carry small non-zero `phi_0`.
-
-**`cook_bacon` resolves it.** `D = 7`, `phi_0 = 0` exactly, validity 0.96, and all 7 units fire.
-It is the one task in the corpus that is both structurally rich and provably clean. One caveat:
-one of its 7 literals (`not open(electric_refrigerator)`) is already true at init, so 6 units
-represent real work. At 0.79x cost it should be in any shortlist of 4 or more.
-
-**Suggested 6-task slate:** the recommended 4, plus `cook_bacon` (structure) and
-`make_rose_centerpieces` (structure at low cost). Total ~2.0x the eval cost of a *single*
-average task.
-
----
-
-## Instrumentation audit (task 3)
-
-Method: read each task's BDDL goal literals from `analysis/census/goal_census_detail.json`,
-count those not already true at init (**must flip**), and compare against reward events
-actually observed, `D * (1 - phi_0)`. Literals with unknown init state are counted as needing
-to flip.
-
-| Task | D | Must flip | Literals | Reward events | Verdict |
-|---|---|---|---|---|---|
-| `vacuuming_floors` | 1 | 1 | 1 | 1.0 | **clean** |
-| `turning_on_radio` | 1 | 1 | 1 | 1.0 | **clean** |
-| `hanging_pictures` | 1 | 1 | 1 | 1.0 | **clean** |
-| `installing_smoke_detectors` | 1 | 1 | 1 | 1.0 | **clean** |
-| `scrubbing_bathroom_floor` | 1 | 1 | 1 | 1.0 | **clean** |
-| `make_microwave_popcorn` | 1 | 2 | 2 | 1.0 | **suspect** — D below goal size |
-| `make_cabinet_doors` | 1 | 1 | 1 | 1.0 | **clean** |
-| `clean_a_keyboard` | 1 | 1 | 1 | 1.0 | **clean** |
-| `installing_a_fax_machine` | 2 | 2 | 2 | 2.0 | **clean** |
-| `attach_a_camera_to_a_tripod` | 1 | 1 | 1 | 1.0 | **clean** |
-| `sweeping_garage` | 2 | 2 | 2 | 2.0 | **clean** |
-| `clean_a_trumpet` | 1 | 1 | 1 | 1.0 | **clean** |
-| `cook_bacon` | 7 | 6 | 7 | 7.0 | **clean** (1 literal already true at init) |
-| `make_rose_centerpieces` | 4 | 4 | 4 | 3.62 | **suspect** — units uncredited |
-| `chop_an_onion` | 4 | 4 | 4 | 3.77 | **suspect** — units uncredited |
-| `putting_dishes_away_after_cleaning` | 14 | 8 | 10 | 1.0 | **do not use** — reference defect |
-
-**Result: 11 of the top 12 are clean.** The single flag is `make_microwave_popcorn`
-(`COLLAPSED`, discussed above). The two medium-D picks `make_rose_centerpieces` and
-`chop_an_onion` show small `UNDER_FIRES` — their denominators match the goal, but a minority
-of demos end without crediting the last unit (~0.3 of 4 on average). That is ordinary demo
-noise, not the `putting_dishes_away` failure mode; the dropped episodes are already excluded
-by validation. Both remain usable.
-
----
-
-## The 76 `usable_for_labels` tasks
-
-The gate in `behavior1k_reward_map.json` is exactly:
-
-```
-usable_for_labels  ==  reward_instrumentation == "ok"  AND  valid_rate >= 0.70
-```
-
-The separation is clean: the lowest-validity included task is `installing_a_fax_machine` at
-**0.7097**, the highest excluded is `clearing_food_from_table_into_fridge` at **0.6957**.
-
-**It does not yet incorporate warning 3** — 18 of these 76 have collapsed denominators.
-They are safe to *train* on but should not be cited as evidence that shaping works.
-
-|  |  |  |  |
-|---|---|---|---|
-| `attach_a_camera_to_a_tripod` | `boxing_books_up_for_storage` | `bringing_in_wood` | `bringing_paper_to_recycling` |
-| `bringing_water` | `can_meat` | `carrying_in_groceries` | `chop_an_onion` |
-| `chopping_wood` | `clean_a_keyboard` | `clean_a_patio` | `clean_a_trumpet` |
-| `clean_boxing_gloves` | `clean_up_broken_glass` | `clean_up_your_desk` | `clean_your_rusty_garden_tools` |
-| `cleaning_up_branches_and_twigs` | `cleaning_up_plates_and_food` | `collecting_aluminum_cans` | `cook_a_brisket` |
-| `cook_a_frozen_pie` | `cook_bacon` | `cook_broccolini` | `cook_brussels_sprouts` |
-| `cook_cabbage` | `cook_hot_dogs` | `dispose_of_glass` | `freeze_fruit` |
-| `freeze_pies` | `getting_organized_for_work` | `halve_an_egg` | `hanging_pictures` |
-| `hiding_Easter_eggs` | `installing_a_fax_machine` | `installing_a_modem` | `installing_smoke_detectors` |
-| `loading_the_car` | `make_cabinet_doors` | `make_microwave_popcorn` | `make_pizza` |
-| `make_rose_centerpieces` | `organizing_art_supplies` | `outfit_a_basic_toolbox` | `picking_up_toys` |
-| `picking_up_trash` | `polishing_shoes` | `preparing_lunch_box` | `put_together_a_basic_pruning_kit` |
-| `putting_away_Halloween_decorations` | `putting_away_toys` | `putting_shoes_on_rack` | `putting_up_Christmas_decorations_inside` |
-| `re_shelving_library_books` | `rearrange_your_room` | `scrubbing_bathroom_floor` | `set_up_a_coffee_station_in_your_kitchen` |
-| `setting_mousetraps` | `setting_the_fire` | `slicing_vegetables` | `sorting_bottles_cans_and_paper` |
-| `sorting_household_items` | `spraying_for_bugs` | `spraying_fruit_trees` | `stacking_wood` |
-| `store_batteries` | `store_honey` | `store_produce` | `sweeping_garage` |
-| `thawing_frozen_food` | `tidying_bathroom` | `turning_on_radio` | `turning_out_all_lights_before_sleep` |
-| `unloading_the_car` | `vacuuming_floors` | `wash_a_baseball_cap` | `wash_dog_toys` |
-
-**Excluded (24):** the 6 named in warning 2, plus **18 with `valid_rate < 0.70`** — the worst
-being `tidying_bedroom` (0.05, only 2 valid episodes of 40), `dispose_of_batteries` (0.26) and
-`tidying_living_room` (0.39). **No task fails magnitude integrality** — every task with a
-measurable `D` has all magnitudes as exact multiples of `1/D`, so step 2 of the recipe has
-never once rejected a task. It rules out a wrong `D`, not a bad task.
+`labels.py` and `measure_corpus.py` are already immune: they resolve every episode from
+`meta/episodes/` on disk and never call the hub.
