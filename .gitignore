@@ -36,3 +36,9 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+
+# The openpi fork. Cloned as a SIBLING directory, never inside this repo -- it is
+# ~1GB and has its own git history. Our changes to it live in training/patches/
+# and are applied with scripts/apply_openpi_patches.sh.
+openpi/
+../openpi/
