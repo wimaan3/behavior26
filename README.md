@@ -17,6 +17,7 @@ a scripted policy, a random-action sanity check. That is what makes ablations ch
 
 ```
 policy/     the model + websocket server (what the evaluator talks to)
+training/   openpi fork patches + the progress head (our contribution)
 harness/    parallel rollout orchestration — the thing that makes iteration possible
 analysis/   rollout JSON -> dataframe -> failure taxonomy -> paired A/B
 submission/ package + validate the final zip
@@ -63,6 +64,46 @@ synthetic. A green run says the pipeline is wired correctly, not that the policy
 The protocol is implemented against the published docs and is **not yet verified against
 a BEHAVIOR-1K checkout** — see the assumption list at the top of `policy/wire.py` and
 confirm all of it on the first real run.
+
+## Training
+
+The evaluation side of this repo is done. The training side is the critical path.
+π₀.₅ trains in the **openpi fork** (`wensi-ai/openpi`, branch `behavior`), which
+is cloned as a sibling directory and patched — see [training/README.md](training/README.md)
+for what the fork actually contains, quoted from the code.
+
+```bash
+git clone -b behavior https://github.com/wensi-ai/openpi.git ../openpi
+scripts/apply_openpi_patches.sh              # verifies before it writes
+OPENPI_ROOT=../openpi pytest tests/test_progress_head.py -q
+OPENPI_ROOT=../openpi python scripts/estimate_memory.py
+bash scripts/train_cloud.sh --dry-run        # print the plan, run nothing
+```
+
+**A full fine-tune does not fit.** openpi's own README puts it above 70 GB, and
+`pi05_b1k` is a full fine-tune with EMA still on. Three configs that do fit:
+
+| Config | Trains | Note |
+|---|---|---|
+| `pi05_b1k_frozen_vlm` | the action expert (~0.43B) | Preferred. No new code path. |
+| `pi05_b1k_lora` | LoRA adapters | Untested for pi05 upstream — budget debugging. |
+| `pi05_b1k_frozen_vlm_progress` | action expert + progress head | Our contribution. A clean A/B against the first. |
+
+Run `scripts/estimate_memory.py` for the numbers; it measures the shipped
+configs rather than repeating a table that can drift.
+
+Two traps that cost a run each, both now pinned by tests:
+
+- **`PathRegex(".*llm.*")` is not "the VLM".** Both experts live inside
+  `PaliGemma/llm`, so it freezes the action expert and leaves the 415M SigLIP
+  tower trainable — the opposite of the intent, at the same memory cost. Use
+  `pi0_config.freeze_vlm_filter()`.
+- **A new head aborts checkpoint loading.** `CheckpointWeightLoader` validates
+  structural equality after merging, so a parameter absent from `pi05_base` and
+  not matched by `missing_regex` fails at startup — after the ~7 GB download.
+
+openpi has **no gradient accumulation**. A smaller batch is a genuinely smaller
+effective batch, not just a slower step.
 
 ## Why the harness matters more than it looks
 
@@ -182,6 +223,11 @@ pairing throws away the entire advantage. This is why the dev subset stays froze
 | `tests/mock_evaluator.py` | Working. Same CLI + protocol + output schema as the real evaluator, no simulator. |
 | `analysis/compare.py` | Working. Paired A/B with CI and a coverage guard. |
 | `tests/test_pipeline.py` | 16 tests, all passing. |
+| `training/patches/` | Working. Applied to the openpi fork by `scripts/apply_openpi_patches.sh`. |
+| `scripts/estimate_memory.py` | Working. Sizes any openpi TrainConfig from the real model graph. |
+| `scripts/train_cloud.sh` | Written, `--dry-run` verified. **Never run end to end** — no GPU here. |
+| `tests/test_progress_head.py` | 14 tests, all passing on CPU. |
+| progress-head labels | **Missing.** The head is wired and gradients reach it; nothing produces the label yet. |
 | `docker/policy-server/` | Skeleton. |
 | `policy/wrapper.py` | **Missing.** Required for submission; `tests/fixtures/mock_wrapper.py` is a test stand-in, not a substitute. |
 | `configs/robot/r1pro.yaml` | **Missing.** Copy it from the BEHAVIOR-1K checkout; see `configs/robot/README.md`. |
