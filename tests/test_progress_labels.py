@@ -345,3 +345,50 @@ def test_repack_without_progress_key_drops_the_column():
         {"observation.state": [0.0] * 57, "action": [0.0] * 23, "progress": 0.42}
     )
     assert "progress" not in out
+
+
+# --------------------------------------------------- the Jetson's actual schema
+
+
+def test_merge_accepts_the_jetson_label_schema(dataset, tmp_path):
+    """Pin the interface between the two halves of the contribution.
+
+    `analysis/reward/labels.py` on origin/jetson/labels documents its output as
+
+        <out>/<task>/labels.parquet   index, episode_index, frame_index,
+                                      task_index, progress (float32 in [0,1]),
+                                      satisfied_count (float32)
+
+    The merge script's defaults (--join-on episode_index frame_index,
+    --column progress) line up with that as-is. This test fails if either side
+    renames a column, which is the cheapest possible way to find that out --
+    the alternative is discovering it on the box that holds the 330 GB copy.
+    """
+    import pandas as pd
+
+    rows = [
+        {
+            "index": ep * FRAMES + fr,
+            "episode_index": ep,
+            "frame_index": fr,
+            "task_index": 0,
+            "progress": _progress_of(ep, fr),
+            "satisfied_count": float(fr),
+        }
+        for ep in range(EPISODES)
+        for fr in range(FRAMES)
+    ]
+    labels = tmp_path / "labels.parquet"
+    pd.DataFrame(rows).astype({"progress": "float32", "satisfied_count": "float32"}).to_parquet(labels)
+
+    out = tmp_path / "merged"
+    proc = _merge(dataset, labels, "--out-root", str(out))
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+    df = _read_merged(out)
+    for row in df.itertuples():
+        assert row.progress == pytest.approx(_progress_of(row.episode_index, row.frame_index), abs=1e-6)
+
+    # The extra columns must be ignored, not copied into the dataset.
+    assert "satisfied_count" not in df.columns
+    assert "task_index" in df.columns  # this one was already a dataset column
