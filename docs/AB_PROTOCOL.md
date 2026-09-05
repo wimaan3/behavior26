@@ -9,6 +9,47 @@ discovered by spending them.
 
 ---
 
+## 0a. Revision: budget cut to $200, and the tasks changed (2026-09-05)
+
+The A/B now runs on **two graded tasks**, not the D=1 shortlist:
+
+| task | idx | D | rel_eval_cost | phi0_mean |
+|---|---|---|---|---|
+| `set_up_a_coffee_station_in_your_kitchen` | 10 | 6 | 0.594 | 0.241 |
+| `putting_shoes_on_rack` | 22 | 10 | 0.733 | 0.111 |
+
+**This is good news and it partly supersedes §0 below.** D=6 and D=10 mean Q is
+graded, not binary, so the "no low-noise regime" argument does not apply to
+these two — graded outcomes carry more information per rollout, and §2's
+fallback ("if f is large, move to a graded task") has effectively already been
+taken. §0 still describes the D=1 shortlist tasks accurately, and still governs
+if we ever A/B on those.
+
+Two consequences that do carry over:
+
+- **The baseline is not zero.** `phi0_mean` is what a do-nothing policy already
+  banks, because Q is scored on the FINAL state and these tasks start partly
+  satisfied. Any reported ΔQ sits on top of ~0.24 and ~0.11, not on top of 0.
+- **σ_w must still be measured.** Graded Q reduces the variance; it does not
+  remove simulator indeterminism. §2 stands, and its task choice
+  (`turning_on_radio`, the only released checkpoint) is unchanged.
+
+Costs are now quoted at **spot** rates. The harness is resumable, so a
+preemption costs the in-flight rollout and nothing else.
+
+| item | GPU-hr | spot ($0.30–0.50/hr) |
+|---|---|---|
+| Noise-floor measurement (§2) | 9.3 | $3–5 |
+| Submission: 2 tasks × 20 public instances | 11.1 | $3–6 |
+| *(not doing)* full 100-task submission | 776 | $233–388 |
+
+**The submission ceiling is 0.020.** Q averages over all 100 tasks and 98 of
+ours score zero, so even at Q=1.0 on both trained tasks the reported score is
+2/100. That is the price of the budget and it is accepted deliberately: the
+contribution is the A/B result, not the leaderboard position.
+
+---
+
 ## 0. The fact that drives everything
 
 Every `primary` task on `analysis/reward/task_shortlist.csv` has **D = 1**: one
