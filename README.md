@@ -115,42 +115,57 @@ effective batch, not just a slower step.
 
 ## Why the harness matters more than it looks
 
-**Corrected 2026-09-04 against the BEHAVIOR-1K v3.9.2 source. The earlier figures
-in this section (1,000 rollouts, instances 0–9) were wrong.** From
-`omnigibson/eval/utils/eval_utils.py` and `utils/score_utils.py`:
+Verified against BEHAVIOR-1K v3.9.2,
+`omnigibson/eval/utils/eval_utils.py`:
 
 ```python
-TEST_INSTANCE_IDS = list(range(301, 341))   # 40 test instances
-NUM_PUBLIC_TEST_INSTANCES = 20              # public split = 301..320
+NUM_TEST_INSTANCES        = 40
+NUM_PUBLIC_TEST_INSTANCES = 20
+NUM_HIDDEN_TEST_INSTANCES = 20
+TEST_INSTANCE_IDS = list(range(301, 341))
 ```
 
-So a full public submission is **100 tasks × 20 instances × 1 rollout = 2,000
-rollouts**. At the organizers' published throughput (~13.5 FPS for full-res
-RGB+depth) plus 150–300s scene load per trial, one rollout is roughly **20–25
-minutes**.
+**Instance ids are 301–340.** Public test is 301–320, hidden is 321–340, and
+everything below 301 is a *training* instance. An earlier version of this
+section said "report on 0–9, dev on 10–19" — those are training instance ids,
+and the convention was wrong repo-wide.
 
-**2,000 rollouts ≈ 700–840 GPU-hours.** That is double the previous estimate and
-it is now all rented, so budget accordingly.
+| Set | Ids | Use |
+|---|---|---|
+| Training | < 301 | The only place to iterate. Dev loop lives here. |
+| Public test | 301–320 | Reported. All 20 are scored. Never tune on these. |
+| Hidden test | 321–340 | Never touch. |
 
-Two things follow that are easy to get wrong:
+A full public submission is **100 tasks × 20 instances × 1 rollout = 2,000
+rollouts**. At the organizers' published throughput (~13.5 FPS full-res RGB+D)
+plus 150–300s scene load per trial, one rollout is roughly **20–25 minutes**:
 
-1. **`--instance-indices` are indices into the split, not instance ids.**
-   `resolve_instance_ids` maps index 0 of `public_test` to instance **301**. The
-   rollout JSON and its filename carry the resolved id.
-2. **Missing rollouts are not skipped, they are zeros.**
-   `compute_final_q_score` divides by a fixed denominator:
+**2,000 rollouts ≈ 700–840 GPU-hours ≈ ~7–9 days on 4 cards, ~3.5–4.5 days on 8.**
+
+All of it rented, so it is billed.
+
+Two consequences that are easy to get wrong:
+
+1. **There is no self-test split inside the public set.** `compute_final_q_score`
+   averages over all 20 public instances per task, so holding back 10 of them as
+   a "dev set" does not protect anything — you would be tuning on half the
+   leaderboard and reporting the other half. The dev loop must use training
+   instances. `harness/launch.py` refuses a `mode: train` config that names a
+   test instance.
+2. **Missing rollouts are zeros, not omissions.**
    `q_score_avg[task] = sum(...) / n_instances_per_task` with
-   `n_instances_per_task = 20` for the public set. Submitting 10 instances per
-   task does not score those 10 — it **halves** the reported score.
+   `n_instances_per_task = 20`. Submitting 10 instances per task does not score
+   those 10 — it **halves** the reported score.
+
+Experiment configs declare real instance **ids**; the harness converts them to
+the `--instance-indices` the evaluator wants (which are indices into a split —
+index 0 of `public_test` is instance 301). That indirection is exactly what hid
+the old mistake, so the config layer no longer exposes it.
 
 | Config | Scope | Cost | When |
 |---|---|---|---|
-| **Dev loop** | ~12 tasks × 3 instances = 36 rollouts, `--mode train` | ~13 GPU-hr, overnight | Every iteration |
-| **Full eval** | 100 × 20 = 2,000 rollouts, `--mode public_test` | 700–840 GPU-hr | Only when submitting |
-
-The dev loop must use **`--mode train`**, whose indices are direct train instance
-ids. There is no free holdout inside `public_test`: all 20 of its instances are
-scored, so tuning against indices 10–19 is tuning against the leaderboard.
+| **Dev loop** | ~12 tasks × 3 training instances = 36 rollouts | ~13 GPU-hr, overnight | Every iteration |
+| **Full eval** | 100 × 20 = 2,000 rollouts, ids 301–320 | 700–840 GPU-hr | Only when submitting |
 
 ## Quickstart
 

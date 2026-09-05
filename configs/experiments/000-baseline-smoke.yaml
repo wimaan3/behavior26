@@ -10,7 +10,8 @@ base_model: pi05
 checkpoint: null                  # path to the downloaded turning_on_radio checkpoint
 
 tasks: [turning_on_radio]
-instances: [0]
+mode: train                       # a smoke test must not consume a scored instance
+instances: [0]                    # training instance id 0
 num_rollouts: 1
 
 host: 127.0.0.1

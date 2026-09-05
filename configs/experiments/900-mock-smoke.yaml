@@ -22,7 +22,11 @@ tasks:
   - cleaning_up_plates_and_food
   - can_meat
   - setting_mousetraps
-instances: [0, 1, 2]
+# This one deliberately uses PUBLIC ids: it exercises the submission packaging
+# path end to end against the mock, and submission/build.py validates that the
+# rollout ids fall inside the public split. No simulator is involved.
+mode: public_test
+instances: [301, 302, 303]
 num_rollouts: 1
 
 host: 127.0.0.1

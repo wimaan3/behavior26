@@ -3,14 +3,14 @@
 #
 # Three rules:
 #   1. Keep this list FROZEN so numbers are comparable across iterations.
-#   2. Run --mode train. CORRECTED 2026-09-04 against BEHAVIOR-1K v3.9.2: rule 2
-#      used to say "instances 10-19 only", which does not do what it sounds like.
-#      TEST_INSTANCE_IDS = range(301, 341) and public_test is the FIRST 20 of
-#      those, so --instance-indices 10-19 selects instances 311-320 -- all of
-#      which are scored, because compute_final_q_score averages over all 20
-#      public instances per task. There is no free holdout inside public_test.
-#      The train split is the only place to iterate without tuning on the
-#      leaderboard.
+#   2. TRAINING instances only (ids below 301). CORRECTED against BEHAVIOR-1K
+#      v3.9.2: rule 2 used to say "instances 10-19 only", which does not mean
+#      what it sounds like. TEST_INSTANCE_IDS = range(301, 341), public test is
+#      the first 20 of those, and compute_final_q_score averages over ALL 20 per
+#      task. So there is no self-test split inside the public set: iterating on
+#      any of 301-320 is tuning on the leaderboard. 321-340 is hidden -- never
+#      touch it. harness/launch.py enforces this and refuses a train-mode config
+#      that names a test instance.
 #   3. INCLUDE 2-3 TYPE C TASKS even though they will score badly.
 #
 # On rule 3 -- Q5 established that the cheap 10-task slice is mostly Type A/B
@@ -39,7 +39,7 @@ tasks: []                         # TODO: choose 12 after the Week 2 failure ana
                                   # putting_dishes_away_after_cleaning,
                                   # rearranging_kitchen_furniture, storing_food.
 mode: train                       # NOT public_test -- see rule 2 above
-instances: [10, 11, 12]           # train instance ids (train mode: index == id)
+instances: [10, 11, 12]           # TRAINING instance ids (must be < 301)
 num_rollouts: 1
 
 host: 127.0.0.1

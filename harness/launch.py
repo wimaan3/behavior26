@@ -6,7 +6,7 @@ Why this exists
 A full public submission is 100 tasks x 20 instances x 1 rollout = 2,000 rollouts.
 At the organizers' published throughput (~13.5 FPS for full-res RGB+depth) plus 150-300s
 scene load per trial, one rollout runs roughly 20-25 minutes. That puts a single full
-evaluation at ~350-420 GPU-hours -- over two weeks on one card.
+evaluation at ~700-840 GPU-hours -- ~7-9 days on 4 cards, ~3.5-4.5 days on 8.
 
 So evaluation has to be fanned out across workers, and it has to be resumable.
 This module does that by shelling out to the official evaluator, one subprocess per job.
@@ -57,36 +57,69 @@ EVAL_MODULE = os.environ.get("BEHAVIOR_EVAL_MODULE", "omnigibson.eval.eval")
 # VERIFIED against BEHAVIOR-1K v3.9.2 (omnigibson/eval/utils/eval_utils.py,
 # omnigibson/eval/evaluator.py :: resolve_instance_ids).
 #
-# `--instance-indices` are INDICES INTO A SPLIT, not instance ids. For
-# public_test, index 0 is instance 301. The evaluator writes the RESOLVED id into
-# both the rollout JSON and its filename, so anything that matches results back
-# to jobs -- i.e. --resume -- has to resolve too. Before this existed, resume
-# compared indices against resolved ids, matched nothing, and silently re-ran
-# every job on a sweep that was already half done.
+#     NUM_TEST_INSTANCES = 40
+#     NUM_PUBLIC_TEST_INSTANCES = 20
+#     TEST_INSTANCE_IDS = list(range(301, 341))
+#
+# Test instance IDs are 301-340: public 301-320, hidden 321-340. Anything below
+# 301 is a TRAINING instance.
+#
+# The evaluator's `--instance-indices` are INDICES INTO A SPLIT, not ids: index 0
+# of public_test is instance 301. Experiment configs here declare real instance
+# IDS instead, and this module converts. That is deliberate -- `instances: [0,1,2]`
+# meaning 301,302,303 is exactly the ambiguity that put "dev on 10-19" in the
+# README while those are scored public instances.
 TEST_INSTANCE_IDS = list(range(301, 341))
 NUM_PUBLIC_TEST_INSTANCES = 20
+PUBLIC_TEST_IDS = TEST_INSTANCE_IDS[:NUM_PUBLIC_TEST_INSTANCES]      # 301-320
+HIDDEN_TEST_IDS = TEST_INSTANCE_IDS[NUM_PUBLIC_TEST_INSTANCES:]      # 321-340
 EVAL_MODES = ("train", "public_test", "hidden_test")
 
 
-def resolve_instance_ids(instance_indices: list[int], mode: str) -> list[int]:
-    """Mirror of omnigibson.eval.evaluator.resolve_instance_ids."""
+def split_ids(mode: str) -> list[int] | None:
+    """The instance ids reachable in `mode`. None for train (ids are unbounded)."""
     if mode not in EVAL_MODES:
         raise ValueError(f"mode must be one of {EVAL_MODES}, got {mode!r}")
     if mode == "train":
-        return [int(i) for i in instance_indices]
-    split = (
-        TEST_INSTANCE_IDS[:NUM_PUBLIC_TEST_INSTANCES]
-        if mode == "public_test"
-        else TEST_INSTANCE_IDS[NUM_PUBLIC_TEST_INSTANCES:]
-    )
-    bad = [i for i in instance_indices if not 0 <= i < len(split)]
+        return None
+    return PUBLIC_TEST_IDS if mode == "public_test" else HIDDEN_TEST_IDS
+
+
+def indices_for_ids(instance_ids: list[int], mode: str) -> list[int]:
+    """Convert config instance IDS to the --instance-indices the evaluator wants.
+
+    Also enforces the split rules, so a dev loop cannot silently evaluate on
+    scored instances:
+
+      * train mode rejects any id in 301-340 -- there is no holdout inside the
+        public set, so iterating there IS tuning on the leaderboard;
+      * public_test rejects hidden ids and vice versa.
+    """
+    split = split_ids(mode)
+    if split is None:
+        stray = [i for i in instance_ids if i in TEST_INSTANCE_IDS]
+        if stray:
+            raise ValueError(
+                f"instances {stray} are TEST instances ({TEST_INSTANCE_IDS[0]}-"
+                f"{TEST_INSTANCE_IDS[-1]}) but mode is 'train'. Every public-test "
+                "instance is scored -- there is no self-test split inside it -- so a "
+                "dev loop must use training instances (below 301)."
+            )
+        return [int(i) for i in instance_ids]
+
+    other = HIDDEN_TEST_IDS if mode == "public_test" else PUBLIC_TEST_IDS
+    bad = [i for i in instance_ids if i not in split]
     if bad:
-        raise ValueError(
-            f"instance indices {bad} out of range for mode {mode!r}: must be in "
-            f"range({len(split)}). These index the split; the ids are "
-            f"{split[0]}-{split[-1]}."
+        wrong_split = [i for i in bad if i in other]
+        hint = (
+            f" Instances {wrong_split} belong to the other test split."
+            if wrong_split
+            else f" Ids below {TEST_INSTANCE_IDS[0]} are training instances; use mode: train."
         )
-    return [int(split[i]) for i in instance_indices]
+        raise ValueError(
+            f"instances {bad} are not in the {mode} split ({split[0]}-{split[-1]}).{hint}"
+        )
+    return [split.index(int(i)) for i in instance_ids]
 
 
 @dataclass
@@ -94,8 +127,8 @@ class Job:
     """One evaluator invocation: a single task over one or more instances."""
 
     task: str
-    instances: list[int]           # indices, as passed to --instance-indices
-    resolved: list[int]            # the ids the evaluator will actually write
+    instances: list[int]           # instance IDS -- what lands in the rollout JSON
+    indices: list[int]             # what goes on the --instance-indices command line
     worker_id: int = -1
 
     @property
@@ -124,6 +157,10 @@ def load_config(path: Path) -> dict:
     mode = cfg.get("mode", "public_test")
     if mode not in EVAL_MODES:
         raise ValueError(f"{path}: mode must be one of {EVAL_MODES}, got {mode!r}")
+    try:
+        indices_for_ids(list(cfg["instances"]), mode)
+    except ValueError as exc:
+        raise ValueError(f"{path}: {exc}") from exc
     return cfg
 
 
@@ -138,7 +175,7 @@ def build_jobs(cfg: dict, instances_per_job: int) -> list[Job]:
     mode: str = cfg.get("mode", "public_test")
 
     def make(task: str, chunk: list[int]) -> Job:
-        return Job(task=task, instances=list(chunk), resolved=resolve_instance_ids(chunk, mode))
+        return Job(task=task, instances=list(chunk), indices=indices_for_ids(chunk, mode))
 
     jobs: list[Job] = []
     for task in tasks:
@@ -194,8 +231,10 @@ def already_done(job: Job, done: set[tuple[str, int]]) -> bool:
     Partially-completed jobs re-run in full. That re-does some finished rollouts, which is
     the cheap mistake; the expensive one is skipping a rollout that never happened.
     """
-    # job.resolved, NOT job.instances: the evaluator writes resolved ids.
-    return all((job.task, inst) in done for inst in job.resolved)
+    # job.instances are instance IDS, which is what the evaluator writes into the
+    # rollout JSON. Comparing the --instance-indices here instead matched nothing
+    # and silently re-ran every job.
+    return all((job.task, inst) in done for inst in job.instances)
 
 
 def build_command(job: Job, cfg: dict, port: int, output_dir: Path) -> list[str]:
@@ -204,7 +243,7 @@ def build_command(job: Job, cfg: dict, port: int, output_dir: Path) -> list[str]
         "--task-name", job.task,
         "--host", cfg.get("host", "127.0.0.1"),
         "--port", str(port),
-        "--instance-indices", *[str(i) for i in job.instances],
+        "--instance-indices", *[str(i) for i in job.indices],
         "--num-rollouts", str(cfg.get("num_rollouts", 1)),
         "--output-dir", str(output_dir),
         # Defaults to public_test in the evaluator too, but pass it explicitly:
@@ -310,7 +349,9 @@ def write_timing_manifest(results: list[JobResult], path: Path, total_wall: floa
         "compute_time_total_s": round(total_compute, 1),
         "mean_seconds_per_rollout": round(per_rollout, 1),
         "mean_minutes_per_rollout": round(per_rollout / 60, 2),
-        "projected_gpu_hours_for_1000_rollouts": round(per_rollout * 1000 / 3600, 1),
+        # A full public submission is 100 tasks x 20 instances (score_utils divides
+        # q_score_avg by 20 regardless of how many were run).
+        "projected_gpu_hours_for_full_submission": round(per_rollout * 2000 / 3600, 1),
         "jobs": [asdict(r) for r in results],
     }
     path.write_text(json.dumps(manifest, indent=2))
@@ -319,7 +360,7 @@ def write_timing_manifest(results: list[JobResult], path: Path, total_wall: floa
     print(f"  rollouts completed : {rollouts}")
     print(f"  failed jobs        : {manifest['jobs_failed']}")
     print(f"  mean per rollout   : {manifest['mean_minutes_per_rollout']} min")
-    print(f"  -> 1,000 rollouts  : {manifest['projected_gpu_hours_for_1000_rollouts']} GPU-hours")
+    print(f"  -> 2,000 rollouts  : {manifest['projected_gpu_hours_for_full_submission']} GPU-hours")
     print("=" * 62)
     print(f"  manifest: {path}")
 

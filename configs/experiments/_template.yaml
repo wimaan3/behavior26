@@ -10,7 +10,16 @@ base_model: pi05                  # pi05 | groot
 checkpoint: null                  # path or gs:// URI
 
 tasks: []                         # [] is invalid -- list task ids explicitly
-instances: [10, 11, 12]           # 0-9 = leaderboard ONLY. 10-19 = dev. Never tune on 0-9.
+
+# `instances` are real instance IDS, not indices into a split. Verified against
+# BEHAVIOR-1K v3.9.2: TEST_INSTANCE_IDS = range(301, 341).
+#   301-320  public test  -- ALL scored. Never iterate here.
+#   321-340  hidden test  -- never touch.
+#   < 301    training     -- the only place to run a dev loop.
+# There is no self-test split inside the public set; score_utils divides
+# q_score_avg by all 20 public instances per task.
+mode: train                       # train | public_test | hidden_test
+instances: [10, 11, 12]           # training instance ids
 num_rollouts: 1
 
 # --- evaluator settings -----------------------------------------------------

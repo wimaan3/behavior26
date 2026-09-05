@@ -93,9 +93,9 @@ def test_resume_does_not_confuse_instance_1_with_instance_10(tmp_path):
         write_rollout(tmp_path / "json", "turning_on_radio", i)
     done = completed_keys(tmp_path)
 
-    # These are train-mode jobs, where the indices ARE the instance ids, so
-    # `resolved` mirrors `instances`. See test_resume_matches_resolved_ids_not_indices
-    # for the test-mode case, where they differ and used to be compared wrongly.
+    # Train-mode jobs: ids and CLI indices coincide. See
+    # test_resume_matches_instance_ids_not_indices for the test-mode case, where
+    # they differ and used to be compared wrongly.
     def train_job(task, ids):
         return Job(task, list(ids), list(ids))
 
@@ -267,42 +267,70 @@ if __name__ == "__main__":
 
 
 # --------------------------------------------------------------- instance ids
-# `--instance-indices` are INDICES INTO A SPLIT, not instance ids
-# (omnigibson/eval/evaluator.py :: resolve_instance_ids). The evaluator writes
-# the RESOLVED id into the rollout JSON and its filename, so anything matching
-# results back to jobs has to resolve too.
+# Verified against BEHAVIOR-1K v3.9.2: TEST_INSTANCE_IDS = range(301, 341),
+# public = 301-320, hidden = 321-340, anything below 301 is a training instance.
+# Configs declare real IDS; harness/launch.py converts to the --instance-indices
+# the evaluator wants. The old convention ("dev on 10-19") named scored public
+# instances, so these tests pin the split rules rather than just the arithmetic.
 
 
-def test_resolve_instance_ids_matches_the_evaluator():
-    from harness.launch import resolve_instance_ids
+def test_public_ids_map_to_split_indices():
+    from harness.launch import indices_for_ids
 
-    # public_test index 0 is instance 301, not 0.
-    assert resolve_instance_ids([0, 1, 2], "public_test") == [301, 302, 303]
-    assert resolve_instance_ids([0, 19], "public_test") == [301, 320]
-    # hidden_test is the second half of the 40.
-    assert resolve_instance_ids([0, 19], "hidden_test") == [321, 340]
-    # train indices ARE ids.
-    assert resolve_instance_ids([0, 7], "train") == [0, 7]
+    assert indices_for_ids([301, 302, 303], "public_test") == [0, 1, 2]
+    assert indices_for_ids([301, 320], "public_test") == [0, 19]
+    assert indices_for_ids([321, 340], "hidden_test") == [0, 19]
 
 
-def test_out_of_range_indices_are_rejected():
-    """The evaluator asserts on this; fail before spending a scene load."""
+def test_train_ids_pass_through():
+    from harness.launch import indices_for_ids
+
+    assert indices_for_ids([0, 7, 300], "train") == [0, 7, 300]
+
+
+def test_train_mode_refuses_test_instances():
+    """The rule that matters: there is no self-test split inside the public set.
+
+    Iterating on 301-320 is tuning on the leaderboard, which is exactly what the
+    old "dev loop on instances 10-19" config did.
+    """
     import pytest as _pytest
 
-    from harness.launch import resolve_instance_ids
+    from harness.launch import indices_for_ids
 
-    with _pytest.raises(ValueError, match="out of range"):
-        resolve_instance_ids([20], "public_test")
-    with _pytest.raises(ValueError, match="out of range"):
-        resolve_instance_ids([301], "public_test")  # an id, mistakenly passed as an index
+    with _pytest.raises(ValueError, match="TEST instances"):
+        indices_for_ids([301], "train")
+    with _pytest.raises(ValueError, match="TEST instances"):
+        indices_for_ids([10, 11, 340], "train")
 
 
-def test_resume_matches_resolved_ids_not_indices(tmp_path):
-    """Regression: resume compared indices (0,1,2) against ids (301,302,303).
+def test_the_two_test_splits_do_not_mix():
+    import pytest as _pytest
+
+    from harness.launch import indices_for_ids
+
+    with _pytest.raises(ValueError, match="other test split"):
+        indices_for_ids([321], "public_test")
+    with _pytest.raises(ValueError, match="other test split"):
+        indices_for_ids([301], "hidden_test")
+
+
+def test_training_ids_in_a_test_mode_are_rejected():
+    """Catches a config that kept the old index-style `instances: [0, 1, 2]`."""
+    import pytest as _pytest
+
+    from harness.launch import indices_for_ids
+
+    with _pytest.raises(ValueError, match="training instances"):
+        indices_for_ids([0, 1, 2], "public_test")
+
+
+def test_resume_matches_instance_ids_not_indices(tmp_path):
+    """Regression: resume compared CLI indices (0,1,2) against ids (301,302,303).
 
     It matched nothing, so a half-finished sweep silently re-ran every job --
     while still reporting the results it had found on disk, so it looked fine.
-    On a 2,000-rollout submission run that is hundreds of wasted GPU-hours.
+    On a 2,000-rollout submission run that is hundreds of rented GPU-hours.
     """
     import json as _json
 
@@ -311,12 +339,12 @@ def test_resume_matches_resolved_ids_not_indices(tmp_path):
     cfg = {
         "name": "t",
         "tasks": ["can_meat"],
-        "instances": [0, 1, 2],
+        "instances": [301, 302, 303],
         "mode": "public_test",
     }
     (job,) = build_jobs(cfg, instances_per_job=0)
-    assert job.instances == [0, 1, 2]
-    assert job.resolved == [301, 302, 303]
+    assert job.instances == [301, 302, 303]   # what lands on disk
+    assert job.indices == [0, 1, 2]           # what goes on the command line
 
     json_dir = tmp_path / "json"
     json_dir.mkdir()
@@ -328,30 +356,35 @@ def test_resume_matches_resolved_ids_not_indices(tmp_path):
     done = completed_keys(tmp_path)
     assert already_done(job, done), "resume failed to recognise a completed job"
 
-    # And a gap must still re-run the job.
     (json_dir / "can_meat_302_0.json").unlink()
     assert not already_done(job, completed_keys(tmp_path))
 
 
-def test_train_mode_jobs_use_indices_as_ids(tmp_path):
-    """The dev loop runs --mode train, where indices are direct instance ids."""
-    from harness.launch import build_jobs
-
-    (job,) = build_jobs(
-        {"name": "t", "tasks": ["can_meat"], "instances": [4, 5], "mode": "train"},
-        instances_per_job=0,
-    )
-    assert job.resolved == [4, 5]
-
-
-def test_build_command_passes_mode():
-    """A dev loop that silently ran public_test would be tuning on the leaderboard."""
+def test_build_command_sends_indices_not_ids():
+    """The evaluator asserts indices are in range(20); sending 301 would fail there."""
     from pathlib import Path as _Path
 
     from harness.launch import build_command, build_jobs
 
-    cfg = {"name": "t", "tasks": ["can_meat"], "instances": [0], "mode": "train"}
+    cfg = {"name": "t", "tasks": ["can_meat"], "instances": [301, 302], "mode": "public_test"}
     (job,) = build_jobs(cfg, instances_per_job=0)
     cmd = build_command(job, cfg, port=8000, output_dir=_Path("/tmp/out"))
-    assert "--mode" in cmd
-    assert cmd[cmd.index("--mode") + 1] == "train"
+
+    assert cmd[cmd.index("--mode") + 1] == "public_test"
+    i = cmd.index("--instance-indices")
+    assert cmd[i + 1 : i + 3] == ["0", "1"], cmd[i : i + 3]
+
+
+def test_load_config_rejects_a_dev_loop_pointed_at_scored_instances(tmp_path):
+    """A bad config must fail at load, not after a scene load on a rented card."""
+    import pytest as _pytest
+    import yaml as _yaml
+
+    from harness.launch import load_config
+
+    path = tmp_path / "bad.yaml"
+    path.write_text(
+        _yaml.safe_dump({"name": "bad", "tasks": ["can_meat"], "instances": [311], "mode": "train"})
+    )
+    with _pytest.raises(ValueError, match="TEST instances"):
+        load_config(path)

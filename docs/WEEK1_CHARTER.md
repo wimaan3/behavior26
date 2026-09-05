@@ -1,5 +1,17 @@
 # BEHAVIOR Challenge 2026 — Week 1 Charter
 
+> **CORRECTION, 2026-09-04.** This charter was written before we had the
+> evaluator source. Three of its numbers are wrong and are struck through below,
+> with the v3.9.2 values inline. Source of truth:
+> `external/b1k/OmniGibson/omnigibson/eval/utils/eval_utils.py`.
+>
+> - Test instance ids are **301–340** (public 301–320, hidden 321–340), not 0–19.
+>   Everything below 301 is a *training* instance.
+> - A full public submission is **2,000** rollouts (100 tasks x 20 instances),
+>   not 1,000. `compute_final_q_score` divides by 20 per task regardless of how
+>   many were run, so a partial submission is scored with zeros, not omissions.
+> - That is **~700–840 GPU-hours**: ~7–9 days on 4 cards, ~3.5–4.5 days on 8.
+
 **Deadline: 16 October 2026. Today: 26 August 2026. Time remaining: 7 weeks, 2 days.**
 
 This document covers three things: how to review the existing plan, what Week 1 must produce, and how to set up the environment and tooling.
@@ -36,7 +48,7 @@ The rule for the session: **no decision gets deferred without a named owner and 
 
 - The core thesis (predicate-aware VLA). It's well-aimed, and last year's winner independently built the same kind of stage-tracking component on top of π0.5. That's strong validation.
 - The system architecture diagram in box 1. Accurate, including the important detail that BDDL task definitions *are* available at evaluation time.
-- The evaluation strategy in box 5 (report on instances 0–9, dev on 10–19, protect against overfitting). This is correct and disciplined.
+- The evaluation strategy in box 5 (protect against overfitting by keeping a frozen dev set). The *instinct* is correct and disciplined; the ~~instance numbers (report on 0–9, dev on 10–19)~~ are wrong — those are training instances, and there is no holdout inside the public test set. Dev loop runs on training instances; 301–320 are all scored.
 - The risk table in box 7. The four risks listed are real.
 - The workflow loop in box 3, especially the "optional small curated failure-recovery dataset" note — that's a genuinely sharp observation, because all 20,000 demos are successes and the model has never seen a recovery.
 
@@ -49,7 +61,7 @@ The rule for the session: **no decision gets deferred without a named owner and 
 **Cut:**
 
 - **"Submit interest to the program."** There is no registration step for this challenge. Nothing to submit interest to. Replace with: join the Discord and attend Monday office hours (5–6pm Pacific).
-- **"Final evaluation (1,000 rollouts per task)."** Wrong by 100×. It's 1,000 rollouts *total* — 100 tasks × 10 instances × 1 rollout each. Good news; correct it so nobody plans compute against the wrong number.
+- **"Final evaluation (1,000 rollouts per task)."** Wrong by 100×. It is ~~1,000~~ **2,000** rollouts *total* — 100 tasks × ~~10~~ **20** instances × 1 rollout each. Correct it so nobody plans compute against the wrong number. (The 10-instance figure here was itself wrong; see the correction banner.)
 
 ---
 
@@ -143,7 +155,7 @@ Rough estimate, to be replaced by your W1-C measurement:
 - Default timeout is **1.5× mean human demo length**; mean demo is 351 s
 - Assuming 30 Hz control: ~15,800 steps → **roughly 20–25 minutes per rollout**
 
-**1,000 rollouts ≈ 350–420 GPU-hours ≈ over two weeks on a single GPU.**
+**2,000 rollouts ≈ 700–840 GPU-hours ≈ ~7–9 days on 4 cards, ~3.5–4.5 days on 8.**
 
 One full leaderboard submission is a multi-week job on one card. You need parallel eval workers or you will not submit at all. This is why the harness is Week 1 work and not Week 5 work — and it's also why it's a credible candidate for your standout open-source contribution. It's the piece everyone needs and nobody publishes.
 
@@ -183,9 +195,9 @@ One full leaderboard submission is a multi-week job on one card. You need parall
 
 Rough, to be corrected by W1-C:
 
-- **One full evaluation pass** (1,000 rollouts, ~350–420 GPU-hr) at $0.40–0.70/hr for a 4090 ≈ **$150–300**. Parallelised 20-way, that's under a day of wall-clock for the same money.
+- **One full evaluation pass** (2,000 rollouts, ~700–840 GPU-hr) at $0.40–0.70/hr for a 4090 ≈ **$300–600**. Parallelised 20-way, that is a bit over a day of wall-clock for the same money.
 - **One full training run**: the reference recipe is 8 GPUs × 150k steps, plausibly 3–6 days on 8×A100 at ~$1.20–1.80/hr each ≈ **$700–2,000**.
-- **Realistic project total including failed runs and dev time: $2,000–5,000.**
+- **Realistic project total including failed runs and dev time: $2,500–5,500.** (Raised: the evaluation pass costs roughly double what this section assumed, and we now have no local GPU.)
 
 That number should drive D2. If it's out of range, scope changes — and it's much better to learn that in Week 1 than Week 5.
 
