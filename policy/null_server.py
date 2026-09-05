@@ -69,17 +69,23 @@ class NullPolicy:
     def reset(self) -> None:
         self.steps_served = 0
 
-    def act(self, obs: dict) -> list:
+    def act(self, obs: dict):
         """Zero action, ignoring the observation entirely.
 
+        Returns a real ``numpy.ndarray``, not a list. The evaluator does
+        ``th.from_numpy(deepcopy(action_dict["action"]))``
+        (network_utils.py l.126), which raises TypeError on a list -- so a
+        list-valued action fails on the first step of the first rollout.
+
         A flat vector when horizon == 1, otherwise a chunk of shape
-        (action_horizon, action_dim).
+        (action_horizon, action_dim). float32 matches the evaluator's cast.
         """
+        import numpy as np
+
         self.steps_served += 1
-        zeros = [0.0] * self.action_dim
         if self.action_horizon == 1:
-            return zeros
-        return [list(zeros) for _ in range(self.action_horizon)]
+            return np.zeros(self.action_dim, dtype=np.float32)
+        return np.zeros((self.action_horizon, self.action_dim), dtype=np.float32)
 
 
 class NullPolicyServer:
@@ -131,9 +137,10 @@ class NullPolicyServer:
 
         try:
             if self.send_metadata:
-                # openpi's WebsocketPolicyServer sends one metadata frame on connect,
-                # before any observation. UNVERIFIED for this evaluator -- disable with
-                # --no-send-metadata if the real client does not expect it.
+                # MANDATORY. The evaluator's first act after connecting is
+                # `metadata = unpackb(conn.recv())` (network_utils.py l.96) and it
+                # BLOCKS there. Without this frame the evaluator hangs forever.
+                # --no-send-metadata exists only to exercise that failure in tests.
                 await connection.send(pack(self._metadata()))
 
             async for raw in connection:
@@ -142,6 +149,16 @@ class NullPolicyServer:
                 except Exception as exc:
                     log.error("episode %d: undecodable observation: %s", episode, exc)
                     raise
+
+                # The evaluator's reset() sends {"reset": True} and does NOT read a
+                # reply (network_utils.py l.136-141); the real server answers it with
+                # `continue` (l.187-189). Replying here would leave one unread frame
+                # in the socket, so every later recv() returns the PREVIOUS step's
+                # action -- an episode-long one-step lag, with no error anywhere.
+                if isinstance(obs, dict) and "reset" in obs:
+                    self.policy.reset()
+                    log.info("episode %d: reset", episode)
+                    continue
 
                 action = self.policy.act(obs if isinstance(obs, dict) else {})
                 await connection.send(pack({self.action_key: action}))

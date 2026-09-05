@@ -2,32 +2,47 @@
 Wire format for the policy <-> evaluator websocket seam.
 
 Both sides of the seam (``policy/null_server.py`` and ``tests/mock_evaluator.py``)
-import from here so the encode/decode pair can never drift apart. If the real
-protocol turns out to differ, this is the single file to correct.
+import from here so the encode/decode pair can never drift apart.
 
-CONTRACT (from the challenge docs -- NOT verified against a BEHAVIOR-1K checkout)
---------------------------------------------------------------------------------
-  - Evaluator GETs ``/healthz`` over plain HTTP and expects 2xx before connecting.
-  - Evaluator then opens a websocket to the same host:port.
-  - Each step it sends a msgpack-encoded observation mapping.
-  - The server replies with a msgpack-encoded mapping containing an ``action`` array
-    whose length equals ``robot.action_dim`` (23 for R1Pro under the b1k config).
+VERIFIED against BEHAVIOR-1K v3.9.2,
+``omnigibson/eval/utils/network_utils.py``. Every item below is quoted from that
+file; the previous version of this module guessed and got the codec wrong.
 
-UNVERIFIED ASSUMPTIONS -- each is a knob here rather than a hardcoded guess:
+  - Health check: the client polls ``GET /healthz`` over plain HTTP every 5s until
+    ``response.ok``, THEN opens the websocket (``_wait_for_server``, l.65-82).
+  - Metadata frame: the client's very first action after connecting is
+    ``metadata = unpackb(conn.recv())`` (l.96). It BLOCKS there. A server that does
+    not send a metadata frame hangs the evaluator forever -- this is mandatory, not
+    optional.
+  - Observation frames: ``unpackb(await websocket.recv(), strict_map_key=False)``.
+  - Reset frames: the client's ``reset()`` sends ``{"reset": True}`` and does NOT
+    read a reply (l.136-141); the server answers with ``continue`` (l.187-189).
+    Replying to a reset desynchronises the stream by one frame for the rest of the
+    episode -- silently, since every subsequent action is still well-formed.
+  - Response: ``{"action": <ndarray>, "server_timing": {...}}``. The key is
+    ``action``, singular (l.119). The client then does
+    ``th.from_numpy(deepcopy(action_dict["action"]))`` (l.126), so the value must
+    decode to a real ``numpy.ndarray``; a Python list raises TypeError there.
+  - A text frame from the server is treated as an error traceback (l.115-116).
 
-  1. *msgpack-numpy.* The referenced helper
-     (``omnigibson/eval/utils/network_utils.py :: WebsocketPolicyServer``) follows the
-     openpi serving pattern, which packs with ``msgpack_numpy`` so raw ndarrays survive
-     the hop. We use msgpack_numpy when it is importable and fall back to plain msgpack
-     otherwise. Plain msgpack CANNOT encode an ndarray, so if the evaluator sends image
-     arrays and msgpack_numpy is absent, decode will fail loudly rather than silently.
-  2. *Server-first metadata frame.* openpi's server sends one metadata frame immediately
-     on connect, before the first observation. We do the same by default
-     (``--no-send-metadata`` disables it) and the mock tolerates its absence.
-  3. *Response key.* The docs say ``action``. openpi uses ``actions``. We emit ``action``
-     by default (``--action-key`` overrides) and accept either when decoding.
+THE CODEC IS NOT msgpack-numpy
+------------------------------
+network_utils.py says so explicitly: "The code below is adapted from
+msgpack-numpy. The reason not to use that library directly is that it falls back
+to pickle for object arrays." The formats are incompatible --
 
-Verify all three against the real evaluator on the first GPU run.
+    msgpack-numpy   {b'nd': True, b'type': ..., b'kind': ..., b'shape': ..., b'data': ...}
+    BEHAVIOR-1K     {b'__ndarray__': True, b'data': ..., b'dtype': ..., b'shape': ...}
+
+so an ndarray packed by msgpack-numpy decodes on the evaluator as a plain dict,
+``action_dict["action"]`` is that dict, and ``th.from_numpy`` raises. We now
+implement the BEHAVIOR-1K format exactly, transcribed from ``pack_data`` /
+``unpack_data``.
+
+STILL UNVERIFIED
+----------------
+  - ``DEFAULT_ACTION_DIM`` (23) is read from the openpi b1k robot registry, not
+    from a running evaluator.
 """
 
 from __future__ import annotations
@@ -43,49 +58,65 @@ HEALTH_PATH = "/healthz"
 # the 2026 challenge does not fix the embodiment.
 DEFAULT_ACTION_DIM = 23
 
-# Keys we will accept when reading an action out of a response frame, in priority order.
+# The evaluator reads exactly "action" (network_utils.py l.119). We emit that; we
+# still ACCEPT "actions" when decoding so a stock openpi serve script also works.
 ACTION_KEYS = ("action", "actions")
 
+# Retained for callers that used to branch on the optional msgpack-numpy import.
+# The codec is now built in, so ndarray support is unconditional.
+NUMPY_CODEC_AVAILABLE = True
 
-def _numpy_codec():
-    """Return (packb_kwargs, unpackb_kwargs) for ndarray support, if available.
 
-    Lazy/optional import: msgpack_numpy is not in requirements-tools.txt and is not
-    needed for the null policy (which sends plain floats), but the real evaluator very
-    likely needs it to send image observations.
+def _pack_data(obj: Any) -> Any:
+    """msgpack ``default`` hook. Transcribed from BEHAVIOR-1K ``pack_data``.
+
+    Byte keys, and ``dtype.str`` (e.g. '<f4') rather than a name, are part of the
+    format -- the evaluator's ``unpack_data`` looks for exactly ``b"__ndarray__"``.
     """
-    try:
-        import msgpack_numpy  # type: ignore
-    except ImportError:
-        return {}, {}
-    return ({"default": msgpack_numpy.encode}, {"object_hook": msgpack_numpy.decode})
+    import numpy as np  # local: keeps `import wire` cheap for non-array callers
+
+    if isinstance(obj, np.ndarray):
+        if obj.dtype.kind in ("V", "O", "c"):
+            raise ValueError(f"unsupported dtype for the wire: {obj.dtype}")
+        return {
+            b"__ndarray__": True,
+            b"data": obj.tobytes(),
+            b"dtype": obj.dtype.str,
+            b"shape": obj.shape,
+        }
+    if isinstance(obj, np.generic):
+        return {b"__npgeneric__": True, b"data": obj.item(), b"dtype": obj.dtype.str}
+    return obj
 
 
-_PACK_KW, _UNPACK_KW = _numpy_codec()
+def _unpack_data(obj: Any) -> Any:
+    """msgpack ``object_hook``. Transcribed from BEHAVIOR-1K ``unpack_data``."""
+    import numpy as np
 
-# True when ndarray-capable. Callers surface this at startup so the operator knows
-# which codec is actually in play before a 20-minute rollout, not after.
-NUMPY_CODEC_AVAILABLE = bool(_PACK_KW)
+    if b"__ndarray__" in obj:
+        return np.ndarray(buffer=obj[b"data"], dtype=np.dtype(obj[b"dtype"]), shape=obj[b"shape"])
+    if b"__npgeneric__" in obj:
+        return np.dtype(obj[b"dtype"]).type(obj[b"data"])
+    return obj
 
 
 def pack(obj: Any) -> bytes:
-    """Encode a message for the wire."""
-    return msgpack.packb(obj, use_bin_type=True, **_PACK_KW)
+    """Encode a message for the wire, in the evaluator's own ndarray format."""
+    return msgpack.packb(obj, default=_pack_data)
 
 
 def unpack(raw: bytes | str) -> Any:
     """Decode a message off the wire.
 
-    Accepts ``str`` as well because a websocket peer may send a text frame; msgpack is
-    binary, so a text frame means someone is speaking a different dialect and we want a
-    clear error rather than a mangled observation.
+    A ``str`` means the peer sent a text frame. The evaluator uses text frames to
+    carry a server traceback, so this is an error path, not an observation.
     """
     if isinstance(raw, str):
         raise TypeError(
             "expected a binary msgpack frame, got a text frame -- "
-            "the peer is not speaking the documented protocol"
+            "the evaluator sends tracebacks as text frames"
         )
-    return msgpack.unpackb(raw, raw=False, strict_map_key=False, **_UNPACK_KW)
+    return msgpack.unpackb(raw, object_hook=_unpack_data, strict_map_key=False)
 
 
 def extract_action(response: Any) -> list:
