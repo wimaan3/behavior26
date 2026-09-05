@@ -25,6 +25,10 @@
 #   NUM_GPUS        devices to use                  (all visible)
 #   BATCH_SIZE      global batch                    (32)
 #   NUM_TRAIN_STEPS                                 (30000)
+#   PROGRESS_KEY    dataset column with the progress label. Set this ONLY after
+#                   scripts/merge_progress_labels.py has produced a root that
+#                   carries the column; without it pi05_b1k_frozen_vlm_progress
+#                   builds the head but trains it on nothing.
 #   CHECKPOINT_DEST rsync/rclone/gs destination for the finished checkpoint
 #   WANDB_API_KEY   if unset, training runs with wandb disabled
 set -euo pipefail
@@ -36,6 +40,7 @@ DATASET_ROOT="${DATASET_ROOT:-$HOME/data/b1k/turning_on_radio}"
 BATCH_SIZE="${BATCH_SIZE:-32}"
 NUM_TRAIN_STEPS="${NUM_TRAIN_STEPS:-30000}"
 CHECKPOINT_DEST="${CHECKPOINT_DEST:-}"
+PROGRESS_KEY="${PROGRESS_KEY:-}"
 FORCE="${FORCE:-}"
 DRY_RUN=0
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=1
@@ -145,6 +150,17 @@ if [ -z "$CHECKPOINT_DEST" ]; then
   warn "CHECKPOINT_DEST unset -- the checkpoint stays on this box and dies with it."
 fi
 
+PROGRESS_FLAG=()
+if [ -n "$PROGRESS_KEY" ]; then
+  PROGRESS_FLAG=(--data.progress_key="$PROGRESS_KEY")
+  log "progress label column: ${PROGRESS_KEY}"
+elif [[ "$CONFIG" == *progress* ]]; then
+  warn "CONFIG=${CONFIG} has the progress head enabled but PROGRESS_KEY is unset."
+  warn "The head will be built and its parameters allocated, but with no label the"
+  warn "progress term is skipped and this trains identically to pi05_b1k_frozen_vlm."
+  warn "Run scripts/merge_progress_labels.py first, then set PROGRESS_KEY=progress."
+fi
+
 mkdir -p "$STATE_DIR" "$LOG_DIR"
 log "plan: config=${CONFIG} exp=${EXP_NAME} gpus=${NUM_GPUS} batch=${BATCH_SIZE} steps=${NUM_TRAIN_STEPS}"
 
@@ -212,6 +228,7 @@ run uv run scripts/b1k/train_b1k.py "$CONFIG" \
     --batch_size="$BATCH_SIZE" \
     --num_train_steps="$NUM_TRAIN_STEPS" \
     --data.base_config.dataset_root "$DATASET_ROOT" \
+    "${PROGRESS_FLAG[@]}" \
     "${RESUME_FLAG[@]}" \
     "${WANDB_FLAG[@]}" \
     2>&1 | tee -a "$LOG_DIR/train.log"
