@@ -42,3 +42,6 @@ Thumbs.db
 # and are applied with scripts/apply_openpi_patches.sh.
 openpi/
 ../openpi/
+
+# Built submission packages -- regenerate with submission.build
+submission/dist/

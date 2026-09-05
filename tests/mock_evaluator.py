@@ -20,7 +20,7 @@ plumbing and schema, never behaviour. A green run here says "the pipeline is wir
 correctly", not "the policy is good".
 
 Fidelity notes (all unverified against the real evaluator -- see policy/wire.py):
-  - The output filename convention is a guess. If the real one differs, fix it here and
+  - The output filename convention is now VERIFIED against v3.9.2. If it changes, fix it here and
     in ``harness.launch.already_done``.
   - ``agent_distance`` is derived from the magnitude of the actions the policy actually
     returns, so a null (all-zero) policy correctly produces zero displacement and tags
@@ -223,13 +223,52 @@ async def run_rollout(args, instance_id: int, rollout_id: int) -> dict:
     }
 
 
-def rollout_filename(task: str, instance_id: int, rollout_id: int) -> str:
-    """UNVERIFIED: the real evaluator's filename convention is not documented.
+# VERIFIED against BEHAVIOR-1K v3.9.2.
+#   omnigibson/eval/utils/eval_utils.py
+#       TEST_INSTANCE_IDS = list(range(301, 341))
+#       NUM_PUBLIC_TEST_INSTANCES = 20
+#   omnigibson/eval/evaluator.py :: resolve_instance_ids
+#       public_test -> TEST_INSTANCE_IDS[:20], hidden_test -> TEST_INSTANCE_IDS[20:]
+#       and asserts the indices lie in range(len(split)).
+#
+# So --instance-indices are INDICES INTO THE SPLIT, not instance ids: index 0 of
+# public_test is instance 301. The rollout JSON and its filename carry the
+# RESOLVED id (eval.py l.178, l.184).
+TEST_INSTANCE_IDS = list(range(301, 341))
+NUM_PUBLIC_TEST_INSTANCES = 20
+EVAL_MODES = ("train", "public_test", "hidden_test")
 
-    Keep task, instance and rollout all present and separated -- harness.launch's
-    resume check matches on substrings of this name.
+
+def resolve_instance_ids(instance_indices: list[int], mode: str) -> list[int]:
+    """Mirror of omnigibson.eval.evaluator.resolve_instance_ids."""
+    if mode == "train":
+        return [int(i) for i in instance_indices]
+    split = (
+        TEST_INSTANCE_IDS[:NUM_PUBLIC_TEST_INSTANCES]
+        if mode == "public_test"
+        else TEST_INSTANCE_IDS[NUM_PUBLIC_TEST_INSTANCES:]
+    )
+    bad = [i for i in instance_indices if not 0 <= i < len(split)]
+    if bad:
+        raise SystemExit(
+            f"instance indices {bad} out of range for mode {mode!r}: "
+            f"must be in range({len(split)}). These are indices into the split, "
+            f"not instance ids ({split[0]}-{split[-1]})."
+        )
+    return [int(split[i]) for i in instance_indices]
+
+
+def rollout_filename(task: str, instance_id: int, rollout_id: int) -> str:
+    """VERIFIED: omnigibson/eval/eval.py l.184.
+
+        out_path = os.path.join(json_dir, f"{args.task_name}_{instance_id}_{rollout_id}.json")
+
+    The official scorer asserts every file in json/ matches
+    f"{task}_{instance}_{rollout}.json" for a real task and a valid split
+    instance (utils/score_utils.py l.298, l.315), so any other name -- and any
+    stray .json such as a timing manifest -- makes it raise.
     """
-    return f"{task}_inst{instance_id}_rollout{rollout_id}.json"
+    return f"{task}_{instance_id}_{rollout_id}.json"
 
 
 async def run_all(args) -> int:
@@ -240,7 +279,12 @@ async def run_all(args) -> int:
     failed = 0
     started = time.time()
 
-    for instance_id in args.instance_indices:
+    instance_ids = resolve_instance_ids(args.instance_indices, args.mode)
+    if instance_ids != list(args.instance_indices):
+        print(f"  [mock-eval] mode={args.mode}: indices {list(args.instance_indices)} "
+              f"-> instances {instance_ids}")
+
+    for instance_id in instance_ids:
         for rollout_id in range(args.num_rollouts):
             label = f"{args.task_name} inst={instance_id} rollout={rollout_id}"
             print(f"  [mock-eval] {label}")
@@ -279,7 +323,12 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--task-name", required=True)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8000)
-    ap.add_argument("--instance-indices", type=int, nargs="+", default=[0])
+    ap.add_argument("--instance-indices", type=int, nargs="+", default=[0],
+                    help="indices into the split selected by --mode, NOT instance ids")
+    ap.add_argument("--mode", choices=EVAL_MODES, default="public_test",
+                    help="instance split to evaluate (real evaluator default: public_test)")
+    ap.add_argument("--policy", choices=("websocket", "local"), default="websocket",
+                    help="present for CLI parity; 'local' is not implemented in the mock")
     ap.add_argument("--num-rollouts", type=int, default=1)
     ap.add_argument("--output-dir", type=Path, required=True)
     ap.add_argument("--env-wrapper", default=None)
