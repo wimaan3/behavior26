@@ -246,7 +246,7 @@ pairing throws away the entire advantage. This is why the dev subset stays froze
 | `analysis/parse.py` | Working. Field names match the published JSON schema. |
 | `analysis/failures.py` | Working, thresholds uncalibrated — tune after watching real rollouts. |
 | `submission/build.py` | Working. Emits `<track>.<testset>.<team>.<affiliation>.<date>/` as the scorer requires; validated zip produced from mock rollouts. |
-| `policy/server.py` | **Skeleton.** Protocol documented, API not yet verified. Use vendor serve scripts until then. |
+| `policy/server.py` | **Skeleton.** Protocol now verified against v3.9.2, including that `act()` must return a torch.Tensor under the official server. Only model loading is missing. |
 | `policy/null_server.py` | Working standalone. Zero-action baseline + pipeline exerciser. Protocol verified against v3.9.2. |
 | `policy/wire.py` | Working. **Codec verified against v3.9.2** -- BEHAVIOR-1K's own `__ndarray__` msgpack extension, not msgpack-numpy. |
 | `tests/mock_evaluator.py` | Working. Same CLI + protocol + output schema as the real evaluator, no simulator. |
