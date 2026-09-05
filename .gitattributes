@@ -1,0 +1,34 @@
+# Normalise line endings on the way into git.
+#
+# The repo lives on an NTFS path reached from WSL, so tools on either side write
+# whichever ending they prefer and analysis/census/*.json|csv have shown up as
+# fully-modified in `git status` ever since -- 4805/4805 lines changed, with
+# `git diff --ignore-all-space` empty. That churn hides real edits and makes
+# every diff review start by discarding noise.
+#
+# `text=auto` stores LF in the object database and leaves working-tree endings
+# to core.autocrlf. Existing files are only renormalised when next written; to
+# do it now, run:
+#
+#     git add --renormalize .
+#
+* text=auto
+
+# Explicit for the files that actually churned.
+*.json  text
+*.csv   text
+*.yaml  text
+*.yml   text
+*.md    text
+*.py    text
+*.sh    text eol=lf
+*.patch text eol=lf
+
+# Never touch these.
+*.png   binary
+*.jpg   binary
+*.mp4   binary
+*.usd   binary
+*.hdf5  binary
+*.parquet binary
+*.zip   binary
