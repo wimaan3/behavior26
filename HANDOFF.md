@@ -1,6 +1,45 @@
 # HANDOFF — training
 
-Branch `local/training` (from `local/test-harness`), 7 commits, **not pushed**.
+Branch `local/training` (from `local/test-harness`), **not pushed**.
+
+## 2026-09-04 session: reading the real evaluator
+
+`external/b1k/OmniGibson` (v3.9.2) and `../openpi` are now checked out locally.
+Reading them instead of the docs contradicted several things this repo believed.
+**Where this file and the code disagree, the code wins.**
+
+### Corrections to previously-stated facts
+
+| We said | The source says |
+|---|---|
+| Full submission = 100 × 10 = **1,000** rollouts, ~350–420 GPU-hr | `TEST_INSTANCE_IDS = range(301, 341)`, `NUM_PUBLIC_TEST_INSTANCES = 20` → **2,000** rollouts, ~700–840 GPU-hr |
+| Leaderboard instances are **0–9**, dev set is 10–19 | Instance ids are **301–340**; public split is 301–320. `--instance-indices` are *indices into the split*, not ids. There is no free holdout inside `public_test` — use `--mode train` for the dev loop. |
+| Rollout filenames were a guess (`{task}_inst{i}_rollout{r}.json`) | `f"{task}_{instance}_{rollout}.json"` (eval.py l.184), and `compute_final_q_score` **asserts** on every `*.json` in `json/` |
+| Wire codec is msgpack-numpy | It is BEHAVIOR-1K's own `__ndarray__` msgpack extension. network_utils.py says explicitly why not msgpack-numpy. **Incompatible formats.** |
+| Metadata frame is optional | Mandatory: the client blocks on `unpackb(conn.recv())` before sending anything |
+| `policy/wrapper.py` is a missing required artifact | `omnigibson.eval.wrappers.{DefaultWrapper,RGBDFullResWrapper}` already ship; a custom wrapper is optional |
+| `configs/robot/r1pro.yaml` is missing | Copied verbatim from the checkout; now present |
+
+### Bugs fixed this session (each would have failed the first paid run)
+
+1. **Wire codec.** `policy/wire.py` packed with msgpack-numpy. The evaluator's
+   `unpack_data` looks for `b"__ndarray__"`, so an msgpack-numpy array decodes
+   as a plain dict and `th.from_numpy(dict)` raises on step 1 of rollout 1.
+2. **Null server sent Python lists.** The client does
+   `th.from_numpy(deepcopy(action_dict["action"]))`, which needs a real ndarray.
+3. **Null server replied to `{"reset": True}`.** The client's `reset()` sends it
+   and does *not* read a reply; the real server answers with `continue`.
+   Replying leaves an unread frame, so every later `recv()` returns the previous
+   step's action — an episode-long one-step lag, silently.
+4. **Submission package layout.** The scorer parses the directory name as
+   `<track>.<testset>.<team>.<affiliation>.<date>` and asserts on filenames.
+
+### Scoring consequence worth internalising
+
+`compute_final_q_score` divides by a **fixed** denominator (20 for the public
+set), so a partial submission is not scored on what it covers — the missing
+instances are averaged in as zeros. Covering 10 of 20 instances halves the score.
+
 
 The evaluation side is done and documented in the section below. This session
 built the training side, which was entirely missing and is the critical path.
@@ -62,6 +101,23 @@ missing import. See `pytest.ini`. Verified separately: 16 passed / 15 passed.
    mean that at step 0 only six parameter groups get gradient, and `suffix_out`
    does not depend on the images or the prompt at all. Not a bug — but a step-0
    `grad_norm` check on the expert's MLP reads as a broken model.
+
+## Task 7 — 001-dev-loop.yaml: still blocked
+
+`configs/experiments/001-dev-loop.yaml` still has `tasks: []`. It is blocked on
+the Jetson's full-scale phi_0 sweep and was **not** filled in this session.
+
+When the sweep lands, pick 12 tasks: mostly short and low-D for score, but
+**including 2–3 Type C tasks** even though they will score badly — the file's own
+rule 3 explains why. Do not quietly pick only the easy ones.
+
+Known bad, exclude: `make_microwave_popcorn` (collapsed instrumentation, despite
+an organizer recommending it), `putting_dishes_away_after_cleaning`,
+`rearranging_kitchen_furniture`, `storing_food`.
+
+One thing that changed: the dev loop must run with **`--mode train`**, not
+`public_test`. Indices 10–19 of the public split are instances 311–320, which are
+scored — there is no free holdout inside `public_test`.
 
 ## Pending — training
 

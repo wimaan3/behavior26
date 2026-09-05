@@ -335,10 +335,64 @@ not listed there is dropped between the data loader and the model, and the head
 trains on nothing while the config says it is enabled. Our patch adds `progress`
 to that constructor and a comment saying why.
 
-`progress_key` is `None` in the shipped config until the dataset carries the
-column. In that state the head exists and its parameters are allocated, but the
-progress term is skipped and training is identical to `pi05_b1k_frozen_vlm` —
-pinned by `test_no_label_means_no_progress_term`.
+#### Where the label comes from: a real dataset column
+
+Traced, not assumed. `RepackTransform` maps flat SOURCE keys to model input
+names, raises `KeyError` on a missing source key, and **discards everything not
+named in the mapping**:
+
+```python
+def __call__(self, data: DataDict) -> DataDict:
+    flat_item = flatten_dict(data)
+    return jax.tree.map(lambda k: flat_item[k], self.structure)
+```
+
+and its input is literally the HF dataset row —
+`dataset_reader.get_item` starts with `item = self.hf_dataset[idx]`. So
+`progress_key` needs `progress` to exist as a dataset column. That settles
+(a)-vs-(b): the merge-into-the-dataset route is what the mechanism was built for.
+
+**The trap that makes it dangerous.** LeRobot loads parquet with an explicit
+schema taken from `meta/info.json`:
+
+```python
+features = get_hf_features_from_features(self._meta.features)
+hf_dataset = load_nested_dataset(self.root / "data", features=features, ...)
+# -> datasets.Dataset.from_parquet(paths, features=features)
+```
+
+An extra parquet column that is **not** registered in `info.json` is not
+silently dropped — it raises `CastError` → `DatasetGenerationError`, and the
+dataset stops loading for *every* config, the baseline included. Verified
+experimentally, and pinned by
+`test_unregistered_column_would_break_the_whole_dataset`.
+
+`scripts/merge_progress_labels.py` therefore writes the parquet column and the
+`info.json` feature entry together, then reloads the result to prove it. It
+writes a **new root** by default and symlinks `videos/` back to the original, so
+the 330 GB copy is never mutated and the baseline arm provably reads the original
+bytes.
+
+The feature entry must be `{"dtype": "float32", "shape": [1]}`: LeRobot coerces
+the shape list to a tuple on load, and `get_hf_features_from_features` maps
+`(1,)` to `datasets.Value` — a scalar. Any other shape yields a length-1
+sequence instead.
+
+```bash
+# on the cloud box, where the data lives
+python scripts/merge_progress_labels.py \
+    --dataset-root ~/data/b1k/turning_on_radio \
+    --labels       ~/labels/turning_on_radio.parquet \
+    --out-root     ~/data/b1k/turning_on_radio+progress
+
+PROGRESS_KEY=progress CONFIG=pi05_b1k_frozen_vlm_progress \
+DATASET_ROOT=~/data/b1k/turning_on_radio+progress bash scripts/train_cloud.sh
+```
+
+`progress_key` stays `None` in the shipped config until that column exists. In
+that state the head is built and its parameters allocated, but the progress term
+is skipped and training is identical to `pi05_b1k_frozen_vlm` — pinned by
+`test_no_label_means_no_progress_term`, and warned about by `train_cloud.sh`.
 
 ### Loading a checkpoint with a new head
 

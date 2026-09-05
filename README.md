@@ -115,21 +115,42 @@ effective batch, not just a slower step.
 
 ## Why the harness matters more than it looks
 
-A full submission is **100 tasks × 10 instances × 1 rollout = 1,000 rollouts**. At the
-organizers' published throughput (~13.5 FPS for full-res RGB+depth) plus 150–300s scene
-load per trial, one rollout is roughly **20–25 minutes**.
+**Corrected 2026-09-04 against the BEHAVIOR-1K v3.9.2 source. The earlier figures
+in this section (1,000 rollouts, instances 0–9) were wrong.** From
+`omnigibson/eval/utils/eval_utils.py` and `utils/score_utils.py`:
 
-**1,000 rollouts ≈ 350–420 GPU-hours ≈ over two weeks on a single card.**
+```python
+TEST_INSTANCE_IDS = list(range(301, 341))   # 40 test instances
+NUM_PUBLIC_TEST_INSTANCES = 20              # public split = 301..320
+```
 
-So evaluation must be fanned out and resumable, or there is no submission. Two configs:
+So a full public submission is **100 tasks × 20 instances × 1 rollout = 2,000
+rollouts**. At the organizers' published throughput (~13.5 FPS for full-res
+RGB+depth) plus 150–300s scene load per trial, one rollout is roughly **20–25
+minutes**.
+
+**2,000 rollouts ≈ 700–840 GPU-hours.** That is double the previous estimate and
+it is now all rented, so budget accordingly.
+
+Two things follow that are easy to get wrong:
+
+1. **`--instance-indices` are indices into the split, not instance ids.**
+   `resolve_instance_ids` maps index 0 of `public_test` to instance **301**. The
+   rollout JSON and its filename carry the resolved id.
+2. **Missing rollouts are not skipped, they are zeros.**
+   `compute_final_q_score` divides by a fixed denominator:
+   `q_score_avg[task] = sum(...) / n_instances_per_task` with
+   `n_instances_per_task = 20` for the public set. Submitting 10 instances per
+   task does not score those 10 — it **halves** the reported score.
 
 | Config | Scope | Cost | When |
 |---|---|---|---|
-| **Dev loop** | ~12 tasks × 3 instances = 36 rollouts, instances **10–19**, frozen | ~13 GPU-hr, overnight | Every iteration |
-| **Full eval** | 100 × 10 = 1,000 rollouts, instances **0–9** | 350–420 GPU-hr | Only when submitting |
+| **Dev loop** | ~12 tasks × 3 instances = 36 rollouts, `--mode train` | ~13 GPU-hr, overnight | Every iteration |
+| **Full eval** | 100 × 20 = 2,000 rollouts, `--mode public_test` | 700–840 GPU-hr | Only when submitting |
 
-Keep the dev subset frozen so numbers stay comparable, and never tune against 0–9 —
-those are what you report.
+The dev loop must use **`--mode train`**, whose indices are direct train instance
+ids. There is no free holdout inside `public_test`: all 20 of its instances are
+scored, so tuning against indices 10–19 is tuning against the leaderboard.
 
 ## Quickstart
 
@@ -224,10 +245,10 @@ pairing throws away the entire advantage. This is why the dev subset stays froze
 | `harness/launch.py` | Working. Verify the evaluator CLI against your checkout on first run. |
 | `analysis/parse.py` | Working. Field names match the published JSON schema. |
 | `analysis/failures.py` | Working, thresholds uncalibrated — tune after watching real rollouts. |
-| `submission/build.py` | Working. |
+| `submission/build.py` | Working. Emits `<track>.<testset>.<team>.<affiliation>.<date>/` as the scorer requires; validated zip produced from mock rollouts. |
 | `policy/server.py` | **Skeleton.** Protocol documented, API not yet verified. Use vendor serve scripts until then. |
-| `policy/null_server.py` | Working standalone. Zero-action baseline + pipeline exerciser. Protocol unverified against a real checkout. |
-| `policy/wire.py` | Working. Single source of truth for the wire format; lists every unverified assumption. |
+| `policy/null_server.py` | Working standalone. Zero-action baseline + pipeline exerciser. Protocol verified against v3.9.2. |
+| `policy/wire.py` | Working. **Codec verified against v3.9.2** -- BEHAVIOR-1K's own `__ndarray__` msgpack extension, not msgpack-numpy. |
 | `tests/mock_evaluator.py` | Working. Same CLI + protocol + output schema as the real evaluator, no simulator. |
 | `analysis/compare.py` | Working. Paired A/B with CI and a coverage guard. |
 | `tests/test_pipeline.py` | 16 tests, all passing. |
@@ -235,10 +256,10 @@ pairing throws away the entire advantage. This is why the dev subset stays froze
 | `scripts/estimate_memory.py` | Working. Sizes any openpi TrainConfig from the real model graph. |
 | `scripts/train_cloud.sh` | Written, `--dry-run` verified. **Never run end to end** — no GPU here. |
 | `tests/test_progress_head.py` | 14 tests, all passing on CPU. |
-| progress-head labels | **Missing.** The head is wired and gradients reach it; nothing produces the label yet. |
+| progress-head labels | **Blocked on the Jetson.** Merge path is built and tested (`scripts/merge_progress_labels.py`); nothing produces the sidecar yet. |
 | `docker/policy-server/` | Skeleton. |
-| `policy/wrapper.py` | **Missing.** Required for submission; `tests/fixtures/mock_wrapper.py` is a test stand-in, not a substitute. |
-| `configs/robot/r1pro.yaml` | **Missing.** Copy it from the BEHAVIOR-1K checkout; see `configs/robot/README.md`. |
+| `policy/wrapper.py` | **Not needed.** BEHAVIOR-1K ships `omnigibson.eval.wrappers.DefaultWrapper` and `RGBDFullResWrapper`; use one of those unless we need custom behaviour. |
+| `configs/robot/r1pro.yaml` | Present. Copied verbatim from `OmniGibson/omnigibson/eval/r1pro.yaml` at v3.9.2. |
 
 ## License
 
