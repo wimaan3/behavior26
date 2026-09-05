@@ -3,7 +3,7 @@ Parallel rollout launcher for the BEHAVIOR 2026 challenge.
 
 Why this exists
 ---------------
-A full leaderboard submission is 100 tasks x 10 instances x 1 rollout = 1,000 rollouts.
+A full public submission is 100 tasks x 20 instances x 1 rollout = 2,000 rollouts.
 At the organizers' published throughput (~13.5 FPS for full-res RGB+depth) plus 150-300s
 scene load per trial, one rollout runs roughly 20-25 minutes. That puts a single full
 evaluation at ~350-420 GPU-hours -- over two weeks on one card.
@@ -54,12 +54,48 @@ import yaml
 EVAL_MODULE = os.environ.get("BEHAVIOR_EVAL_MODULE", "omnigibson.eval.eval")
 
 
+# VERIFIED against BEHAVIOR-1K v3.9.2 (omnigibson/eval/utils/eval_utils.py,
+# omnigibson/eval/evaluator.py :: resolve_instance_ids).
+#
+# `--instance-indices` are INDICES INTO A SPLIT, not instance ids. For
+# public_test, index 0 is instance 301. The evaluator writes the RESOLVED id into
+# both the rollout JSON and its filename, so anything that matches results back
+# to jobs -- i.e. --resume -- has to resolve too. Before this existed, resume
+# compared indices against resolved ids, matched nothing, and silently re-ran
+# every job on a sweep that was already half done.
+TEST_INSTANCE_IDS = list(range(301, 341))
+NUM_PUBLIC_TEST_INSTANCES = 20
+EVAL_MODES = ("train", "public_test", "hidden_test")
+
+
+def resolve_instance_ids(instance_indices: list[int], mode: str) -> list[int]:
+    """Mirror of omnigibson.eval.evaluator.resolve_instance_ids."""
+    if mode not in EVAL_MODES:
+        raise ValueError(f"mode must be one of {EVAL_MODES}, got {mode!r}")
+    if mode == "train":
+        return [int(i) for i in instance_indices]
+    split = (
+        TEST_INSTANCE_IDS[:NUM_PUBLIC_TEST_INSTANCES]
+        if mode == "public_test"
+        else TEST_INSTANCE_IDS[NUM_PUBLIC_TEST_INSTANCES:]
+    )
+    bad = [i for i in instance_indices if not 0 <= i < len(split)]
+    if bad:
+        raise ValueError(
+            f"instance indices {bad} out of range for mode {mode!r}: must be in "
+            f"range({len(split)}). These index the split; the ids are "
+            f"{split[0]}-{split[-1]}."
+        )
+    return [int(split[i]) for i in instance_indices]
+
+
 @dataclass
 class Job:
     """One evaluator invocation: a single task over one or more instances."""
 
     task: str
-    instances: list[int]
+    instances: list[int]           # indices, as passed to --instance-indices
+    resolved: list[int]            # the ids the evaluator will actually write
     worker_id: int = -1
 
     @property
@@ -85,6 +121,9 @@ def load_config(path: Path) -> dict:
     for required in ("name", "tasks", "instances"):
         if required not in cfg:
             raise ValueError(f"{path}: missing required key '{required}'")
+    mode = cfg.get("mode", "public_test")
+    if mode not in EVAL_MODES:
+        raise ValueError(f"{path}: mode must be one of {EVAL_MODES}, got {mode!r}")
     return cfg
 
 
@@ -96,14 +135,18 @@ def build_jobs(cfg: dict, instances_per_job: int) -> list[Job]:
     """
     tasks: list[str] = cfg["tasks"]
     instances: list[int] = cfg["instances"]
+    mode: str = cfg.get("mode", "public_test")
+
+    def make(task: str, chunk: list[int]) -> Job:
+        return Job(task=task, instances=list(chunk), resolved=resolve_instance_ids(chunk, mode))
 
     jobs: list[Job] = []
     for task in tasks:
         if instances_per_job <= 0:
-            jobs.append(Job(task=task, instances=list(instances)))
+            jobs.append(make(task, list(instances)))
         else:
             for i in range(0, len(instances), instances_per_job):
-                jobs.append(Job(task=task, instances=instances[i : i + instances_per_job]))
+                jobs.append(make(task, instances[i : i + instances_per_job]))
     return jobs
 
 
@@ -113,7 +156,7 @@ def completed_keys(output_dir: Path) -> set[tuple[str, int]]:
     Read from the JSON *contents*, not the filenames. The evaluator's filename convention
     is not documented, and matching on it by substring is actively dangerous: "1" is a
     substring of "inst10" and "0" of "rollout0", so a filename-based check reports
-    instances as complete that were never run. On a resumed 1,000-rollout sweep those
+    instances as complete that were never run. On a resumed 2,000-rollout sweep those
     silently become missing instances, and missing instances score ZERO.
 
     Built once per launch rather than per job -- this is O(files), not O(jobs x files).
@@ -151,7 +194,8 @@ def already_done(job: Job, done: set[tuple[str, int]]) -> bool:
     Partially-completed jobs re-run in full. That re-does some finished rollouts, which is
     the cheap mistake; the expensive one is skipping a rollout that never happened.
     """
-    return all((job.task, inst) in done for inst in job.instances)
+    # job.resolved, NOT job.instances: the evaluator writes resolved ids.
+    return all((job.task, inst) in done for inst in job.resolved)
 
 
 def build_command(job: Job, cfg: dict, port: int, output_dir: Path) -> list[str]:
@@ -163,6 +207,9 @@ def build_command(job: Job, cfg: dict, port: int, output_dir: Path) -> list[str]
         "--instance-indices", *[str(i) for i in job.instances],
         "--num-rollouts", str(cfg.get("num_rollouts", 1)),
         "--output-dir", str(output_dir),
+        # Defaults to public_test in the evaluator too, but pass it explicitly:
+        # a dev loop MUST use train, since every public_test instance is scored.
+        "--mode", cfg.get("mode", "public_test"),
     ]
 
     wrapper = cfg.get("env_wrapper")

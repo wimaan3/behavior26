@@ -93,12 +93,18 @@ def test_resume_does_not_confuse_instance_1_with_instance_10(tmp_path):
         write_rollout(tmp_path / "json", "turning_on_radio", i)
     done = completed_keys(tmp_path)
 
-    assert already_done(Job("turning_on_radio", list(range(10, 20))), done) is True
-    assert already_done(Job("turning_on_radio", [1]), done) is False
-    assert already_done(Job("turning_on_radio", [0]), done) is False
-    assert already_done(Job("turning_on_radio", [0, 1, 2]), done) is False
+    # These are train-mode jobs, where the indices ARE the instance ids, so
+    # `resolved` mirrors `instances`. See test_resume_matches_resolved_ids_not_indices
+    # for the test-mode case, where they differ and used to be compared wrongly.
+    def train_job(task, ids):
+        return Job(task, list(ids), list(ids))
+
+    assert already_done(train_job("turning_on_radio", range(10, 20)), done) is True
+    assert already_done(train_job("turning_on_radio", [1]), done) is False
+    assert already_done(train_job("turning_on_radio", [0]), done) is False
+    assert already_done(train_job("turning_on_radio", [0, 1, 2]), done) is False
     # and no cross-task contamination via substring
-    assert already_done(Job("radio", [10]), done) is False
+    assert already_done(train_job("radio", [10]), done) is False
 
 
 def test_resume_ignores_truncated_json_so_the_job_reruns(tmp_path):
@@ -258,3 +264,94 @@ def test_null_server_and_mock_evaluator_speak_the_same_protocol(tmp_path):
 if __name__ == "__main__":
     raise SystemExit(subprocess.call(
         [sys.executable, "-m", "pytest", __file__, "-q"], cwd=REPO))
+
+
+# --------------------------------------------------------------- instance ids
+# `--instance-indices` are INDICES INTO A SPLIT, not instance ids
+# (omnigibson/eval/evaluator.py :: resolve_instance_ids). The evaluator writes
+# the RESOLVED id into the rollout JSON and its filename, so anything matching
+# results back to jobs has to resolve too.
+
+
+def test_resolve_instance_ids_matches_the_evaluator():
+    from harness.launch import resolve_instance_ids
+
+    # public_test index 0 is instance 301, not 0.
+    assert resolve_instance_ids([0, 1, 2], "public_test") == [301, 302, 303]
+    assert resolve_instance_ids([0, 19], "public_test") == [301, 320]
+    # hidden_test is the second half of the 40.
+    assert resolve_instance_ids([0, 19], "hidden_test") == [321, 340]
+    # train indices ARE ids.
+    assert resolve_instance_ids([0, 7], "train") == [0, 7]
+
+
+def test_out_of_range_indices_are_rejected():
+    """The evaluator asserts on this; fail before spending a scene load."""
+    import pytest as _pytest
+
+    from harness.launch import resolve_instance_ids
+
+    with _pytest.raises(ValueError, match="out of range"):
+        resolve_instance_ids([20], "public_test")
+    with _pytest.raises(ValueError, match="out of range"):
+        resolve_instance_ids([301], "public_test")  # an id, mistakenly passed as an index
+
+
+def test_resume_matches_resolved_ids_not_indices(tmp_path):
+    """Regression: resume compared indices (0,1,2) against ids (301,302,303).
+
+    It matched nothing, so a half-finished sweep silently re-ran every job --
+    while still reporting the results it had found on disk, so it looked fine.
+    On a 2,000-rollout submission run that is hundreds of wasted GPU-hours.
+    """
+    import json as _json
+
+    from harness.launch import already_done, build_jobs, completed_keys
+
+    cfg = {
+        "name": "t",
+        "tasks": ["can_meat"],
+        "instances": [0, 1, 2],
+        "mode": "public_test",
+    }
+    (job,) = build_jobs(cfg, instances_per_job=0)
+    assert job.instances == [0, 1, 2]
+    assert job.resolved == [301, 302, 303]
+
+    json_dir = tmp_path / "json"
+    json_dir.mkdir()
+    for instance in (301, 302, 303):
+        (json_dir / f"can_meat_{instance}_0.json").write_text(
+            _json.dumps({"task": "can_meat", "instance_id": instance, "rollout_id": 0})
+        )
+
+    done = completed_keys(tmp_path)
+    assert already_done(job, done), "resume failed to recognise a completed job"
+
+    # And a gap must still re-run the job.
+    (json_dir / "can_meat_302_0.json").unlink()
+    assert not already_done(job, completed_keys(tmp_path))
+
+
+def test_train_mode_jobs_use_indices_as_ids(tmp_path):
+    """The dev loop runs --mode train, where indices are direct instance ids."""
+    from harness.launch import build_jobs
+
+    (job,) = build_jobs(
+        {"name": "t", "tasks": ["can_meat"], "instances": [4, 5], "mode": "train"},
+        instances_per_job=0,
+    )
+    assert job.resolved == [4, 5]
+
+
+def test_build_command_passes_mode():
+    """A dev loop that silently ran public_test would be tuning on the leaderboard."""
+    from pathlib import Path as _Path
+
+    from harness.launch import build_command, build_jobs
+
+    cfg = {"name": "t", "tasks": ["can_meat"], "instances": [0], "mode": "train"}
+    (job,) = build_jobs(cfg, instances_per_job=0)
+    cmd = build_command(job, cfg, port=8000, output_dir=_Path("/tmp/out"))
+    assert "--mode" in cmd
+    assert cmd[cmd.index("--mode") + 1] == "train"
