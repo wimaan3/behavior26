@@ -290,7 +290,15 @@ def load_reward_map(path: os.PathLike | str,
 
     for _, r in pd.read_csv(remeasure).iterrows():
         rec = rmap.get(r["task_name"])
-        if rec is None or pd.isna(r["D"]):
+        if rec is None:
+            continue
+        if pd.isna(r["D"]):
+            # No measurable D even on the full corpus. The verdict is unchanged, but
+            # its scope is not: "no reward signal in 200 of 200 episodes" is a much
+            # stronger claim than "none in the 48 episodes the sample happened to hold",
+            # and a manifest that still says sample-28pct understates the evidence.
+            rec.update({"episodes": int(r["n_episodes"]),
+                        "measurement_scope": "full-200ep"})
             continue
         rec.update({
             "D": int(r["D"]),

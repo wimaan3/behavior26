@@ -15,6 +15,7 @@ import os
 import pathlib
 
 import numpy as np
+import pandas as pd
 import pyarrow.parquet as pq
 import pytest
 
@@ -320,10 +321,38 @@ def test_refuses_a_task_that_only_under_fires_at_full_scale():
     assert "0.1075" in str(exc.value)
 
 
-def test_sample_scope_is_kept_for_tasks_with_no_full_measurement():
+def test_sample_scope_is_kept_for_tasks_with_no_full_measurement(tmp_path):
+    """The overlay must apply only where a full measurement exists.
+
+    Every task now has one, so no real task exercises the fallback -- it is driven
+    here with a remeasure file that omits a task on purpose. Asserting against a task
+    that merely happens not to be re-measured yet is a test that decays silently.
+    """
+    full = pd.read_csv(pathlib.Path(REWARD_MAP).parent / "full_corpus_remeasure.csv")
+    partial = tmp_path / "partial_remeasure.csv"
+    full[full.task_name != "cook_a_frozen_pie"].to_csv(partial, index=False)
+
+    rmap = labels.load_reward_map(REWARD_MAP, remeasure=partial)
+    assert rmap["cook_a_frozen_pie"]["measurement_scope"] == "sample-28pct"
+    assert rmap["turning_on_radio"]["measurement_scope"] == "full-200ep"
+
+
+def test_every_task_now_has_a_full_corpus_measurement():
+    """Task selection reads the overlay, so a gap in it is a silent fallback to the
+    28.4% sample -- the exact blindness that made installing_a_fax_machine rank 9."""
     rmap = labels.load_reward_map(REWARD_MAP)
-    rec = rmap["cook_a_frozen_pie"]
-    assert rec["measurement_scope"] == "sample-28pct"
+    sampled = sorted(k for k, v in rmap.items()
+                     if v.get("measurement_scope") != "full-200ep")
+    assert sampled == [], f"still sample-scope: {sampled}"
+
+
+def test_no_signal_tasks_carry_full_scope_too():
+    """Their verdict does not change at full scale, but the strength of it does."""
+    rmap = labels.load_reward_map(REWARD_MAP)
+    for task in ("rearranging_kitchen_furniture", "storing_food"):
+        rec = rmap[task]
+        assert rec["D"] is None and rec["measurement_scope"] == "full-200ep"
+        assert rec["episodes"] == 200
 
 
 # --------------------------------------------------------------------------

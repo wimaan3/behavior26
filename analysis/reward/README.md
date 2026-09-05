@@ -9,9 +9,13 @@ Two measurement scopes appear throughout, and the difference matters:
 | Scope | What | Where |
 |---|---|---|
 | **sample** | 5,677 of 20,000 episodes (**28.4%**) -- the first parquet shard(s) of each task | `behavior1k_task_table.csv`, `behavior1k_episode_stats.csv`, `behavior1k_reward_map.json` |
-| **full** | all 200 episodes of a task | `full_corpus_remeasure.csv` (21 tasks pulled locally), `full_corpus_lengths.csv` (lengths for all 100) |
+| **full** | **all 20,000 episodes of all 100 tasks** | `full_corpus_remeasure.csv`, `full_corpus_lengths.csv`, `scope_delta.csv`, `bddl_audit.csv`, `task_shortlist.csv` |
 
-`D` survives the sampling. **`phi0` does not** -- see warning 4.
+Everything that drives task selection is now **full scope**. The sample-scope files are
+retained only because the regression test pins against them.
+
+`D` mostly survives the sampling but **not always** -- see warning 4 -- and **`phi0` does
+not survive it at all**.
 
 ---
 
@@ -208,28 +212,44 @@ otherwise rank** -- listed in `task_shortlist.csv` under
 **A task is trustworthy only when `phi0 = 0` AND `D` equals the must-flip count.**
 `denominator_status` reports this as `CONSISTENT` / `COLLAPSED` / `UNDER_FIRES`.
 
-## Warning 4 -- the committed corpus stats are a 28.4% sample, and `phi0` does not survive it (new)
+## Warning 4 -- the 28.4% sample gets `D` wrong on one task and `phi0` wrong on many (updated: full corpus)
 
 `behavior1k_task_table.csv` and friends were measured over the first parquet shard(s) of
-each task: **5,677 of 20,000 episodes**. `D` is a min over magnitudes and is unchanged --
-re-measured on all 200 episodes for 21 tasks, `D` matched the committed value **21 of 21**.
+each task: **5,677 of 20,000 episodes**. All 100 tasks have now been re-measured over all
+20,000 episodes (`measure_corpus.py` against the reward mirror, see `fetch_rewards.py`).
 
-`phi0` and `valid_rate` do **not** survive:
+**`D` changed on one task**, and it is the failure mode that matters:
 
-| Task | sample phi0 | sample eps | full phi0 | episodes with phi0 > 0 (of 200) |
+| Task | sample `D` | full `D` | why |
+|---|---|---|---|
+| `wash_dog_toys` | 3 | **6** | its 19-episode sample contained only the magnitudes `1/3` and `2/3` |
+
+`D = 1/min|reward|`, so it is fixed by the single smallest magnitude anywhere in the task.
+Across all 200 `wash_dog_toys` episodes the magnitude `1/6` occurs **exactly once**
+(`1/2` also occurs exactly once). One reward sample in the whole task sets its
+denominator. `D` is therefore **not** safe to measure on a sample, on any task, and the
+99 tasks where it did not move are luck rather than evidence. Every magnitude on every
+task is an integer multiple of its `1/D`: **integrality passes on all 98 tasks with a
+measurable `D`.**
+
+`phi0` moves on far more tasks, always upward -- a sample flatters the instrumentation:
+
+| Task | sample `phi0` | sample eps | full `phi0` | episodes with `phi0 > 0` (of 200) |
 |---|---|---|---|---|
-| `installing_a_fax_machine` | 0.0 | 62 | **0.1075** | **43** |
-| `make_rose_centerpieces` | 0.0938 | 54 | **0.1356** | 81 |
-| `chop_an_onion` | 0.0568 | 70 | 0.0650 | 48 |
-| `sweeping_garage` | 0.0 | 54 | 0.0100 | 4 |
-| `spraying_fruit_trees` | 0.0 | 200* | 0.0075 | 3 |
+| `putting_dirty_dishes_in_sink` | 0.0 | | **0.2539** | 98 |
+| `dispose_of_batteries` | 0.0 | | **0.2513** | 99 |
+| `make_gift_bags_for_baby_showers` | 0.1449 | | **0.3407** | 125 |
+| `installing_a_scanner` | 0.0 | | **0.1667** | 66 |
+| `packing_meal_for_delivery` | 0.0 | | **0.1658** | 64 |
+| `composting_waste` | 0.0 | | **0.1625** | 65 |
+| `installing_a_fax_machine` | 0.0 | 62 | **0.1075** | 43 |
 
-`installing_a_fax_machine` was **rank 9 of the previous shortlist on the strength of
-`phi0 = 0`**. It is not a `phi0 = 0` task; 21.5% of its episodes under-fire. It has been
-removed. Any task in `task_shortlist.csv` marked `measurement = sample-28pct` has **not**
-been checked this way.
+Seven tasks read `phi0 = 0` on their sample and are under-firing on the full corpus.
+`installing_a_fax_machine` was rank 9 of an earlier shortlist on the strength of
+`phi0 = 0`.
 
-\* its shard happened to hold all 200 episodes, but under the older, stricter gate set.
+**The null baseline** -- task-equal mean `phi0` over tasks whose instrumentation is `ok`
+-- moves from **0.0932 (sample) to 0.1293 (full corpus)**, n = 94 both times.
 
 ## Warning 5 -- zero-headroom episodes (new)
 
@@ -372,10 +392,18 @@ flip. Full table for all 98 tasks with a measurable `D` in `bddl_audit.csv`.
 | `sweeping_garage` | 2 | 2 | 2 | 1.98 | **suspect** -- 4/200, marginal; dropped from the list |
 | `putting_dishes_away_after_cleaning` | 14 | 8 | 10 | 1.02 | **do not use** -- reference defect |
 
-**Result: 11 of the top 12 are clean**, and the twelfth is clean on a sample it has not
-been possible to confirm at full scale. The audit removed three tasks that the previous
-shortlist carried: `make_microwave_popcorn` (collapsed denominator),
-`installing_a_fax_machine` and `sweeping_garage` (under-fire, only visible at full scale).
+**Corpus-wide result, all 100 tasks on all 20,000 episodes:**
+
+| Verdict | Tasks |
+|---|---|
+| `CONSISTENT` -- `D` == must-flip count and every episode credits all `D` units | **13** |
+| `UNDER_FIRES` -- `D` right, successful demos credit fewer than `D` | **54** |
+| `COLLAPSED` -- `D` below the must-flip count | **31** |
+| no reward signal at all | **2** |
+
+**Only 13 of 100 tasks are safe to build a progress label from**, and all 13 are in the
+primary tier of `task_shortlist.csv`. 26 tasks have `phi0 = 0` in every episode, but 13 of
+those are `COLLAPSED` -- warning 3 exactly.
 
 ---
 

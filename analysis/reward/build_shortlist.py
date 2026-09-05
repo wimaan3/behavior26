@@ -41,8 +41,12 @@ MIN_VALID_RATE = 0.70
 MIN_EPISODES = 30
 N_PRIMARY = 12
 # Deliberate high-D picks: the phi0==0 set is almost all D=1-2, which is nearly a
-# binary reward and gives a progress head next to nothing to learn.
-MEDIUM_D = ["cook_bacon", "make_rose_centerpieces", "chop_an_onion"]
+# binary reward and gives a progress head next to nothing to learn, so the medium-D
+# candidates are listed even when they do not qualify for the primary tier.
+# Derived, not hardcoded: at sample scope this list was fixed by hand, which cannot
+# survive a re-measurement that moves phi0 on tasks the sample never looked at.
+MEDIUM_D_MIN = 4
+N_MEDIUM = 3
 
 
 def load() -> pd.DataFrame:
@@ -128,7 +132,11 @@ def main() -> int:
     primary.insert(0, "tier", "primary")
     primary.insert(0, "rank", range(1, len(primary) + 1))
 
-    medium = allrows[allrows.task.isin(MEDIUM_D)].copy()
+    med_pool = allrows[(allrows.D >= MEDIUM_D_MIN)
+                       & (allrows.valid_rate >= MIN_VALID_RATE)
+                       & (allrows.episodes_measured >= MIN_EPISODES)]
+    medium = (med_pool.sort_values(["phi0_mean", "mean_episode_len"])
+              .head(N_MEDIUM).copy())
     medium.insert(0, "tier", "medium_D")
     medium.insert(0, "rank", pd.NA)
 
@@ -143,6 +151,9 @@ def main() -> int:
     print(f"phi0==0 & valid>=70% & >={MIN_EPISODES} eps : {len(eligible)} tasks")
     print(f"  of which COLLAPSED (excluded)            : {len(excluded)} "
           f"({', '.join(excluded.task)})")
+    clean_med = med_pool[med_pool.phi0_frac_gt0 == 0.0]
+    print(f"D >= {MEDIUM_D_MIN} and phi0 == 0 in every episode      : {len(clean_med)} tasks"
+          f" ({', '.join(clean_med.task) if len(clean_med) else 'none'})")
     print(f"wrote task_shortlist.csv ({len(out)} rows) and bddl_audit.csv ({len(allrows)} rows)")
     return 0
 

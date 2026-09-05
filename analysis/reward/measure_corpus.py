@@ -107,7 +107,14 @@ def main(argv=None) -> int:
 
     present = sorted(int(pathlib.Path(d).name.split("-")[1])
                      for d in glob.glob(str(ds.root / "data" / "chunk-*")))
-    rows = [remeasure(ds, ti) for ti in present]
+    rows = []
+    for n, ti in enumerate(present, 1):
+        rows.append(remeasure(ds, ti))
+        # Dataset caches a task's reward frame; over 100 tasks that is the whole
+        # corpus (~211M frames) resident at once. Nothing revisits a task, so drop it.
+        ds._rewards.clear()
+        if n % 10 == 0 or n == len(present):
+            print(f"  remeasured {n}/{len(present)} tasks", flush=True)
     df = pd.DataFrame(rows).sort_values("task_index")
     df.to_csv(out_dir / "full_corpus_remeasure.csv", index=False)
     print(f"full_corpus_remeasure.csv: {len(df)} tasks with local parquet "
