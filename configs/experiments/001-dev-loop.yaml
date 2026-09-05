@@ -9,8 +9,10 @@
 #      the first 20 of those, and compute_final_q_score averages over ALL 20 per
 #      task. So there is no self-test split inside the public set: iterating on
 #      any of 301-320 is tuning on the leaderboard. 321-340 is hidden -- never
-#      touch it. harness/launch.py enforces this and refuses a train-mode config
-#      that names a test instance.
+#      touch it. harness/launch.py refuses a train-mode config that names a test
+#      instance. That guard is OURS, not the evaluator's -- upstream's
+#      resolve_instance_ids returns train-mode ids unvalidated. Keep it; it
+#      encodes how we have chosen to use the benchmark.
 #   3. INCLUDE 2-3 TYPE C TASKS even though they will score badly.
 #
 # On rule 3 -- Q5 established that the cheap 10-task slice is mostly Type A/B

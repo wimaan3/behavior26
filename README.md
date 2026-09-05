@@ -151,7 +151,9 @@ Two consequences that are easy to get wrong:
    a "dev set" does not protect anything — you would be tuning on half the
    leaderboard and reporting the other half. The dev loop must use training
    instances. `harness/launch.py` refuses a `mode: train` config that names a
-   test instance.
+   test instance — **our rule, not the evaluator's**: upstream's
+   `resolve_instance_ids` passes train-mode ids through unvalidated. We are
+   deliberately stricter.
 2. **Missing rollouts are zeros, not omissions.**
    `q_score_avg[task] = sum(...) / n_instances_per_task` with
    `n_instances_per_task = 20`. Submitting 10 instances per task does not score

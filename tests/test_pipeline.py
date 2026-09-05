@@ -289,10 +289,19 @@ def test_train_ids_pass_through():
 
 
 def test_train_mode_refuses_test_instances():
-    """The rule that matters: there is no self-test split inside the public set.
+    """OUR policy, deliberately stricter than the evaluator.
 
-    Iterating on 301-320 is tuning on the leaderboard, which is exactly what the
-    old "dev loop on instances 10-19" config did.
+    Upstream does no validation at all in train mode:
+
+        # evaluator.py :: resolve_instance_ids
+        if mode == "train":
+            return [int(instance_id) for instance_id in instance_indices]
+
+    We refuse because every public-test instance is scored, so there is no
+    holdout inside the public set and a dev loop that lands on 301-320 is
+    tuning on the leaderboard -- which is exactly what the old "dev loop on
+    instances 10-19" config did. If this test ever fails because someone
+    relaxed the guard to match upstream, that is a regression, not a fix.
     """
     import pytest as _pytest
 

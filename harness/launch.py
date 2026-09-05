@@ -88,12 +88,24 @@ def split_ids(mode: str) -> list[int] | None:
 def indices_for_ids(instance_ids: list[int], mode: str) -> list[int]:
     """Convert config instance IDS to the --instance-indices the evaluator wants.
 
-    Also enforces the split rules, so a dev loop cannot silently evaluate on
-    scored instances:
+    Two of the three checks below mirror the evaluator; one is ours alone. The
+    distinction matters -- do not "fix" our rule to match upstream.
 
-      * train mode rejects any id in 301-340 -- there is no holdout inside the
-        public set, so iterating there IS tuning on the leaderboard;
-      * public_test rejects hidden ids and vice versa.
+    MIRRORS THE EVALUATOR (evaluator.py :: resolve_instance_ids):
+      * public_test / hidden_test indices must lie in range(20). Upstream
+        asserts this, so a raw id like 301 passed as an index already fails
+        loudly there; checking here just moves the failure before the scene
+        load. We phrase it as ids and reject an id from the wrong split, which
+        is the same constraint expressed in the units the configs use.
+
+    OUR POLICY, STRICTER THAN UPSTREAM:
+      * train mode rejects any id in 301-340. The evaluator does NOT do this --
+        `if mode == "train": return [int(i) for i in instance_indices]` passes
+        anything through raw, unvalidated. We refuse because every public-test
+        instance is scored (compute_final_q_score divides by all 20 per task),
+        so there is no holdout inside the public set and a dev loop that lands
+        there is tuning on the leaderboard. That is a project rule about how we
+        use the benchmark, not a fact about the benchmark.
     """
     split = split_ids(mode)
     if split is None:
@@ -101,9 +113,12 @@ def indices_for_ids(instance_ids: list[int], mode: str) -> list[int]:
         if stray:
             raise ValueError(
                 f"instances {stray} are TEST instances ({TEST_INSTANCE_IDS[0]}-"
-                f"{TEST_INSTANCE_IDS[-1]}) but mode is 'train'. Every public-test "
-                "instance is scored -- there is no self-test split inside it -- so a "
-                "dev loop must use training instances (below 301)."
+                f"{TEST_INSTANCE_IDS[-1]}) but mode is 'train'.\n"
+                "This is a behavior26 rule, not an evaluator one -- upstream would "
+                "pass these through unvalidated. We refuse because every public-test "
+                "instance is scored, so there is no holdout inside the public set and "
+                "a dev loop that lands there is tuning on the leaderboard. Use "
+                f"training instances (below {TEST_INSTANCE_IDS[0]})."
             )
         return [int(i) for i in instance_ids]
 
