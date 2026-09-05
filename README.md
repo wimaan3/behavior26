@@ -242,7 +242,7 @@ pairing throws away the entire advantage. This is why the dev subset stays froze
 
 | Component | State |
 |---|---|
-| `harness/launch.py` | Working. Verify the evaluator CLI against your checkout on first run. |
+| `harness/launch.py` | Working. CLI verified against v3.9.2; passes `--mode` and resolves instance indices to ids so `--resume` matches. |
 | `analysis/parse.py` | Working. Field names match the published JSON schema. |
 | `analysis/failures.py` | Working, thresholds uncalibrated — tune after watching real rollouts. |
 | `submission/build.py` | Working. Emits `<track>.<testset>.<team>.<affiliation>.<date>/` as the scorer requires; validated zip produced from mock rollouts. |

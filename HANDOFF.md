@@ -20,7 +20,7 @@ Reading them instead of the docs contradicted several things this repo believed.
 | `policy/wrapper.py` is a missing required artifact | `omnigibson.eval.wrappers.{DefaultWrapper,RGBDFullResWrapper}` already ship; a custom wrapper is optional |
 | `configs/robot/r1pro.yaml` is missing | Copied verbatim from the checkout; now present |
 
-### Bugs fixed this session (each would have failed the first paid run)
+### Bugs fixed this session (each would have failed or wasted a paid run)
 
 1. **Wire codec.** `policy/wire.py` packed with msgpack-numpy. The evaluator's
    `unpack_data` looks for `b"__ndarray__"`, so an msgpack-numpy array decodes
@@ -33,6 +33,15 @@ Reading them instead of the docs contradicted several things this repo believed.
    step's action — an episode-long one-step lag, silently.
 4. **Submission package layout.** The scorer parses the directory name as
    `<track>.<testset>.<team>.<affiliation>.<date>` and asserts on filenames.
+5. **`--resume` never matched.** `already_done` compared job indices (0,1,2)
+   against the resolved ids on disk (301,302,303), so a half-finished sweep
+   re-ran every job — while still printing the count it had found, so it looked
+   fine. Never worked against the real evaluator in test mode; the mock hid it
+   by writing indices back out. Hundreds of rented GPU-hours on a resumed
+   2,000-rollout run.
+6. **The dev loop was tuning on the leaderboard.** `001-dev-loop.yaml` said
+   "instances 10-19 only", which selects public-test instances 311-320 — all
+   scored. Corrected to `mode: train`.
 
 ### Scoring consequence worth internalising
 
