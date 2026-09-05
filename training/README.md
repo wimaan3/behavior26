@@ -410,6 +410,41 @@ Our patch makes `missing_regex` a field, and
 
 ---
 
+## The robot name upstream gets wrong
+
+`omnigibson/eval/r1pro.yaml` and `openpi/src/openpi/configs/robots/b1k.py` both
+encode the robot's scene name, and upstream they disagree:
+
+| file | name |
+|---|---|
+| `omnigibson/eval/r1pro.yaml` (v3.9.2) | `robot_r1` |
+| `openpi/.../configs/robots/b1k.py` (upstream) | `robot` |
+
+Every observation key is prefixed with it, and openpi's serving wrapper does
+
+```python
+# openpi/src/openpi/shared/eval_b1k_wrapper.py:72
+prop_state = obs[f"{self.robot.name}::proprio"]
+```
+
+so it asks for `robot::proprio` while the evaluator publishes
+`robot_r1::proprio`. KeyError on the first step of the first rollout — after
+the scene load, on rented hardware. All three camera `obs_key`s are wrong the
+same way (l.79).
+
+We align **openpi** to the evaluator's name rather than editing the robot
+config, because that .yaml is an inspected submission artifact and should stay
+byte-identical to the organizers' own file — it then still works if they run it
+with their copy. The three obs_keys are now derived from `ROBOT_NAME` instead of
+written out as literals, so changing the name cannot leave a stale one behind;
+that is how the mismatch survived upstream in the first place.
+
+`tests/test_robot_config.py` reads both files and fails if they diverge again.
+Nothing upstream checks them against each other.
+
+Training is unaffected: it repacks on `dataset_key`, while `name` and `obs_key`
+are read only at inference.
+
 ## What runs at step 0
 
 Measured, not assumed (`test_pi05_starts_with_its_adarms_gates_closed`).

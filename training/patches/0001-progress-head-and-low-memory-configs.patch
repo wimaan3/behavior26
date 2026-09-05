@@ -38,6 +38,79 @@ index b53dc5c..e88c223 100644
      }
      return new_state, info
  
+diff --git a/src/openpi/configs/robots/b1k.py b/src/openpi/configs/robots/b1k.py
+index 0fa8121..39518cf 100644
+--- a/src/openpi/configs/robots/b1k.py
++++ b/src/openpi/configs/robots/b1k.py
+@@ -1,27 +1,64 @@
+ from .base_config import ObservationConfig, StateActionConfig, RobotConfig, register_robot
+ 
+ 
++# ------------------------------------------------------------------ behavior26
++# The robot's name in the OmniGibson scene. It MUST equal the `name:` field of
++# the robot config the evaluator is launched with (`--robot-config`), because
++# every observation key is prefixed with it:
++#
++#   omnigibson/eval/r1pro.yaml (v3.9.2)   name: robot_r1
++#   this file, upstream                   name="robot"
++#
++# openpi's own serving wrapper looks up
++#
++#   openpi/shared/eval_b1k_wrapper.py:72
++#       prop_state = obs[f"{self.robot.name}::proprio"]
++#
++# so with the upstream "robot" it asks for `robot::proprio` while the evaluator
++# publishes `robot_r1::proprio`, and the first step of the first rollout dies
++# with a KeyError. Same for all three cameras (l.79). This is an upstream bug:
++# the two files ship inconsistent names and nothing checks them.
++#
++# We align to the EVALUATOR's name rather than editing the robot config, so the
++# .yaml we submit stays byte-identical to the organizers' own file -- it is an
++# inspected submission artifact, and it still works if they substitute theirs.
++#
++# behavior26 pins this with tests/test_robot_config.py, which reads both files
++# and fails if they diverge again.
++ROBOT_NAME = "robot_r1"
++
++
++def _rgb_obs_key(link: str, robot_name: str = ROBOT_NAME) -> str:
++    """Observation-dict key for a camera, as OmniGibson publishes it.
++
++    Format is `{robot}::{robot}:{link}:Camera:0::rgb`. Derived rather than
++    written out three times, so changing ROBOT_NAME cannot leave a stale literal
++    behind -- which is how the mismatch above survived in the first place.
++    """
++    return f"{robot_name}::{robot_name}:{link}:Camera:0::rgb"
++
++
+ # R1Pro Robot Configuration
+ # Dual-arm mobile manipulator with base, torso, and multiple camera views
+ R1Pro = RobotConfig(
+-    name="robot",
++    name=ROBOT_NAME,
+     robot_type="R1Pro",
+     observations={
+         "image_0": ObservationConfig(
+             name="head",
+-            obs_key="robot::robot:zed_link:Camera:0::rgb",
++            obs_key=_rgb_obs_key("zed_link"),
+             dataset_key="observation.rgb.zed_link_camera_0",
+             resolution=[240, 240]
+         ),
+         "image_1": ObservationConfig(
+             name="left_wrist",
+-            obs_key="robot::robot:left_realsense_link:Camera:0::rgb",
++            obs_key=_rgb_obs_key("left_realsense_link"),
+             dataset_key="observation.rgb.left_realsense_link_camera_0",
+             resolution=[240, 240]
+         ),
+         "image_2": ObservationConfig(
+             name="right_wrist",
+-            obs_key="robot::robot:right_realsense_link:Camera:0::rgb",
++            obs_key=_rgb_obs_key("right_realsense_link"),
+             dataset_key="observation.rgb.right_realsense_link_camera_0",
+             resolution=[240, 240]
+         ),
 diff --git a/src/openpi/models/model.py b/src/openpi/models/model.py
 index 29618b4..fe8e9c5 100644
 --- a/src/openpi/models/model.py
