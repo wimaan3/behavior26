@@ -1,5 +1,14 @@
 # The frozen dev subset. Runs every iteration.
-# ~36 rollouts, roughly 13 GPU-hours, overnight on two cards.
+#
+# CUT TO TWO TASKS on a $200 total budget (2026-09-05). We are not running the
+# full 100-task submission: it is ~776 GPU-hr (~$233-388 on spot) and would
+# score ~0.02 anyway, because Q averages over all 100 tasks and 98 of them
+# would be zero. Partial submissions are allowed, so we submit only what we
+# train: 2 tasks x 20 public instances = 40 rollouts, ~11 GPU-hr, ~$3-6 spot.
+#
+# The three D=1 control tasks are dropped. They were there to add Q, but the
+# ceiling is ~0.02 with or without them, so they cost training money and add
+# nothing to the contribution.
 #
 # Three rules:
 #   1. Keep this list FROZEN so numbers are comparable across iterations.
@@ -35,11 +44,20 @@ hypothesis: n/a -- this is the measuring stick, not an experiment.
 base_model: pi05
 checkpoint: null
 
-tasks: []                         # TODO: choose 12 after the Week 2 failure analysis
-                                  # (blocked on the Jetson's full-scale phi_0 sweep)
-                                  # Known bad, do not include: make_microwave_popcorn,
-                                  # putting_dishes_away_after_cleaning,
-                                  # rearranging_kitchen_furniture, storing_food.
+# Both tasks are GRADED, not binary -- unlike the D=1 tasks on the shortlist's
+# primary tier. That is a real advantage for the A/B: graded Q carries more
+# information per rollout. Figures from analysis/reward/:
+#
+#   task                                    idx   D  rel_eval_cost  phi0_mean
+#   set_up_a_coffee_station_in_your_kitchen  10   6      0.594        0.241
+#   putting_shoes_on_rack                    22  10      0.733        0.111
+#
+# phi0_mean is what a do-nothing policy already banks, because Q is scored on
+# the FINAL state and these tasks start partly satisfied. Any dQ we report is
+# on top of that floor, not from zero.
+tasks:
+  - set_up_a_coffee_station_in_your_kitchen
+  - putting_shoes_on_rack
 mode: train                       # NOT public_test -- see rule 2 above
 instances: [10, 11, 12]           # TRAINING instance ids (must be < 301)
 num_rollouts: 1

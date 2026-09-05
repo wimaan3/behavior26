@@ -61,7 +61,11 @@ SHORTLIST = REPO / "analysis" / "reward" / "task_shortlist.csv"
 # From the challenge's published throughput and the repo's timing notes.
 DEFAULT_FPS = 13.5
 DEFAULT_SCENE_LOAD_S = 225.0     # midpoint of the published 150-300s
-DEFAULT_GPU_HOUR_USD = 1.00
+# Spot, not on-demand. The harness is resumable (--resume indexes completed
+# rollouts from JSON contents), so a preemption costs the in-flight rollout and
+# nothing else. Spot runs 50-70% below on-demand; we quote the pessimistic end.
+DEFAULT_GPU_HOUR_USD = 0.50
+ON_DEMAND_USD = 1.00
 
 
 def _t_ppf(p: float, dof: int) -> float:
@@ -133,7 +137,11 @@ def main() -> int:
     ap.add_argument("--power", type=float, default=0.80)
     ap.add_argument("--fps", type=float, default=DEFAULT_FPS)
     ap.add_argument("--scene-load", type=float, default=DEFAULT_SCENE_LOAD_S)
-    ap.add_argument("--usd-per-gpu-hour", type=float, default=DEFAULT_GPU_HOUR_USD)
+    ap.add_argument("--usd-per-gpu-hour", type=float, default=DEFAULT_GPU_HOUR_USD,
+                    help=f"default {DEFAULT_GPU_HOUR_USD} = spot (pessimistic end of "
+                         f"50-70%% off ${ON_DEMAND_USD:.2f} on-demand)")
+    ap.add_argument("--total-budget-usd", type=float, default=200.0,
+                    help="hard project budget; designs over it are flagged")
     ap.add_argument("--budget-hours", type=float, default=50.0,
                     help="mark designs that fit one A/B cycle's eval budget")
     args = ap.parse_args()
@@ -159,8 +167,10 @@ def main() -> int:
     d_values = sorted({t["D"] for t in tasks})
     print(f"D values   {d_values}"
           + ("   <- D=1 means per-rollout Q is BINARY" if d_values == [1] else ""))
+    rate = "spot" if args.usd_per_gpu_hour < ON_DEMAND_USD else "on-demand"
     print(f"cost model {args.fps} fps, {args.scene_load:.0f}s scene load, "
-          f"${args.usd_per_gpu_hour:.2f}/GPU-hr, 2 arms")
+          f"${args.usd_per_gpu_hour:.2f}/GPU-hr ({rate}), 2 arms")
+    print(f"budget     ${args.total_budget_usd:.0f} total for the project")
     print(f"test       paired, alpha={args.alpha}, power={args.power}, sigma_b={args.sigma_b}")
     print()
 

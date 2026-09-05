@@ -61,11 +61,24 @@ VALID_TESTSETS = ("public", "hidden")
 FILENAME_RE = re.compile(r"^(?P<task>.+)_(?P<instance>\d+)_(?P<rollout>\d+)\.json$")
 
 
-def validate_rollouts(json_dir: Path, testset: str) -> tuple[list[Path], list[str]]:
+def validate_rollouts(
+    json_dir: Path, testset: str, intended_tasks: list[str] | None = None
+) -> tuple[list[Path], list[str]]:
     """Check the rollout JSONs before packaging. Returns (files, warnings).
 
     The checks mirror what the official scorer asserts, so a problem shows up
     here rather than as an AssertionError in someone else's pipeline.
+
+    `intended_tasks` switches on PARTIAL mode. Partial submissions are legal and
+    on a small budget they are the plan, not an accident: we submit only the
+    tasks we trained. Without this the count check fires on every build ("40
+    rollouts, expected 2000") and a warning that always fires is a warning
+    nobody reads -- which is how a genuine shortfall gets missed.
+
+    In partial mode the expected count is computed from the intended list, and
+    a real shortfall -- a task that produced fewer rollouts than its instances,
+    or produced none at all -- still warns. Tasks outside the list also warn,
+    because that means the run did something the plan did not ask for.
     """
     all_json = sorted(json_dir.glob("*.json"))
     files = [p for p in all_json if p.name != "timing_manifest.json"]
@@ -83,21 +96,36 @@ def validate_rollouts(json_dir: Path, testset: str) -> tuple[list[Path], list[st
 
     expected_instances = PUBLIC_INSTANCES if testset == "public" else HIDDEN_INSTANCES
     n_per_task = len(expected_instances)
+    partial = intended_tasks is not None
+    expected_total = len(intended_tasks) * n_per_task if partial else EXPECTED_ROLLOUTS
 
-    if len(files) < EXPECTED_ROLLOUTS:
+    if len(files) > expected_total:
         warnings.append(
-            f"{len(files)} rollouts, expected {EXPECTED_ROLLOUTS} "
-            f"({N_TASKS} tasks x {n_per_task} instances). Missing rollouts are NOT skipped: "
-            f"compute_final_q_score divides by {n_per_task} per task regardless, so each "
-            "missing instance is scored as a zero."
+            f"{len(files)} rollouts exceeds the {expected_total} expected"
+            + (" for the intended task list." if partial else f" ({EXPECTED_ROLLOUTS} cap).")
         )
-    elif len(files) > EXPECTED_ROLLOUTS:
-        warnings.append(f"{len(files)} rollouts exceeds the {EXPECTED_ROLLOUTS} cap.")
+    elif len(files) < expected_total:
+        if partial:
+            warnings.append(
+                f"{len(files)} rollouts, expected {expected_total} "
+                f"({len(intended_tasks)} intended tasks x {n_per_task} instances). "
+                "This is a shortfall WITHIN the intended set, not the intentional "
+                "partial -- some rollouts did not run."
+            )
+        else:
+            warnings.append(
+                f"{len(files)} rollouts, expected {EXPECTED_ROLLOUTS} "
+                f"({N_TASKS} tasks x {n_per_task} instances). Missing rollouts are NOT skipped: "
+                f"compute_final_q_score divides by {n_per_task} per task regardless, so each "
+                "missing instance is scored as a zero. If this is a deliberate partial "
+                "submission, pass --intended-task (repeatable) or --intended-tasks-from."
+            )
 
     seen: set[tuple] = set()
     bad_names: list[str] = []
     off_split: list[int] = []
     tasks: set[str] = set()
+    per_task: dict[str, int] = {}
 
     for path in files:
         match = FILENAME_RE.match(path.name)
@@ -105,6 +133,7 @@ def validate_rollouts(json_dir: Path, testset: str) -> tuple[list[Path], list[st
             bad_names.append(path.name)
         else:
             tasks.add(match["task"])
+            per_task[match["task"]] = per_task.get(match["task"], 0) + 1
             instance = int(match["instance"])
             if instance not in expected_instances:
                 off_split.append(instance)
@@ -149,7 +178,33 @@ def validate_rollouts(json_dir: Path, testset: str) -> tuple[list[Path], list[st
             f"({lo}-{hi}), e.g. {sorted(set(off_split))[:5]}. Note --instance-indices are "
             "INDICES into the split; the evaluator writes the resolved id."
         )
-    if len(tasks) < N_TASKS:
+    if partial:
+        intended = set(intended_tasks)
+        missing = sorted(intended - tasks)
+        unexpected = sorted(tasks - intended)
+        if missing:
+            warnings.append(
+                f"intended task(s) with NO rollouts at all: {missing}. "
+                "These score zero."
+            )
+        if unexpected:
+            warnings.append(
+                f"rollouts for task(s) not in the intended list: {unexpected}. "
+                "The run did something the plan did not ask for."
+            )
+        for task in sorted(intended & tasks):
+            got = per_task.get(task, 0)
+            if got < n_per_task:
+                warnings.append(
+                    f"{task}: {got}/{n_per_task} instances. Each missing instance is a zero."
+                )
+        covered = len(intended & tasks)
+        warnings.append(
+            f"PARTIAL submission: {covered}/{N_TASKS} tasks covered. Q is averaged over all "
+            f"{N_TASKS} tasks, so the other {N_TASKS - covered} score zero and this run's "
+            f"ceiling is {covered / N_TASKS:.3f} even at Q=1.0 on every task submitted."
+        )
+    elif len(tasks) < N_TASKS:
         warnings.append(
             f"{len(tasks)} distinct task(s) present, expected {N_TASKS}. "
             "Absent tasks score zero and are averaged in."
@@ -272,6 +327,13 @@ def main() -> int:
     ap.add_argument("--team", required=True, help="team name (no dots)")
     ap.add_argument("--affiliation", required=True, help="affiliation (no dots)")
     ap.add_argument("--date", default=None, help="YYYYMMDD; defaults to today (UTC)")
+    ap.add_argument("--intended-task", action="append", default=[], metavar="TASK",
+                    help="declare a deliberate PARTIAL submission: the task(s) we meant to "
+                         "submit. Repeatable. Validation then runs against this list, so a "
+                         "real shortfall still warns but the intentional partial does not.")
+    ap.add_argument("--intended-tasks-from", type=Path, default=None, metavar="YAML",
+                    help="read the intended task list from an experiment config's `tasks:` "
+                         "key, e.g. configs/experiments/001-dev-loop.yaml")
     ap.add_argument("--extra", type=Path, action="append", default=[],
                     help="precomputed artifact to ship inside the package (repeatable), "
                          "e.g. norm_stats.json")
@@ -297,7 +359,20 @@ def main() -> int:
     if not json_dir.is_dir():
         json_dir = args.rollouts
 
-    files, warnings = validate_rollouts(json_dir, args.testset)
+    intended = list(args.intended_task)
+    if args.intended_tasks_from:
+        try:
+            import yaml  # noqa: PLC0415
+        except ImportError:
+            raise SystemExit("--intended-tasks-from needs PyYAML (pip install -r requirements-tools.txt)")
+        cfg = yaml.safe_load(args.intended_tasks_from.read_text()) or {}
+        from_cfg = cfg.get("tasks") or []
+        if not from_cfg:
+            raise SystemExit(f"{args.intended_tasks_from} has no non-empty `tasks:` list")
+        intended += [t for t in from_cfg if t not in intended]
+    intended_tasks = intended or None
+
+    files, warnings = validate_rollouts(json_dir, args.testset, intended_tasks)
 
     if warnings:
         print("warnings:")
@@ -344,6 +419,9 @@ def main() -> int:
     digest = hashlib.sha256(out.read_bytes()).hexdigest()[:16]
     size_mb = out.stat().st_size / 1e6
 
+    if intended_tasks:
+        print(f"PARTIAL submission: {len(intended_tasks)} intended task(s) "
+              f"-> ceiling {len(intended_tasks) / N_TASKS:.3f}")
     print(f"packaged {len(files)} rollouts -> {out}")
     print(f"  package  {submission_name}/")
     print(f"  size     {size_mb:.1f} MB")
