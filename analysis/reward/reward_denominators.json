@@ -1,0 +1,135 @@
+{
+ "0": {
+  "task_name": "turning_on_radio",
+  "D_observed": 1,
+  "N_toplevel_conjuncts": 1,
+  "N_quantifier_expanded": 1,
+  "magnitudes": [
+   1.0
+  ],
+  "predicted_by": "both"
+ },
+ "1": {
+  "task_name": "picking_up_trash",
+  "D_observed": 3,
+  "N_toplevel_conjuncts": 1,
+  "N_quantifier_expanded": 3,
+  "magnitudes": [
+   0.33333334,
+   0.66666669,
+   1.0
+  ],
+  "predicted_by": "expansion"
+ },
+ "3": {
+  "task_name": "cleaning_up_plates_and_food",
+  "D_observed": 7,
+  "N_toplevel_conjuncts": 4,
+  "N_quantifier_expanded": 7,
+  "magnitudes": [
+   0.14285715,
+   0.2857143
+  ],
+  "predicted_by": "expansion"
+ },
+ "5": {
+  "task_name": "setting_mousetraps",
+  "D_observed": 6,
+  "N_toplevel_conjuncts": 2,
+  "N_quantifier_expanded": 6,
+  "magnitudes": [
+   0.16666667,
+   0.33333334,
+   0.5
+  ],
+  "predicted_by": "expansion"
+ },
+ "7": {
+  "task_name": "picking_up_toys",
+  "D_observed": 6,
+  "N_toplevel_conjuncts": 3,
+  "N_quantifier_expanded": 6,
+  "magnitudes": [
+   0.16666667
+  ],
+  "predicted_by": "expansion"
+ },
+ "9": {
+  "task_name": "putting_up_Christmas_decorations_inside",
+  "D_observed": 9,
+  "N_toplevel_conjuncts": 5,
+  "N_quantifier_expanded": 9,
+  "magnitudes": [
+   0.11111111,
+   0.22222222,
+   0.33333334
+  ],
+  "predicted_by": "expansion"
+ },
+ "10": {
+  "task_name": "set_up_a_coffee_station_in_your_kitchen",
+  "D_observed": 6,
+  "N_toplevel_conjuncts": 6,
+  "N_quantifier_expanded": 6,
+  "magnitudes": [
+   0.16666667
+  ],
+  "predicted_by": "both"
+ },
+ "19": {
+  "task_name": "outfit_a_basic_toolbox",
+  "D_observed": 7,
+  "N_toplevel_conjuncts": 7,
+  "N_quantifier_expanded": 7,
+  "magnitudes": [
+   0.14285715,
+   0.2857143
+  ],
+  "predicted_by": "both"
+ },
+ "28": {
+  "task_name": "getting_organized_for_work",
+  "D_observed": 10,
+  "N_toplevel_conjuncts": 10,
+  "N_quantifier_expanded": 10,
+  "magnitudes": [
+   0.1,
+   0.2,
+   0.30000001
+  ],
+  "predicted_by": "both"
+ },
+ "29": {
+  "task_name": "clean_up_your_desk",
+  "D_observed": 11,
+  "N_toplevel_conjuncts": 8,
+  "N_quantifier_expanded": 11,
+  "magnitudes": [
+   0.09090909,
+   0.18181819,
+   0.27272728
+  ],
+  "predicted_by": "expansion"
+ },
+ "50": {
+  "task_name": "freeze_fruit",
+  "D_observed": 4,
+  "N_toplevel_conjuncts": 4,
+  "N_quantifier_expanded": 7,
+  "magnitudes": [
+   0.25
+  ],
+  "predicted_by": "toplevel"
+ },
+ "97": {
+  "task_name": "setup_a_bar_for_a_cocktail_party",
+  "D_observed": 9,
+  "N_toplevel_conjuncts": 9,
+  "N_quantifier_expanded": 20,
+  "magnitudes": [
+   0.11111111,
+   0.22222222
+  ],
+  "predicted_by": "toplevel"
+ }
+}
