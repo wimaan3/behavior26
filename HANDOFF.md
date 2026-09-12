@@ -66,17 +66,30 @@ the 2026-09-11 revision of `docs/AB_PROTOCOL.md`:
    claim is what's wanted, the next spend is **more tasks** (k=4 at n=27), not
    more instances. Full arithmetic in revision 2026-09-11c.
 
-3. **The inconclusive-result response is pre-registered** (revision 2026-09-11c
+3. **OPEN DECISION before shot one: k=2 vs k=4.** Revision 2026-09-11d. This is
+   the largest single gain in claim strength available — generalisable MDE
+   **0.199 → 0.042** for **+38.2 GPU-hr ≈ +$11–19** of eval — and it turns
+   "helps on these two tasks" into "helps on BEHAVIOR". It hinges on whether
+   training cost tracks **steps** or **tasks**: π₀.₅ trains multi-task, so four
+   tasks at the same step budget may be the same gradient steps on more diverse
+   data. **Session B must report** steps/sec for a 2- vs 4-task mix, loss-vs-step
+   for both, and peak memory. Decision rule is pre-committed in 2026-09-11d.
+   3rd task `outfit_a_basic_toolbox`; 4th `preparing_lunch_box` — *not*
+   `thawing_frozen_food`, which our own defect report flags (18/200 demos reach
+   the goal). Taking k=4 also vacates the reserve slot and trips the
+   `frac_intermediate > 0.75` test; fix both in the same edit.
+
+4. **The inconclusive-result response is pre-registered** (revision 2026-09-11c
    §3) — manipulation check on `progress_loss` first, then one of {larger λ /
    more instances / different task pair} by where the point estimate falls and
    whether the two tasks agree. Decided before any number exists. Do not
    re-litigate after seeing the result.
-4. Gaps 2–7 in `docs/AB_PROTOCOL.md` §4 remain (gap 1 is fixed, gap 5 is
+5. Gaps 2–7 in `docs/AB_PROTOCOL.md` §4 remain (gap 1 is fixed, gap 5 is
    defused for the graded tier only). Gaps 2 and 3 — median pass Q and its
    spread — are what §3.3 requires for the headline and are still unwritten.
-5. `sigma_b = 0.05` is still assumed, never estimated. It is now ~16% of
+6. `sigma_b = 0.05` is still assumed, never estimated. It is now ~16% of
    Var(d_i) at f=0.20 rather than ~2%, so it matters more than it used to.
-6. The Jetson's reward tests (`analysis/reward/tests/`, 54 of them) **all skip
+7. The Jetson's reward tests (`analysis/reward/tests/`, 54 of them) **all skip
    here** — they gate on a LeRobot pull at `/home/imaansol/behavior-data`, which
    does not exist on this box. The relabel logic is unverified locally; it was
    tested on the Jetson. `tests/test_progress_labels.py` (the merge-script

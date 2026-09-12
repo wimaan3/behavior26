@@ -75,6 +75,13 @@ checkpoint: null
 # in `tasks` below -- adding a third task is a budget change, not a fallback.
 # Swapping it IN for a failed task is the fallback, and it needs a dated
 # revision in docs/AB_PROTOCOL.md because this list is frozen.
+#
+# NOTE: there is an OPEN DECISION before shot one on whether to run k=4 rather
+# than k=2 (revision 2026-09-11d, gated on what session B measures about
+# training cost). If k=4 is taken, outfit_a_basic_toolbox is promoted to a RUN
+# task and this reserve slot must be refilled in the same edit -- along with
+# a 4th task (preparing_lunch_box) and a restated frac_intermediate threshold
+# in tests/test_dev_loop_config.py. Do not promote it piecemeal.
 tasks:
   - set_up_a_coffee_station_in_your_kitchen
   - putting_shoes_on_rack
