@@ -52,6 +52,17 @@ the 2026-09-11 revision of `docs/AB_PROTOCOL.md`:
   gives N=6 and an MDE of 0.181 — coarser than the effect the pairing exists to
   resolve. n=20 reaches 0.058 for 22.3 GPU-hr / $11.
 
+### Session A checklist additions (2026-09-12)
+
+- Time `import omnigibson` on the volume env — **the 2nd and 3rd runs, not the
+  1st**. The first includes a one-time shader compile (~5 min) and, because
+  `OMNIGIBSON_APPDATA_PATH` is on container disk by design, every new pod pays
+  it again. The 2nd/3rd are the steady-state per-process cost.
+- Context for reading it: the import is paid **per job, not per rollout**
+  (`build_jobs` amortizes it; `--instances-per-job` defaults to 0 = one job per
+  task), so a k=2 cycle pays 4 imports. It only becomes material under
+  parallelism. Full reasoning and the fallbacks are in AB_PROTOCOL §1a.
+
 ### Open / next
 
 1. ~~**Decide on `n`.**~~ **DONE** — revisions 2026-09-11b and 2026-09-11c took

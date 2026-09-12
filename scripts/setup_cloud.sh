@@ -47,9 +47,11 @@ set -euo pipefail
 
 TAG="${BEHAVIOR_TAG:-v3.9.2}"
 
-# CONFIRM THIS AGAINST THE RUNPOD CONSOLE BEFORE THE FIRST RUN. RunPod mounts a
-# pod network volume at /workspace, but verify rather than assume -- and if it
-# ever differs between pods, the env on it is dead (see path-relocatable above).
+# /workspace, CONFIRMED 2026-09-12 -- and set EXPLICITLY on every pod rather than
+# relying on RunPod's default, because this path is now load-bearing: the env on
+# the volume was created here and cannot be moved (see path-relocatable above).
+# A pod that mounts the volume anywhere else does not get a degraded env, it
+# gets a broken one. Set it in the pod config; do not assume the default holds.
 VOLUME_ROOT="${VOLUME_ROOT:-/workspace}"
 
 ROOT="${BEHAVIOR_ROOT:-${VOLUME_ROOT}/BEHAVIOR-1K}"
@@ -166,10 +168,16 @@ cat <<NOTES
     Then: bash scripts/first_rollout.sh
 
 ==> on a SECOND pod against this same volume (the A5000 comparison)
-    Mount the volume at ${VOLUME_ROOT} -- the SAME path, or the env is dead --
-    then just:
+    Mount the volume at ${VOLUME_ROOT} EXPLICITLY -- the same path, set in the
+    pod config rather than left to the default. A different mount point does not
+    degrade the env, it breaks it. Then just:
         source ${ENV_SH}
     Do not re-run this script's install; it will detect the env and skip.
     Compare seconds-per-rollout over SEVERAL instances per card, not one:
     the evaluator is nondeterministic and a single rollout's wall-clock varies.
+
+    This pod pays the ~5 min shader compile again on its first OmniGibson
+    import: OMNIGIBSON_APPDATA_PATH is container disk on purpose, so the shader
+    cache does not travel with the volume. Expected, not a fault -- and time the
+    SECOND import, not the first (see docs/AB_PROTOCOL.md, session A).
 NOTES
