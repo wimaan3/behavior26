@@ -69,11 +69,19 @@ bash scripts/train_cloud.sh --dry-run                 # walks the whole plan
 ### 3. A real rollout (needs a rented GPU)
 
 ```bash
-bash scripts/setup_cloud.sh          # BEHAVIOR-1K, pinned tag — CHECK IT FIRST
-conda activate behavior
+# The conda env and the 29.3 GB dataset go on the NETWORK VOLUME, not container
+# disk — so a second pod mounting the same volume starts with the stack ready.
+# Confirm the mount point against the console; setup_cloud.sh refuses to run if
+# it is container disk wearing the right name.
+VOLUME_ROOT=/workspace bash scripts/setup_cloud.sh   # pinned tag — CHECK IT FIRST
+source /workspace/env.sh             # sets CONDA_ENVS_PATH, then activates
 bash scripts/download_data.sh        # a slice; the full set is 3.27 TB
 bash scripts/first_rollout.sh        # get THE NUMBER
 ```
+
+`source env.sh`, not `conda activate behavior` — the env lives at a prefix on
+the volume and conda only finds it by name via `CONDA_ENVS_PATH`. A conda env is
+not path-relocatable, so every pod must mount the volume at the **same** path.
 
 Then train and evaluate: [docs/TRAINING.md](docs/TRAINING.md),
 [docs/AB_PROTOCOL.md](docs/AB_PROTOCOL.md).
