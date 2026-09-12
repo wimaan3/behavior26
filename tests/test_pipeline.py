@@ -197,8 +197,106 @@ def test_paired_detects_mismatched_coverage(tmp_path):
         write_rollout(b / "json", "t", i, q=0.2)
     merged, coverage = load_pair(a, b)
     assert coverage["identical_coverage"] is False
-    assert coverage["only_in_a"] == [("t", 4, 0)]
+    assert coverage["only_in_a"] == [("t", 4)]
     assert coverage["n_paired"] == 4
+
+
+def test_pairing_unit_is_instance_not_rollout_id(tmp_path):
+    """Pairing must join on (task, instance), NOT on rollout_id.
+
+    The evaluator is nondeterministic, so arm A's rollout 3 and arm B's rollout 3
+    are two unrelated draws from the same instance. Joining on rollout_id pairs
+    them anyway, which does two bad things at once: it fails to cancel the
+    within-instance noise it was supposed to cancel, and it counts n*m pairs where
+    there are only n independent units, so the t-test gets degrees of freedom it
+    has not earned.
+
+    Here the treatment is worth a near-constant +0.020 on every one of 6
+    instances. Each arm draws 3 seeds whose noise happens to land in a different
+    order -- exactly what nondeterminism means. The effect is unmissable at the
+    instance level; the rollout_id join buries it under noise of its own making.
+    """
+    a, b = tmp_path / "a", tmp_path / "b"
+    base = [0.10, 0.30, 0.50, 0.20, 0.40, 0.60]
+    effect = [0.018, 0.022, 0.019, 0.021, 0.020, 0.020]
+    noise = [-0.30, 0.0, 0.30]
+    for i, (bs, eff) in enumerate(zip(base, effect)):
+        for r, nz in enumerate(noise):
+            write_rollout(a / "json", "t", i, q=bs + nz, rollout=r)
+        for r, nz in enumerate(reversed(noise)):
+            write_rollout(b / "json", "t", i, q=bs + eff + nz, rollout=r)
+
+    merged, coverage = load_pair(a, b)
+    # 6 instances x 3 seeds x 2 arms = 36 rollouts, but only 6 units of analysis.
+    assert coverage["n_paired"] == 6
+    assert coverage["seeds_per_unit_a"] == 3
+    assert coverage["seeds_per_unit_b"] == 3
+
+    stats = paired_stats(merged)
+    assert stats["n_pairs"] == 6
+    assert abs(stats["mean_dq"] - 0.020) < 1e-6
+    # The per-instance effect is near-constant, so the paired SD is tiny and the
+    # effect is resolved easily. Joining on rollout_id gave sd 0.504, an MDE of
+    # 0.25, and "not significant" on this same data.
+    assert stats["sd_dq"] < 0.01
+    assert stats["min_detectable_dq"] < 0.01
+    assert stats["significant"] is True
+
+
+def test_pairing_averages_seeds_within_arm(tmp_path):
+    """d_i is the difference of per-instance MEANS, matching analysis/power.py.
+
+    power.py sizes the experiment as d_i = mean_m Q_B(i) - mean_m Q_A(i). If
+    compare.py computed anything else, the design we bought and the number we
+    report would be about different quantities.
+    """
+    a, b = tmp_path / "a", tmp_path / "b"
+    for r, q in enumerate([0.0, 0.30, 0.60]):        # A instance mean = 0.30
+        write_rollout(a / "json", "t", 0, q=q, rollout=r)
+    for r, q in enumerate([0.40, 0.50, 0.90]):       # B instance mean = 0.60
+        write_rollout(b / "json", "t", 0, q=q, rollout=r)
+
+    merged, _ = load_pair(a, b)
+    assert len(merged) == 1
+    assert abs(float(merged["q_score_a"].iloc[0]) - 0.30) < 1e-9
+    assert abs(float(merged["q_score_b"].iloc[0]) - 0.60) < 1e-9
+    assert abs(float(merged["dq"].iloc[0]) - 0.30) < 1e-9
+
+
+def test_single_rollout_runs_are_unaffected(tmp_path):
+    """The dev loop runs num_rollouts: 1. The fix must be a no-op there.
+
+    With one rollout per instance the mean over seeds is that rollout, so every
+    number this module reported before the fix still holds for m=1 data.
+    """
+    a, b = tmp_path / "a", tmp_path / "b"
+    for i in range(12):
+        write_rollout(a / "json", "t", i, q=0.10 + 0.01 * i)
+        write_rollout(b / "json", "t", i, q=0.20 + 0.01 * i)
+    merged, coverage = load_pair(a, b)
+    assert coverage["n_paired"] == 12
+    assert coverage["seeds_per_unit_a"] == 1
+    stats = paired_stats(merged)
+    assert abs(stats["mean_dq"] - 0.10) < 1e-6
+    assert stats["significant"] is True
+
+
+def test_unequal_seed_counts_are_reported(tmp_path):
+    """Unequal m across arms is legal but not free -- say so rather than hide it.
+
+    Var(d_i) = sigma_w^2 (1/m_a + 1/m_b) + sigma_b^2, so units with fewer seeds
+    are noisier, and the equal-weight mean over units is no longer efficient.
+    """
+    a, b = tmp_path / "a", tmp_path / "b"
+    for i in range(4):
+        write_rollout(a / "json", "t", i, q=0.20, rollout=0)
+        for r in range(3):
+            write_rollout(b / "json", "t", i, q=0.30, rollout=r)
+    merged, coverage = load_pair(a, b)
+    assert coverage["n_paired"] == 4
+    assert coverage["seeds_per_unit_a"] == 1
+    assert coverage["seeds_per_unit_b"] == 3
+    assert coverage["balanced_seeds"] is False
 
 
 def test_paired_beats_unpaired_when_instances_differ_in_difficulty(tmp_path):

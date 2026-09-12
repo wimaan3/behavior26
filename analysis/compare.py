@@ -24,9 +24,26 @@ That drops the detectable difference to roughly 0.033. Same GPU budget, ~3.5x th
 resolution. This is the cheapest statistical win available to us, and it is why the dev
 subset is frozen.
 
-The catch: it only works if both runs cover identical (task, instance, rollout) keys.
-If they do not, the pairing is broken and the whole advantage is gone -- so this module
-warns loudly and, by default, refuses to report on a mismatched pair.
+The unit of analysis is one (task, instance) pair -- NOT one rollout
+-------------------------------------------------------------------
+When both arms run m seeds per instance, arm A's rollout 3 and arm B's rollout 3 are
+two unrelated draws from a nondeterministic simulator. The rollout index carries no
+correspondence between arms, so joining on it does not pair anything; it just lines up
+noise with noise. It also miscounts: n instances x m seeds looks like n*m independent
+pairs to a t-test that in truth has only n units, so the standard error comes out too
+small by roughly sqrt(m) and the interval is narrower than the data earns.
+
+So we collapse each arm to one number per instance first, and pair those:
+
+    d_i = mean_m Q_B(i) - mean_m Q_A(i)
+
+which is the quantity analysis/power.py sizes the experiment around. Seeds do their
+work inside that mean -- they shrink the within-instance noise term sigma_w^2/m -- and
+they never inflate n.
+
+The catch: it only works if both runs cover identical (task, instance) keys. If they do
+not, the pairing is broken and the whole advantage is gone -- so this module warns
+loudly and, by default, refuses to report on a mismatched pair.
 
 Usage
 -----
@@ -45,7 +62,11 @@ import pandas as pd
 
 from analysis.parse import load_rollouts
 
-JOIN_KEYS = ["task", "instance_id", "rollout_id"]
+# The unit of analysis: what gets paired across arms.
+PAIR_KEYS = ["task", "instance_id"]
+# Identifies a single rollout WITHIN one arm. Used only to detect duplicates -- never
+# to pair across arms; see the module docstring.
+ROLLOUT_KEYS = PAIR_KEYS + ["rollout_id"]
 
 
 def _t_critical(dof: int, confidence: float = 0.95) -> tuple[float, str]:
@@ -73,8 +94,39 @@ def _p_value(t_stat: float, dof: int) -> float | None:
         return None
 
 
+def _collapse_to_units(df: pd.DataFrame, arm: str) -> pd.DataFrame:
+    """Collapse one arm's rollouts to one row per (task, instance).
+
+    Q is averaged over the arm's seeds for that instance -- that mean IS the arm's
+    estimate for the unit. `seeds` is kept so the report can say how much evidence
+    stands behind each one.
+    """
+    dupes = df.duplicated(subset=ROLLOUT_KEYS).sum()
+    if dupes:
+        raise SystemExit(
+            f"run {arm} has {dupes} duplicate {tuple(ROLLOUT_KEYS)} row(s). "
+            "The same rollout appears twice, which would weight that instance's mean "
+            "-- de-duplicate before comparing."
+        )
+
+    agg = {"q_score": ("q_score", "mean"), "seeds": ("q_score", "size")}
+    if "success" in df:
+        agg["success"] = ("success", "mean")
+    if "q_missing" in df:
+        # Rollouts that produced no score are counted as 0.0 in the mean. Carry the
+        # count so a unit propped up by crashes is visible rather than silent.
+        agg["q_missing"] = ("q_missing", "sum")
+    return df.groupby(PAIR_KEYS, as_index=False).agg(**agg)
+
+
+def _uniform_seeds(units: pd.DataFrame) -> int | None:
+    """The seeds-per-unit count if every unit has the same one, else None."""
+    counts = set(units["seeds"].tolist())
+    return int(counts.pop()) if len(counts) == 1 else None
+
+
 def load_pair(dir_a: Path, dir_b: Path) -> tuple[pd.DataFrame, dict]:
-    """Load both sweeps and inner-join on (task, instance_id, rollout_id).
+    """Load both sweeps, collapse each to (task, instance) units, and inner-join those.
 
     Returns (joined frame, coverage report). The coverage report is not decoration --
     read it before you read the number.
@@ -82,24 +134,28 @@ def load_pair(dir_a: Path, dir_b: Path) -> tuple[pd.DataFrame, dict]:
     a = load_rollouts(dir_a)
     b = load_rollouts(dir_b)
 
-    for name, df in (("A", a), ("B", b)):
-        dupes = df.duplicated(subset=JOIN_KEYS).sum()
-        if dupes:
-            raise SystemExit(
-                f"run {name} has {dupes} duplicate {tuple(JOIN_KEYS)} row(s). "
-                "Pairing is ambiguous -- de-duplicate before comparing."
-            )
+    units_a = _collapse_to_units(a, "A")
+    units_b = _collapse_to_units(b, "B")
 
-    keys_a = set(map(tuple, a[JOIN_KEYS].values))
-    keys_b = set(map(tuple, b[JOIN_KEYS].values))
+    keys_a = set(map(tuple, units_a[PAIR_KEYS].values))
+    keys_b = set(map(tuple, units_b[PAIR_KEYS].values))
 
-    merged = a.merge(b, on=JOIN_KEYS, suffixes=("_a", "_b"), how="inner")
+    merged = units_a.merge(units_b, on=PAIR_KEYS, suffixes=("_a", "_b"), how="inner")
     merged["dq"] = merged["q_score_b"] - merged["q_score_a"]
 
+    seeds_a = _uniform_seeds(units_a)
+    seeds_b = _uniform_seeds(units_b)
+
     coverage = {
-        "n_a": len(a),
+        "n_a": len(a),                     # rollouts read
         "n_b": len(b),
-        "n_paired": len(merged),
+        "n_units_a": len(units_a),         # (task, instance) units
+        "n_units_b": len(units_b),
+        "n_paired": len(merged),           # units paired across both arms
+        "seeds_per_unit_a": seeds_a,
+        "seeds_per_unit_b": seeds_b,
+        # False if either arm is ragged across its own units, or the arms disagree.
+        "balanced_seeds": seeds_a is not None and seeds_a == seeds_b,
         "only_in_a": sorted(keys_a - keys_b),
         "only_in_b": sorted(keys_b - keys_a),
         "identical_coverage": keys_a == keys_b,
@@ -186,7 +242,18 @@ def report(merged: pd.DataFrame, coverage: dict, dir_a: Path, dir_b: Path,
         print("  !! Pairing on the intersection discards the rest and can bias the")
         print("  !! comparison if what is missing is not missing at random.\n")
     else:
-        print(f"  coverage: identical, {coverage['n_paired']} paired rollout(s)")
+        print(f"  coverage: identical, {coverage['n_paired']} paired unit(s)")
+
+    # Say what a "unit" is here, so n_pairs below is never mistaken for a rollout count.
+    sa, sb = coverage["seeds_per_unit_a"], coverage["seeds_per_unit_b"]
+    print(f"  rollouts: {coverage['n_a']} in A, {coverage['n_b']} in B "
+          f"-> {coverage['n_paired']} (task, instance) unit(s)")
+    if not coverage["balanced_seeds"]:
+        print(f"  !! unbalanced seeds per unit (A={sa or 'ragged'}, B={sb or 'ragged'}).")
+        print("  !! Units with fewer seeds carry more within-instance noise, so the")
+        print("  !! equal-weight mean over units is no longer the efficient estimator.")
+    elif sa and sa > 1:
+        print(f"  seeds: {sa} per unit per arm, averaged within each arm before pairing")
 
     stats = paired_stats(merged, confidence)
     unp = unpaired_stats(merged, confidence)
@@ -209,7 +276,7 @@ def report(merged: pd.DataFrame, coverage: dict, dir_a: Path, dir_b: Path,
         print(f"\n  {verdict}")
 
         if unp["min_detectable_dq"]:
-            print(f"\n  resolution on these {stats['n_pairs']} rollouts:")
+            print(f"\n  resolution on these {stats['n_pairs']} unit(s):")
             print(f"    paired    could detect dQ >= {stats['min_detectable_dq']:.4f}")
             print(f"    unpaired  could detect dQ >= {unp['min_detectable_dq']:.4f}")
             if stats["min_detectable_dq"] and stats["min_detectable_dq"] > 0:
@@ -232,7 +299,7 @@ def report(merged: pd.DataFrame, coverage: dict, dir_a: Path, dir_b: Path,
 
     if per_instance:
         print("\n  per-instance differences:")
-        cols = merged[JOIN_KEYS + ["q_score_a", "q_score_b", "dq"]]
+        cols = merged[PAIR_KEYS + ["seeds_a", "q_score_a", "seeds_b", "q_score_b", "dq"]]
         print(cols.sort_values("dq").to_string(
             index=False, float_format=lambda x: f"{x:.4f}"))
 
@@ -260,7 +327,7 @@ def main() -> int:
         return 1
 
     if merged.empty:
-        raise SystemExit("the two runs share no (task, instance_id, rollout_id) keys")
+        raise SystemExit("the two runs share no (task, instance_id) keys")
 
     report(merged, coverage, args.dir_a, args.dir_b,
            per_instance=args.per_instance, top=args.top, confidence=args.confidence)
