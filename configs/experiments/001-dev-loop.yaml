@@ -1,14 +1,24 @@
 # The frozen dev subset. Runs every iteration.
 #
-# CUT TO TWO TASKS on a $200 total budget (2026-09-05). We are not running the
-# full 100-task submission: it is ~776 GPU-hr (~$233-388 on spot) and would
-# score ~0.02 anyway, because Q averages over all 100 tasks and 98 of them
-# would be zero. Partial submissions are allowed, so we submit only what we
-# train: 2 tasks x 20 public instances = 40 rollouts, ~11 GPU-hr, ~$3-6 spot.
+# CUT TO TWO TASKS on a $200 total budget (2026-09-05; figures rechecked
+# 2026-09-11 against the post-relabel shortlist). We are not running the full
+# 100-task submission: it is 2,000 rollouts and ~776 GPU-hr, which is $233-388
+# on spot -- more than the ENTIRE project budget, before a single training hour.
+# Partial submissions are allowed and missing tasks are scored as zeros, so we
+# submit only what we train: 2 tasks x 20 public instances = 40 rollouts,
+# 11.1 GPU-hr, $3-6 on spot.
 #
-# The three D=1 control tasks are dropped. They were there to add Q, but the
-# ceiling is ~0.02 with or without them, so they cost training money and add
-# nothing to the contribution.
+# Two different numbers, often confused:
+#   * Our ARITHMETIC CEILING is 0.020. Q averages over all 100 tasks and 98 of
+#     ours are absent, so 2/100 even at Q=1.0 on both tasks we submit.
+#   * The full submission would ACHIEVE ~0.025 -- not because tasks are missing
+#     but because the policy is weak across all 100. That is the honest thing
+#     the extra $233-388 would buy: 0.020 -> 0.025.
+#
+# The three D=1 control tasks are dropped. Keeping them would raise the
+# arithmetic ceiling to 5/100, but they are single-predicate flips the policy
+# realistically does not achieve, so expected Q stays ~0.025 either way. They
+# cost training money and add nothing to the contribution.
 #
 # Three rules:
 #   1. Keep this list FROZEN so numbers are comparable across iterations.
@@ -22,23 +32,17 @@
 #      instance. That guard is OURS, not the evaluator's -- upstream's
 #      resolve_instance_ids returns train-mode ids unvalidated. Keep it; it
 #      encodes how we have chosen to use the benchmark.
-#   3. INCLUDE 2-3 TYPE C TASKS even though they will score badly.
-#
-# On rule 3 -- Q5 established that the cheap 10-task slice is mostly Type A/B
-# predicates: visually inferable from the current frame. A dev set made only of
-# those is biased in favour of our own hypothesis. The predicate head will look
-# great, we will conclude memory is unnecessary, and then we will hit the Type C
-# tasks at 100-task scale and find out otherwise.
-#
-#   A. visible now        open(door), ontop(cup, table)     no memory needed
-#   B. occluded           cereal in cabinet, door shut      memory or active looking
-#   C. no visual signature cooked(steak), switch toggled    memory, unavoidably
-#
-# If the dev set cannot fail the way the real benchmark fails, it is not a
-# measuring stick. Pick tasks spanning the failure modes, not the easy ones.
+#   3. SUSPENDED by the two-task cut. The rule was "include 2-3 Type C tasks"
+#      (no visual signature -- cooked(steak), a toggled switch) so the dev set
+#      could fail the way the real benchmark fails, rather than only in the ways
+#      that flatter a predicate head. At two tasks there is no room to spend one
+#      on a control, and both of these are Type A/B. The bias that rule guarded
+#      against is therefore PRESENT and unmitigated: this dev set cannot tell us
+#      whether memory is necessary. Do not generalise a win here to the
+#      100-task benchmark. Restore the rule if the budget ever grows.
 
 name: 001-dev-loop
-description: Frozen 12-task dev subset for iteration.
+description: Frozen 2-task graded dev subset for iteration.
 hypothesis: n/a -- this is the measuring stick, not an experiment.
 
 base_model: pi05
@@ -46,21 +50,42 @@ checkpoint: null
 
 # Both tasks are GRADED, not binary -- unlike the D=1 tasks on the shortlist's
 # primary tier. That is a real advantage for the A/B: graded Q carries more
-# information per rollout. Figures from analysis/reward/:
+# information per rollout, and sigma_w falls as sqrt(D). Figures from the
+# post-relabel analysis/reward/task_shortlist.csv (`graded` tier):
 #
-#   task                                    idx   D  rel_eval_cost  phi0_mean
-#   set_up_a_coffee_station_in_your_kitchen  10   6      0.594        0.241
-#   putting_shoes_on_rack                    22  10      0.733        0.111
+#   task                                     idx   D  rel_cost  offset0  frac_int
+#   set_up_a_coffee_station_in_your_kitchen   10   6     0.594    0.165     0.81
+#   putting_shoes_on_rack                     22  10     0.733    0.000     0.80
 #
-# phi0_mean is what a do-nothing policy already banks, because Q is scored on
-# the FINAL state and these tasks start partly satisfied. Any dQ we report is
-# on top of that floor, not from zero.
+# offset0 is `progress_offset_at_reset`: what a do-nothing policy already banks,
+# because Q is scored on the FINAL state and the task starts partly satisfied.
+# The two are NOT symmetric -- the coffee station's dQ sits on top of 0.165, the
+# shoe rack's starts from zero -- so always report these per task, never pooled.
+# (This replaces the pre-relabel `phi0_mean` figures of 0.241 / 0.111, which were
+# anchored at the goal rather than at episode start.)
+#
+# frac_int is `frac_intermediate`: the share of the episode spent at partial
+# credit. ~0.80 on both is what makes the grading real rather than nominal -- a
+# high D with a low frac_intermediate would be a binary task in disguise.
+#
+# RESERVE, if either task above fails to train: outfit_a_basic_toolbox
+# (idx 19, D=7, rel_cost 1.01, offset0 0.266, frac_int 0.81). It is rank 2 on
+# the graded tier, behind putting_shoes_on_rack and ahead of the coffee station
+# on gradient_score, so it is a like-for-like substitute. It is deliberately NOT
+# in `tasks` below -- adding a third task is a budget change, not a fallback.
+# Swapping it IN for a failed task is the fallback, and it needs a dated
+# revision in docs/AB_PROTOCOL.md because this list is frozen.
 tasks:
   - set_up_a_coffee_station_in_your_kitchen
   - putting_shoes_on_rack
 mode: train                       # NOT public_test -- see rule 2 above
 instances: [10, 11, 12]           # TRAINING instance ids (must be < 301)
 num_rollouts: 1
+
+# NOTE (2026-09-11): n=3 gives N=6 paired units and an MDE of ~0.181 at f=0.20,
+# which is coarser than the effect the pairing exists to resolve. n=20 reaches
+# ~0.058 for 22.3 GPU-hr / $11. Raising it is a protocol change and needs its own
+# dated revision in docs/AB_PROTOCOL.md -- see the 2026-09-11 revision there.
 
 host: 127.0.0.1
 env_wrapper: omnigibson.eval.wrappers.RGBDFullResWrapper
