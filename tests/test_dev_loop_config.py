@@ -54,15 +54,64 @@ def test_tasks_exist_on_the_shortlist(cfg, shortlist):
     assert not missing, f"not on the shortlist: {missing}"
 
 
+# What this threshold is actually testing: "is Q graded here, or is it a step
+# function wearing a D>1 label?" That matters because power.py models
+# sigma_w = 0.5*sqrt(f*D)*step, which assumes Q moves through D steps. On a task
+# that really jumps 0 -> 1, that model understates sigma_w by ~sqrt(D) and we
+# would believe the experiment is three times more sensitive than it is.
+#
+# 0.5 is the line, for three reasons that are not "it fits our tasks":
+#
+#   1. It is the label author's own calibration. analysis/reward/labels.py
+#      defines frac_intermediate as the fraction of the episode spent strictly
+#      between the lowest and highest progress the episode reaches, and says:
+#      "0 for a step function, ~0.5+ for a genuine staircase".
+#   2. It has a meaning in OUR regime. Q is scored on the FINAL state and our
+#      policy will mostly time out mid-episode, so the final state is drawn
+#      roughly from the episode's occupancy. frac_intermediate is then about
+#      P(we finish on a partial-credit level). Above 0.5, more likely than not.
+#   3. Nothing real sits near it. Across every eligible task (primary + graded
+#      tiers) frac_intermediate is either exactly 0.000 (13 tasks) or >= 0.558
+#      (9 tasks). 0.5 sits in an empty band, so the exact value changes no
+#      verdict -- which is what you want from a threshold.
+#
+# It was 0.75 until 2026-09-11. That number was calibrated on the two-task
+# sample (0.803, 0.805) and was tighter than the concept requires -- it would
+# have rejected preparing_lunch_box at 0.721, a task that is plainly a
+# staircase. Restated because it was measuring the sample rather than the
+# concept, not to make a red test go green.
+MIN_FRAC_INTERMEDIATE = 0.5
+
+
 def test_every_task_is_genuinely_graded(cfg, shortlist):
     """The whole A/B design rests on Q being graded here -- see the 2026-09-11
     revision of docs/AB_PROTOCOL.md. D>1 alone is not enough."""
     for task in cfg["tasks"]:
         row = shortlist[task]
         assert int(row["D"]) > 1, f"{task} is binary; the power table assumes graded"
-        assert float(row["frac_intermediate"]) > 0.75, (
+        assert float(row["frac_intermediate"]) > MIN_FRAC_INTERMEDIATE, (
             f"{task} is graded in name only (frac_intermediate="
             f"{row['frac_intermediate']})")
+
+
+def test_the_graded_threshold_sits_in_an_empty_band(shortlist):
+    """The threshold must not be load-bearing on its exact value.
+
+    If a real task ever lands near 0.5, this test fails and the number has to be
+    re-argued rather than silently deciding a borderline case.
+    """
+    eligible = [float(r["frac_intermediate"]) for r in shortlist.values()
+                if r["tier"] in ("primary", "graded")]
+    near = [v for v in eligible if 0.2 < v < MIN_FRAC_INTERMEDIATE + 0.05]
+    assert not near, (
+        f"task(s) with frac_intermediate {near} sit near the {MIN_FRAC_INTERMEDIATE} "
+        "threshold; the cutoff is now deciding a borderline case and needs re-arguing")
+
+
+def test_the_k4_fourth_task_would_pass_the_restated_threshold(shortlist):
+    """preparing_lunch_box is the proposed 4th task if k=4 is taken (revision
+    2026-09-11d). Pinned so the k=4 edit does not rediscover this."""
+    assert float(shortlist["preparing_lunch_box"]["frac_intermediate"]) > MIN_FRAC_INTERMEDIATE
 
 
 def test_the_three_d1_control_tasks_are_gone(cfg):
