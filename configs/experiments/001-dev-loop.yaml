@@ -79,13 +79,24 @@ tasks:
   - set_up_a_coffee_station_in_your_kitchen
   - putting_shoes_on_rack
 mode: train                       # NOT public_test -- see rule 2 above
-instances: [10, 11, 12]           # TRAINING instance ids (must be < 301)
-num_rollouts: 1
 
-# NOTE (2026-09-11): n=3 gives N=6 paired units and an MDE of ~0.181 at f=0.20,
-# which is coarser than the effect the pairing exists to resolve. n=20 reaches
-# ~0.058 for 22.3 GPU-hr / $11. Raising it is a protocol change and needs its own
-# dated revision in docs/AB_PROTOCOL.md -- see the 2026-09-11 revision there.
+# TRAINING instance ids. Raised from [10, 11, 12] to n=20 on 2026-09-11; see the
+# dated revision in docs/AB_PROTOCOL.md for the reasoning. n=3 gave N=6 and an
+# MDE of 0.181, which cannot see an effect anywhere near the size we expect.
+#
+# VERIFIED against the challenge dataset, not assumed: every task ships exactly
+# 300 training instances, and for both tasks here they are ids 0-299 contiguous,
+# so 10-29 all exist. (Checked by enumerating
+# `2026-challenge-task-instances.zip` from the behavior-1k/zipped-datasets HF
+# repo -- the *-tro_state.json files the evaluator loads in
+# Evaluator.load_task_instance. Note the range is task-dependent: the other 50
+# tasks are 1-300, so id 0 is NOT universally safe. Both of ours start at 0.)
+#
+# Kept contiguous and kept the old [10, 11, 12] as a prefix, so anything already
+# run on those three stays inside the new set rather than beside it.
+instances: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+            20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+num_rollouts: 1
 
 host: 127.0.0.1
 env_wrapper: omnigibson.eval.wrappers.RGBDFullResWrapper

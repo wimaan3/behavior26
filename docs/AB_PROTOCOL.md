@@ -222,7 +222,8 @@ ones. That is a design change, and it goes in a dated revision below.
 - Instances are **training** instances (ids < 301). Every public-test instance
   (301–320) is scored, so iterating there is tuning on the leaderboard.
 - The list is frozen in `configs/experiments/001-dev-loop.yaml` and changes only
-  by dated revision here.
+  by dated revision here. **Changed once: revision 2026-09-11b took it from
+  `[10, 11, 12]` to instances 10–29 (n=20).**
 
 ### 3.2 Seeds and passes
 
@@ -311,6 +312,83 @@ actually run — see the 2026-09-11 revision — but still stands for the D=1 ti
 ---
 
 ## Revisions
+
+### 2026-09-11b — the frozen instance list goes from n=3 to n=20
+
+**This changes §3.1's frozen list.** `configs/experiments/001-dev-loop.yaml`
+now runs instances **10–29** instead of **[10, 11, 12]**.
+
+#### Why the freeze does not protect anything here
+
+§3.1 freezes the list so numbers stay comparable across iterations. **There are
+no prior iterations.** Nothing has run on a GPU (see README status), so there is
+no measurement the freeze is protecting — the rule is live, but its subject is
+empty. Changing the list now costs nothing; changing it after the first A/B
+would cost that cycle.
+
+#### Why n=3 had to go
+
+N=6 gives an MDE of **0.181**. An auxiliary loss on a frozen VLM plausibly lands
+in the **0.02–0.05** range. The design could not have detected its own
+hypothesis: we would have spent a cycle and learned nothing, and the CI would
+have spanned zero whatever happened. At n=20, N=40 and the MDE is **0.058** at
+f=0.20 — a 3.1× improvement at every noise level, for **22.3 GPU-hr / $7–11**
+on spot. Against a $200 budget that is the cheapest real gain available.
+
+| | n=3 (N=6) | n=20 (N=40) |
+|---|---|---|
+| MDE at f=0.05 | 0.109 | **0.035** |
+| MDE at f=0.10 | 0.137 | **0.044** |
+| MDE at f=0.20 | 0.181 | **0.058** |
+| MDE at f=0.40 | 0.245 | **0.078** |
+| eval cost, both arms | 3.3 GPU-hr | 22.3 GPU-hr ($7–11) |
+
+#### What n=20 does and does not buy — state this when reporting
+
+It covers the **top** of the 0.02–0.05 target range, not the bottom:
+
+- At f ≤ 0.10, MDE ≤ 0.044 — the 0.05 end is comfortably in reach.
+- At f = 0.20, MDE is 0.058, so **0.05 is not quite reached**; that needs n=27.
+- **0.02 is out of reach at two tasks, at any n we can afford** — it needs n=159
+  at f=0.20. And the σ_b floor at N=40 is **0.0227** even at infinite seeds, so
+  an effect of 0.02 is not detectable on this design however the budget is spent.
+
+n needed to hit a target MDE (2 tasks, 1 seed):
+
+| target | f=0.05 | f=0.10 | f=0.20 | f=0.40 |
+|---|---|---|---|---|
+| 0.06 | 8 | 12 | 19 | 34 |
+| 0.05 | 11 | 16 | 27 | 48 |
+| 0.04 | 16 | 24 | 41 | 74 |
+| 0.02 | 59 | 93 | 159 | 292 |
+
+n=20 was chosen as instructed. **n=27 would secure the 0.05 target even at
+pessimistic noise** for roughly $9–15 instead of $7–11; worth considering before
+the first cycle, and it is a cheaper change now than later.
+
+#### The instances exist — verified, not assumed
+
+`resolve_instance_ids` returns train ids **unvalidated** (`evaluator.py`
+l.75–76), so neither the evaluator nor our own `< 301` guard would catch an id
+that does not exist. It would fail in `Evaluator.load_task_instance` with
+`FileNotFoundError`, on a rented GPU, partway through a sweep.
+
+Enumerated from `2026-challenge-task-instances.zip` (HF `behavior-1k/zipped-datasets`),
+counting the `*-tro_state.json` files the evaluator actually loads:
+
+- **All 100 tasks ship exactly 300 training instances.**
+- The range is **task-dependent**: 50 tasks are ids **0–299**, 50 are **1–300**.
+  Both dev-loop tasks — and the `outfit_a_basic_toolbox` reserve — are 0–299, so
+  ids 10–29 all exist.
+- Our `< 301` guard is therefore correct and not off by one: 300 is a genuine
+  training instance on half the corpus. But **id 0 is not universally safe**, and
+  a future config drawn from a different task must re-check its range.
+
+The list is kept contiguous, with the old `[10, 11, 12]` as its prefix, so any
+smoke run already done on those three sits inside the new set rather than beside
+it. A test now pins n=20, contiguity, and the 0–299 bound.
+
+---
 
 ### 2026-09-11 — power re-run on the post-relabel shortlist; §1 superseded for the graded tier
 
@@ -412,6 +490,8 @@ the cheapest k off a tier we do not run):
   n=20 costs 22.3 GPU-hr / **$11** and reaches 0.058. Changing the list is a
   protocol change and needs its own dated revision; this one only records that
   the current list cannot answer the question.
+  **→ Superseded by revision 2026-09-11b, which made the change: the list is now
+  instances 10–29.**
 
 #### Costs, recomputed at spot
 
