@@ -392,3 +392,179 @@ def test_merge_accepts_the_jetson_label_schema(dataset, tmp_path):
     # The extra columns must be ignored, not copied into the dataset.
     assert "satisfied_count" not in df.columns
     assert "task_index" in df.columns  # this one was already a dataset column
+
+
+# ------------------------------------------------- arm symmetry (AB_PROTOCOL §3.6)
+
+
+# The shared `dataset` fixture has EPISODES=2, so dropping one leaves a single
+# episode -- which cannot tell "indices preserved" from "indices renumbered".
+# These tests need a middle episode dropped, so they build a wider root.
+WIDE_EPISODES = 4
+WIDE_DROPPED = 1          # a MIDDLE episode, so a gap is observable
+
+
+@pytest.fixture
+def wide_dataset(tmp_path: Path) -> Path:
+    """Same shape as `dataset`, with enough episodes to leave a gap."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    root = tmp_path / "wide_root"
+    (root / "data" / "chunk-000").mkdir(parents=True)
+    (root / "meta").mkdir()
+
+    ep_idx, fr_idx, idx = [], [], []
+    for ep in range(WIDE_EPISODES):
+        for fr in range(FRAMES):
+            ep_idx.append(ep)
+            fr_idx.append(fr)
+            idx.append(ep * FRAMES + fr)
+
+    pq.write_table(
+        pa.table({
+            "index": pa.array(idx, pa.int64()),
+            "episode_index": pa.array(ep_idx, pa.int64()),
+            "frame_index": pa.array(fr_idx, pa.int64()),
+            "task_index": pa.array([0] * len(idx), pa.int64()),
+            "timestamp": pa.array([i / 30.0 for i in idx], pa.float32()),
+            "action": pa.array([[float(i)] * 23 for i in idx], pa.list_(pa.float32(), 23)),
+        }),
+        root / "data" / "chunk-000" / "file-000.parquet",
+    )
+    (root / "meta" / "info.json").write_text(json.dumps({
+        "codebase_version": "v3.0",
+        "total_episodes": WIDE_EPISODES,
+        "total_frames": WIDE_EPISODES * FRAMES,
+        "fps": 30,
+        "features": {
+            "index": {"dtype": "int64", "shape": [1], "names": None},
+            "episode_index": {"dtype": "int64", "shape": [1], "names": None},
+            "frame_index": {"dtype": "int64", "shape": [1], "names": None},
+            "task_index": {"dtype": "int64", "shape": [1], "names": None},
+            "timestamp": {"dtype": "float32", "shape": [1], "names": None},
+            "action": {"dtype": "float32", "shape": [23], "names": None},
+        },
+    }, indent=4))
+    return root
+
+
+@pytest.fixture
+def partial_labels(tmp_path: Path) -> Path:
+    """A sidecar that cannot label one middle episode -- the real case, in miniature.
+
+    The Jetson's pipeline labels only episodes it can label soundly: 195 of 200
+    for putting_shoes_on_rack, 199 of 200 for the coffee station. The sidecar
+    simply has no rows for the rest.
+    """
+    import pandas as pd
+
+    rows = [
+        {"episode_index": ep, "frame_index": fr, "progress": _progress_of(ep, fr)}
+        for ep in range(WIDE_EPISODES)
+        for fr in range(FRAMES)
+        if ep != WIDE_DROPPED
+    ]
+    path = tmp_path / "partial_labels.parquet"
+    pd.DataFrame(rows).to_parquet(path)
+    return path
+
+
+KEPT = [e for e in range(WIDE_EPISODES) if e != WIDE_DROPPED]
+
+
+def test_unlabelled_episodes_refuse_to_merge_silently(wide_dataset, partial_labels, tmp_path):
+    """Default behaviour must be to stop, not to guess."""
+    out = tmp_path / "merged"
+    res = _merge(wide_dataset, partial_labels, "--out-root", str(out))
+    assert res.returncode != 0
+    assert "have no label" in (res.stdout + res.stderr)
+
+
+def test_drop_unlabelled_removes_the_whole_episode(wide_dataset, partial_labels, tmp_path):
+    """Episode granularity, not frame.
+
+    A half-labelled episode is unsound either way, and the model sees episodes.
+    """
+    out = tmp_path / "merged"
+    res = _merge(wide_dataset, partial_labels, "--out-root", str(out), "--drop-unlabelled")
+    assert res.returncode == 0, res.stdout + res.stderr
+
+    df = _read_merged(out)
+    assert sorted(set(df["episode_index"])) == KEPT
+    assert len(df) == len(KEPT) * FRAMES
+    assert not df["progress"].isna().any(), "an unlabelled frame survived the drop"
+    # the surviving episodes keep their own labels, still correctly aligned
+    for _, row in df.iterrows():
+        assert row["progress"] == pytest.approx(
+            _progress_of(int(row["episode_index"]), int(row["frame_index"])), abs=1e-6)
+
+
+def test_drop_unlabelled_does_not_renumber_episodes(wide_dataset, partial_labels, tmp_path):
+    """videos/ is symlinked back to the pristine root and keyed by the ORIGINAL
+    episode index. Renumbering here would misalign every frame with its video --
+    silently, because the shapes would still be right."""
+    out = tmp_path / "merged"
+    assert _merge(wide_dataset, partial_labels, "--out-root", str(out), "--drop-unlabelled").returncode == 0
+    eps = sorted(set(_read_merged(out)["episode_index"]))
+    assert eps == KEPT, f"episode indices were renumbered: {eps} (expected {KEPT})"
+
+
+def test_drop_unlabelled_corrects_the_info_counts(wide_dataset, partial_labels, tmp_path):
+    """A stale total_episodes surfaces much later, in norm-stats or a sampler."""
+    out = tmp_path / "merged"
+    assert _merge(wide_dataset, partial_labels, "--out-root", str(out), "--drop-unlabelled").returncode == 0
+    info = json.loads((out / "meta" / "info.json").read_text())
+    assert info["total_episodes"] == len(KEPT)
+    assert info["total_frames"] == len(KEPT) * FRAMES
+
+
+def test_drop_unlabelled_records_what_it_dropped(wide_dataset, partial_labels, tmp_path):
+    """The filter manifest is what makes arm symmetry auditable after the fact.
+
+    Without it, "both arms trained on the same filtered set" is a claim nobody
+    can check once the run is over.
+    """
+    out = tmp_path / "merged"
+    assert _merge(wide_dataset, partial_labels, "--out-root", str(out), "--drop-unlabelled").returncode == 0
+    manifest = json.loads((out / "meta" / "progress_filter.json").read_text())
+    assert manifest["dropped_episodes"] == [WIDE_DROPPED]
+    assert manifest["n_dropped_episodes"] == 1
+    assert manifest["rows_in"] == WIDE_EPISODES * FRAMES
+    assert manifest["rows_out"] == len(KEPT) * FRAMES
+    assert manifest["unlabelled_rows"] == FRAMES
+
+
+def test_filtered_root_still_loads_through_the_lerobot_path(wide_dataset, partial_labels, tmp_path):
+    """Both arms will load THIS root, so it has to be loadable at all."""
+    hf = pytest.importorskip("datasets", reason="needs `datasets` for the reload check")
+    out = tmp_path / "merged"
+    assert _merge(wide_dataset, partial_labels, "--out-root", str(out), "--drop-unlabelled").returncode == 0
+
+    sys.path.insert(0, str(REPO))
+    from scripts.merge_progress_labels import _features_from_info
+
+    info = json.loads((out / "meta" / "info.json").read_text())
+    ds = hf.Dataset.from_parquet(
+        [str(p) for p in sorted((out / "data").glob("*/*.parquet"))],
+        features=_features_from_info(info),
+    )
+    assert "progress" in ds.column_names
+    assert len(ds) == len(KEPT) * FRAMES
+
+
+def test_fabricating_and_dropping_are_mutually_exclusive(wide_dataset, partial_labels, tmp_path):
+    """They are opposite answers to the same question; picking both is a mistake."""
+    out = tmp_path / "merged"
+    res = _merge(wide_dataset, partial_labels, "--out-root", str(out),
+                 "--drop-unlabelled", "--allow-missing")
+    assert res.returncode != 0
+    assert "mutually exclusive" in (res.stdout + res.stderr)
+
+
+def test_protocol_states_arm_symmetry_as_void_the_comparison():
+    """The rule has to be findable by a reader, not just implemented."""
+    text = (REPO / "docs" / "AB_PROTOCOL.md").read_text()
+    assert "3.6" in text and "identical" in text.lower()
+    assert "--drop-unlabelled" in text, (
+        "the protocol must name the mechanism that makes arm symmetry achievable")

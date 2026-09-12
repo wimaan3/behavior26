@@ -177,6 +177,46 @@ not 0.20×. Tasks are always taken cheapest-first off the shortlist.
 
 ---
 
+## 1a. The cloud sessions
+
+Named here because the rest of this document refers to them and the reference
+has to resolve. These are the GPU sessions before the first A/B.
+
+### Session A — first contact with a GPU
+
+Prove the **evaluation** path runs end to end: the websocket seam, the policy
+server, the real evaluator, and our harness, together, against real hardware.
+Everything in this repo about that path was established by source-reading and a
+mock evaluator — none of it has met a GPU.
+
+Delivers:
+- **baseline Q** on the released π₀.₅ baseline;
+- **measured seconds-per-rollout** — which replaces the assumed 13.5 fps and
+  225 s scene load that every cost figure in §1 currently rests on.
+
+Budget: **~$25.**
+
+### Session B — first contact with training
+
+Escalating: **10 steps, then 100, then one hour.** Fail fast and cheap, in that
+order.
+
+Delivers:
+- does the model **load at 3.3B and fit**;
+- does **`progress_loss` decrease** — the head learning at all is a
+  precondition for the whole treatment, and is the manipulation check §3 of
+  revision 2026-09-11c keys on;
+- **peak VRAM**;
+- **steps/sec for a 2-task vs a 4-task mix** — this is the **k=2 / k=4 gate**
+  (revision 2026-09-11d). It is the one measurement that decides a design
+  question rather than confirming a guess.
+
+Note the asymmetry between them: session A measures things we have *assumed*
+(throughput, cost); session B measures a thing we have *not decided* (k). If
+only one can run, B is the one that changes what we build.
+
+---
+
 ## 2. Measuring the noise floor — the first cloud session
 
 Everything in §1 is a hypothesis until σ_w is measured. This is the cheapest
@@ -298,6 +338,9 @@ scores get bumped out of the top 5.
 commit of the openpi fork.** The only permitted difference is the treatment
 itself (the config name).
 
+See also **§3.6**, which is the same rule applied to the training data rather
+than the code.
+
 If a bug is found after arm A trains and is fixed before arm B, **the comparison
 is void** — the measured ΔQ is the sum of our contribution and the bugfix, and
 nothing separates them. Options are: re-train arm A at the new commit, or defer
@@ -315,6 +358,65 @@ progress_key        <column|null>
 seeds               [...]
 design              k=<> n=<> m=<>
 ```
+
+---
+
+### 3.6 Both arms train on the identical filtered dataset — hard rule
+
+**Same status as §3.5: violating this voids the comparison.**
+
+The label pipeline cannot soundly label every episode. It labels what it can and
+leaves the rest out of the sidecar — **5 of 200 for `putting_shoes_on_rack`,
+1 of 200 for `set_up_a_coffee_station_in_your_kitchen`** (`valid_rate` 0.975 and
+0.995 on the shortlist).
+
+Arm B trains on the labelled set. Arm A needs no labels, so the obvious thing is
+to point it at the pristine 200-episode root — and that is exactly the mistake.
+The arms would then differ by **~2.5% of the training data as well as by the
+head**, and the measured ΔQ would be the sum of the treatment and a data-volume
+difference, with nothing separating them. It is the §3.5 failure in a different
+coat.
+
+**The rule: both arms train on the SAME filtered root. Arm A simply does not map
+the progress column.**
+
+```
+python scripts/merge_progress_labels.py \
+    --dataset-root ~/data/b1k/<task> \
+    --labels ~/labels/<task>.parquet \
+    --out-root ~/data/b1k/<task>+progress \
+    --drop-unlabelled
+
+# arm A (baseline)   --data.base_config.dataset_root=<out-root>
+# arm B (treatment)  --data.base_config.dataset_root=<out-root> --data.progress_key=progress
+```
+
+`--drop-unlabelled` removes every **episode** containing an unlabelled frame —
+episode granularity, not frame, because a half-labelled episode is unsound
+either way and the model sees episodes. It writes
+`meta/progress_filter.json` recording exactly which episodes went, which is what
+makes this auditable once the run is over. Without that manifest, "both arms saw
+the same data" is a claim nobody can check afterwards.
+
+The two alternatives are both worse and are rejected deliberately:
+
+| option | why not |
+|---|---|
+| Fabricate labels for unlabelled frames (`--allow-missing --missing-fill`) | Trains the head on invented targets. Keeps the arms symmetric but corrupts the treatment — worse than not training the head at all, and the flag says so. |
+| Let arm A use the pristine root | The asymmetry above. This was the script's *stated design intent* until 2026-09-11 ("the baseline arm provably reads the original bytes") — a virtue that was actually the bug. |
+
+Add to the §3.5 run manifest, for both arms:
+
+```
+dataset_root          <path>      # must match across arms -- the FILTERED root
+progress_filter_sha256 <sha256>   # of meta/progress_filter.json; must match
+n_train_episodes      <int>       # must match across arms
+```
+
+Note that episode indices are **not** renumbered by the drop. `videos/` is
+symlinked back to the pristine root and keyed by the original episode index;
+renumbering would misalign every frame with its video, silently, because the
+shapes would still be right.
 
 ---
 
@@ -427,17 +529,31 @@ hand:
 
 1. **`outfit_a_basic_toolbox` is currently the RESERVE** in
    `001-dev-loop.yaml`. Promoting it to a run task leaves the reserve slot
-   empty. Name a new reserve in the same edit.
-2. **`tests/test_dev_loop_config.py::test_every_task_is_genuinely_graded`
-   asserts `frac_intermediate > 0.75`, and `preparing_lunch_box` is 0.721 — it
-   would fail.** That threshold was calibrated on the k=2 pair (0.803, 0.805)
-   and is tighter than the concept needs; `power.py` flags "graded in name only"
-   at < 0.2, and 0.721 is comfortably graded. If k=4 is adopted, restate the
-   threshold deliberately with the reasoning, rather than loosening it to make a
-   red test go green.
+   empty. **DECIDED 2026-09-11: leave it empty, and say so.** The next graded
+   candidates are `setting_the_fire` and `put_together_a_basic_pruning_kit`, and
+   neither has been justified the way the four run tasks have — naming one
+   purely to keep the slot occupied would dress an unexamined choice as a
+   considered one. An empty reserve is an honest statement that we have not
+   picked a fallback; a back-filled one is a decision nobody made.
+2. ~~**`test_every_task_is_genuinely_graded` asserts `frac_intermediate > 0.75`,
+   and `preparing_lunch_box` is 0.721.**~~ **DONE 2026-09-11 — restated to 0.5,
+   on the concept rather than on the sample.** The test is asking "is Q graded
+   here, or a step function wearing a D>1 label?", because `power.py` models
+   `σ_w = 0.5·√(f·D)·step` and that understates σ_w by ~√D on a task that really
+   jumps 0 → 1. 0.5 is the line for three reasons, none of them "it fits our
+   tasks": it is the label author's own calibration (`labels.py`: "0 for a step
+   function, ~0.5+ for a genuine staircase"); it has a meaning in our regime,
+   where Q is scored on the final state and a timing-out policy finishes on a
+   partial level more often than not above 0.5; and **nothing real sits near
+   it** — across every eligible task `frac_intermediate` is either exactly 0.000
+   (13 tasks) or ≥ 0.558 (9 tasks), so 0.5 lies in an empty band and its exact
+   value changes no verdict. The old 0.75 was calibrated on a two-task sample.
+   A test now fails if any eligible task ever lands near the cutoff, so a
+   borderline case forces the number to be re-argued instead of silently decided.
 
-Neither is a reason not to take k=4. Both are reasons to take it as a considered
-change rather than a quick one.
+Neither was a reason not to take k=4, and both are now settled ahead of it: the
+threshold is restated, and the reserve will be left deliberately empty. The k=4
+edit itself is still gated on session B.
 
 ---
 

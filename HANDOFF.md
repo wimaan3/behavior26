@@ -76,20 +76,30 @@ the 2026-09-11 revision of `docs/AB_PROTOCOL.md`:
    for both, and peak memory. Decision rule is pre-committed in 2026-09-11d.
    3rd task `outfit_a_basic_toolbox`; 4th `preparing_lunch_box` — *not*
    `thawing_frozen_food`, which our own defect report flags (18/200 demos reach
-   the goal). Taking k=4 also vacates the reserve slot and trips the
-   `frac_intermediate > 0.75` test; fix both in the same edit.
+   the goal). Both blockers are now cleared ahead of the edit: the grading
+   threshold is restated to 0.5 on the concept, and the reserve is to be left
+   deliberately empty.
 
-4. **The inconclusive-result response is pre-registered** (revision 2026-09-11c
+4. **ARM SYMMETRY is now a hard rule (§3.6), same status as same-commit.** The
+   label pipeline cannot label every episode (5 of 200 for the shoe rack, 1 for
+   the coffee station). Both arms must train on the SAME `--drop-unlabelled`
+   filtered root; arm A just does not map the progress column. Training the
+   baseline on the pristine root — which is what `merge_progress_labels.py`
+   used to advertise as a virtue — would leave the arms differing by ~2.5% of
+   the data as well as by the head. The merge script now has the drop mode and
+   writes `meta/progress_filter.json` so the claim is auditable afterwards.
+
+5. **The inconclusive-result response is pre-registered** (revision 2026-09-11c
    §3) — manipulation check on `progress_loss` first, then one of {larger λ /
    more instances / different task pair} by where the point estimate falls and
    whether the two tasks agree. Decided before any number exists. Do not
    re-litigate after seeing the result.
-5. Gaps 2–7 in `docs/AB_PROTOCOL.md` §4 remain (gap 1 is fixed, gap 5 is
+6. Gaps 2–7 in `docs/AB_PROTOCOL.md` §4 remain (gap 1 is fixed, gap 5 is
    defused for the graded tier only). Gaps 2 and 3 — median pass Q and its
    spread — are what §3.3 requires for the headline and are still unwritten.
-6. `sigma_b = 0.05` is still assumed, never estimated. It is now ~16% of
+7. `sigma_b = 0.05` is still assumed, never estimated. It is now ~16% of
    Var(d_i) at f=0.20 rather than ~2%, so it matters more than it used to.
-7. The Jetson's reward tests (`analysis/reward/tests/`, 54 of them) **all skip
+8. The Jetson's reward tests (`analysis/reward/tests/`, 54 of them) **all skip
    here** — they gate on a LeRobot pull at `/home/imaansol/behavior-data`, which
    does not exist on this box. The relabel logic is unverified locally; it was
    tested on the Jetson. `tests/test_progress_labels.py` (the merge-script

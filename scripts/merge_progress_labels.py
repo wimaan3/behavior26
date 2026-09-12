@@ -44,8 +44,18 @@ all. This script writes both, then reloads the result to prove it.
 By default it writes a NEW dataset root and symlinks `videos/` back to the
 original, so:
   * the original 330 GB copy is never mutated,
-  * the baseline arm provably reads the original bytes,
   * only the (small) low-dimensional parquet is rewritten.
+
+ARM SYMMETRY -- this used to say "the baseline arm provably reads the original
+bytes", and that was wrong. The label pipeline cannot soundly label every
+episode (5 of 200 for putting_shoes_on_rack, 1 of 200 for the coffee station).
+If the baseline trains on the pristine root and the treatment on the labelled
+one, the arms differ by ~2.5% of the training data AS WELL AS by the head, and
+the measured dQ is not attributable to the treatment.
+
+So: run with --drop-unlabelled, and point BOTH arms at the resulting filtered
+root. The baseline simply does not map the progress column. See docs/AB_PROTOCOL.md
+§3.6 -- violating it voids the comparison, exactly like the same-commit rule.
 
 Usage
 -----
@@ -54,8 +64,9 @@ Usage
         --labels        ~/labels/turning_on_radio.parquet \
         --out-root      ~/data/b1k/turning_on_radio+progress
 
-    # then train against the new root:
-    #   --data.base_config.dataset_root=<out-root>  --data.progress_key=progress
+    # BOTH arms then train against the new root; only the treatment maps the column:
+    #   arm A (baseline):  --data.base_config.dataset_root=<out-root>
+    #   arm B (treatment): --data.base_config.dataset_root=<out-root> --data.progress_key=progress
 """
 
 from __future__ import annotations
@@ -124,10 +135,25 @@ def merge_parquet_files(
     column: str,
     *,
     allow_missing: bool,
-) -> tuple[int, int]:
+    drop_unlabelled: bool = False,
+) -> tuple[int, int, set, int]:
     """Rewrite every data/*/*.parquet with a `progress` column joined on `join_on`.
 
-    Returns (rows_total, rows_unlabelled).
+    Returns (rows_in, rows_unlabelled, dropped_episodes, rows_out).
+
+    `drop_unlabelled` removes every EPISODE that has any unlabelled frame, rather
+    than erroring or fabricating a fill. Episode granularity, not frame: a
+    half-labelled episode is unsound either way, and the model sees episodes.
+
+    This is the mode the A/B protocol requires (§3.6). BOTH arms then train on
+    this filtered root -- the baseline simply does not map the progress column.
+    Training the baseline on the pristine root instead would leave the arms
+    differing by the dropped episodes as well as by the head, and ΔQ would not
+    be attributable to the treatment.
+
+    Episode indices are deliberately NOT renumbered. videos/ is symlinked back
+    to the pristine root and is keyed by the original episode index; renumbering
+    here would silently misalign every frame with its video.
     """
     import numpy as np
     import pandas as pd
@@ -140,7 +166,8 @@ def merge_parquet_files(
 
     lookup = labels.set_index(list(join_on))[column].astype("float32")
 
-    total = unlabelled = 0
+    total = unlabelled = rows_out = 0
+    dropped: set = set()
     for path in paths:
         table = pq.read_table(path)
         if "progress" in table.column_names:
@@ -162,7 +189,22 @@ def merge_parquet_files(
         n_missing = int(np.isnan(values).sum())
         total += len(values)
         unlabelled += n_missing
-        if n_missing and not allow_missing:
+
+        if n_missing and drop_unlabelled:
+            if "episode_index" not in frame.columns:
+                raise SystemExit(
+                    f"{path}: --drop-unlabelled needs an episode_index column to drop whole "
+                    f"episodes. Available: {list(frame.columns)}"
+                )
+            bad_eps = sorted(set(frame.loc[np.isnan(values), "episode_index"].tolist()))
+            dropped.update(int(e) for e in bad_eps)
+            keep = ~frame["episode_index"].isin(bad_eps).to_numpy()
+            table = table.filter(pa.array(keep))
+            values = values[keep]
+            if len(values) and bool(np.isnan(values).any()):
+                raise SystemExit(f"{path}: unlabelled frames survived the episode drop")
+
+        if n_missing and not allow_missing and not drop_unlabelled:
             sample = frame[np.isnan(values)].head(3).to_dict("records")
             raise SystemExit(
                 f"{path}: {n_missing}/{len(values)} frames have no label.\n"
@@ -176,12 +218,19 @@ def merge_parquet_files(
         out_path.parent.mkdir(parents=True, exist_ok=True)
         merged = table.append_column("progress", pa.array(values, type=pa.float32()))
         pq.write_table(merged, out_path)
+        rows_out += len(values)
 
-    return total, unlabelled
+    return total, unlabelled, dropped, rows_out
 
 
-def patch_info(meta_dir: Path, out_meta_dir: Path) -> None:
-    """Copy meta/ and register `progress` in info.json features."""
+def patch_info(meta_dir: Path, out_meta_dir: Path,
+               dropped: set | None = None, rows_out: int | None = None) -> None:
+    """Copy meta/ and register `progress` in info.json features.
+
+    When episodes were dropped, also correct total_episodes/total_frames -- a
+    stale count here is the kind of thing that surfaces as an off-by-N much
+    later, in norm-stats or a sampler.
+    """
     if out_meta_dir.exists():
         shutil.rmtree(out_meta_dir)
     shutil.copytree(meta_dir, out_meta_dir)
@@ -195,6 +244,11 @@ def patch_info(meta_dir: Path, out_meta_dir: Path) -> None:
     if not isinstance(features, dict):
         raise SystemExit(f"{info_path} has no 'features' dict; cannot register the progress column")
     features["progress"] = dict(PROGRESS_FEATURE)
+    if dropped:
+        if isinstance(info.get("total_episodes"), int):
+            info["total_episodes"] = info["total_episodes"] - len(dropped)
+        if rows_out is not None and isinstance(info.get("total_frames"), int):
+            info["total_frames"] = rows_out
     info_path.write_text(json.dumps(info, indent=4))
 
 
@@ -275,6 +329,10 @@ def main() -> int:
     ap.add_argument("--join-on", nargs="+", default=list(DEFAULT_JOIN),
                     help="dataset columns to join on (default: episode_index frame_index)")
     ap.add_argument("--allow-missing", action="store_true", help="tolerate unlabelled frames")
+    ap.add_argument("--drop-unlabelled", action="store_true",
+                    help="drop every EPISODE with an unlabelled frame and record which, instead "
+                         "of erroring or fabricating a fill. This is the mode the A/B protocol "
+                         "requires: BOTH arms then train on this filtered root.")
     ap.add_argument("--missing-fill", type=float, default=0.0, help="value for unlabelled frames")
     ap.add_argument("--copy-videos", action="store_true", help="copy videos/ instead of symlinking")
     ap.add_argument("--force", action="store_true", help="overwrite an existing --out-root")
@@ -283,6 +341,12 @@ def main() -> int:
     root: Path = args.dataset_root.expanduser()
     if not (root / "data").is_dir() or not (root / "meta").is_dir():
         raise SystemExit(f"{root} does not look like a LeRobot root (needs data/ and meta/)")
+
+    if args.allow_missing and args.drop_unlabelled:
+        raise SystemExit(
+            "--allow-missing and --drop-unlabelled are mutually exclusive: one fabricates a "
+            "target for unlabelled frames, the other removes their episodes."
+        )
 
     labels = _load_table(args.labels.expanduser())
     join_on = tuple(args.join_on)
@@ -299,13 +363,19 @@ def main() -> int:
         staged = root / "data.progress-staging"
         if staged.exists():
             shutil.rmtree(staged)
-        total, missing = merge_parquet_files(
-            out_data, staged, labels, join_on, args.column, allow_missing=args.allow_missing
+        total, missing, dropped, rows_out = merge_parquet_files(
+            out_data, staged, labels, join_on, args.column,
+            allow_missing=args.allow_missing, drop_unlabelled=args.drop_unlabelled,
         )
         shutil.rmtree(out_data)
         staged.rename(out_data)
         info = json.loads((out_meta / "info.json").read_text())
         info["features"]["progress"] = dict(PROGRESS_FEATURE)
+        if dropped:
+            if isinstance(info.get("total_episodes"), int):
+                info["total_episodes"] -= len(dropped)
+            if isinstance(info.get("total_frames"), int):
+                info["total_frames"] = rows_out
         (out_meta / "info.json").write_text(json.dumps(info, indent=4))
     else:
         out_root = (args.out_root or root.parent / f"{root.name}+progress").expanduser()
@@ -314,10 +384,11 @@ def main() -> int:
                 raise SystemExit(f"{out_root} exists. Pass --force to replace it.")
             shutil.rmtree(out_root)
         out_root.mkdir(parents=True)
-        total, missing = merge_parquet_files(
-            root / "data", out_root / "data", labels, join_on, args.column, allow_missing=args.allow_missing
+        total, missing, dropped, rows_out = merge_parquet_files(
+            root / "data", out_root / "data", labels, join_on, args.column,
+            allow_missing=args.allow_missing, drop_unlabelled=args.drop_unlabelled,
         )
-        patch_info(root / "meta", out_root / "meta")
+        patch_info(root / "meta", out_root / "meta", dropped, rows_out)
 
         videos = root / "videos"
         if videos.is_dir():
@@ -336,7 +407,25 @@ def main() -> int:
             (shutil.copytree if extra.is_dir() else shutil.copy2)(extra, target)
 
     print(f"==> merged {total} frames ({missing} unlabelled)")
-    if missing:
+    if missing and args.drop_unlabelled:
+        # The filter manifest is what makes arm symmetry auditable after the fact:
+        # both arms must train on THIS root, and this file says exactly what it is.
+        manifest = out_root / "meta" / "progress_filter.json"
+        manifest.write_text(json.dumps({
+            "dropped_episodes": sorted(dropped),
+            "n_dropped_episodes": len(dropped),
+            "rows_in": total,
+            "rows_out": rows_out,
+            "unlabelled_rows": missing,
+            "label_column": args.column,
+            "join_on": list(join_on),
+        }, indent=2, sort_keys=True))
+        print(f"==> dropped {len(dropped)} episode(s) with unlabelled frames: {sorted(dropped)}")
+        print(f"==> {rows_out} rows remain; manifest -> {manifest}")
+        print("!! BOTH ARMS must train on this filtered root. Training the baseline on the")
+        print("!! pristine root would make the arms differ by these episodes as well as by")
+        print("!! the head, and dQ would not be attributable to the treatment.", file=sys.stderr)
+    elif missing:
         print(f"!! {missing} frames carry the fabricated fill value {args.missing_fill}", file=sys.stderr)
 
     print("==> verifying by reloading through LeRobot's schema path")
