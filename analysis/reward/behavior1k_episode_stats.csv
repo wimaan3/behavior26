@@ -1,3 +1,27 @@
+# TERMINAL ANCHOR -- SUPERSEDED. Do not read phi0 here as progress at t=0.
+#
+# These rows were measured with phi_t = D*(1 - cumsum_final + cumsum_t), which assumed
+# every demo finished the task. A demo that ended one unit short is recorded here as one
+# that STARTED one unit ahead, so phi0 in this file conflates a reward that under-fires
+# with a demo that stopped early. Labels have been anchored at episode start since
+# a6a5a4a: satisfied_t = s0 + D*cumsum_t.
+#
+# The numbers therefore disagree with the current ones, and this file is the wrong side
+# of that disagreement:
+#
+#     task                                     phi0 here   progress_offset_at_reset
+#     putting_shoes_on_rack                       0.1226                     0.0000
+#     set_up_a_coffee_station_in_your_kitchen     0.2727                     0.1650
+#     outfit_a_basic_toolbox                      0.1429                     0.2664
+#
+# For progress at reset use progress_offset_at_reset in task_shortlist.csv (init-anchored,
+# full 200 ep/task). This file is also SAMPLE-SCOPE: 5,677 of 20,000 episodes, the first
+# parquet shard(s) per task -- see README.md, and note that phi0 did not survive the
+# sample on installing_a_fax_machine (0 on 62 eps, 0.108 on 200).
+#
+# Kept, not deleted: tests/test_labels.py pins the pipeline against these rows under
+# anchor="terminal" to catch the dataset being re-patched underneath us. Readers must
+# skip '#' lines.
 task,task_name,D,ep,T,nnz,nneg,n_multiflip,max_k,dropped,term_last,trunc_any,phi0,phi0_count,valid
 0,turning_on_radio,1.0,0,1956,2,1,0,1,1,True,False,0.0,0.0,True
 0,turning_on_radio,1.0,1,2340,1,0,0,1,0,True,False,0.0,0.0,True

@@ -258,7 +258,10 @@ EPISODE_STATS = pathlib.Path(__file__).resolve().parents[1] / "behavior1k_episod
 def _historical(task_index):
     import csv
     with open(EPISODE_STATS) as fh:
-        return {int(r["ep"]): r for r in csv.DictReader(fh) if int(r["task"]) == task_index}
+        # The file carries a '#' preamble marking it terminal-anchored and superseded;
+        # csv.DictReader would otherwise take the first comment line as the header.
+        rows = csv.DictReader(line for line in fh if not line.startswith("#"))
+        return {int(r["ep"]): r for r in rows if int(r["task"]) == task_index}
 
 
 @pytest.mark.parametrize("task_index,task_name,D", [
