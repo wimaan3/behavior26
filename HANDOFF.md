@@ -1,7 +1,11 @@
 # HANDOFF — training
 
-Work is on `main` and pushed. (This line previously said branch
-`local/training`, not pushed; that was true before the 2026-09-11 session.)
+Work is on `main` and pushed.
+
+**Canonical checkout: `/mnt/c/Users/Imaan Soltanalipour/robotProj/behavior26`.**
+Git is slower there, but it is the copy with the sibling `openpi` and
+`external/b1k` checkouts, so it runs strictly more of the suite than a bare
+clone does — that is what makes it the one worth trusting. Work there.
 
 ---
 
@@ -50,10 +54,13 @@ the 2026-09-11 revision of `docs/AB_PROTOCOL.md`:
 
 ### Open / next
 
-1. **Decide on `n`.** Raising the frozen instance list from 3 to ~20 is the
-   single highest-value change available and it is cheap. It is a protocol
-   change: it needs its own dated revision in `docs/AB_PROTOCOL.md`. **Not done
-   here — it is a design call, not a bug fix.**
+1. ~~**Decide on `n`.**~~ **DONE** — revision 2026-09-11b took the frozen list
+   from `[10, 11, 12]` to instances 10–29 (n=20). MDE 0.181 → 0.058 at f=0.20
+   for $7–11. Note what it does *not* buy: 0.05 needs n=27 at pessimistic noise,
+   and **0.02 is unreachable at two tasks** (σ_b floor at N=40 is 0.0227). If
+   the expected effect is near 0.02, the design needs more tasks, not more
+   instances. **n=27 is worth considering before the first cycle** — a few
+   dollars, and cheaper to change now than after.
 2. Gaps 2–7 in `docs/AB_PROTOCOL.md` §4 remain (gap 1 is fixed, gap 5 is
    defused for the graded tier only). Gaps 2 and 3 — median pass Q and its
    spread — are what §3.3 requires for the headline and are still unwritten.

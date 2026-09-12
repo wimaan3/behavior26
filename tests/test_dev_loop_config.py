@@ -80,6 +80,43 @@ def test_instances_are_training_ids(cfg):
     assert not off, f"test instances in a train-mode config: {off}"
 
 
+def test_instance_ids_exist_in_the_challenge_dataset(cfg):
+    """Every id must be a real shipped instance, not merely < 301.
+
+    resolve_instance_ids passes train ids through unvalidated (evaluator.py
+    l.75-76), so a nonexistent id is not caught by the evaluator either -- it
+    fails in Evaluator.load_task_instance with FileNotFoundError, on a rented
+    GPU, partway through a sweep.
+
+    Verified 2026-09-11 by enumerating 2026-challenge-task-instances.zip: all
+    100 tasks ship exactly 300 training instances, but the range is
+    task-dependent -- 50 tasks are ids 0-299 and 50 are 1-300. Both of ours are
+    0-299, so id 0 is valid here and would NOT be valid on half the corpus.
+    """
+    lo, hi = 0, 299                      # measured range for both of our tasks
+    bad = [i for i in cfg["instances"] if not lo <= i <= hi]
+    assert not bad, (
+        f"instance ids outside the {lo}-{hi} range both dev-loop tasks ship: {bad}")
+
+
+def test_instance_count_matches_the_frozen_design(cfg):
+    """n is the design, not an accident.
+
+    n=20 was chosen in the 2026-09-11 protocol revision: at N=40 the MDE is
+    0.058 at f=0.20, against 0.181 at the previous n=3. Changing n changes every
+    MDE the protocol quotes, so it must go through a dated revision -- this test
+    is what makes a silent edit fail.
+    """
+    instances = cfg["instances"]
+    assert len(instances) == 20, (
+        f"n={len(instances)}, but the frozen design is n=20. Changing it needs a "
+        "dated revision in docs/AB_PROTOCOL.md.")
+    assert len(set(instances)) == len(instances), "duplicate instance ids"
+    # A duplicate or a gap would quietly change N without changing len().
+    assert instances == list(range(min(instances), max(instances) + 1)), (
+        "instance list is not contiguous; keep it a block so N is obvious")
+
+
 def test_reserve_task_is_documented_but_not_run(cfg, shortlist):
     """The reserve is a swap-in for a failed task, not a third task.
 
