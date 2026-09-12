@@ -11,6 +11,7 @@ They are cheap; run them before every push.
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 import sys
 import time
@@ -18,6 +19,7 @@ import urllib.request
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
@@ -297,6 +299,43 @@ def test_unequal_seed_counts_are_reported(tmp_path):
     assert coverage["seeds_per_unit_a"] == 1
     assert coverage["seeds_per_unit_b"] == 3
     assert coverage["balanced_seeds"] is False
+
+
+def test_unpaired_baseline_is_computed_on_units_not_rollouts(tmp_path):
+    """The "what pairing bought" comparison must hold the seed-averaging fixed.
+
+    Both arms get 4 seeds on each of 6 instances. The unpaired baseline is
+    computed on the 6 per-instance means, NOT on the 24 raw rollouts: treating
+    4 draws from one instance as 4 independent samples divides by n*m when there
+    are only n units, which returns an SE that is too small to be a real
+    baseline. Pinned because the number feeds a "pairing bought Nx" line that a
+    reader will quote.
+    """
+    from analysis.compare import unpaired_stats
+    a, b = tmp_path / "a", tmp_path / "b"
+    difficulty = [0.05, 0.55, 0.15, 0.75, 0.30, 0.60]
+    noise = [-0.05, -0.01, 0.01, 0.05]
+    for i, d in enumerate(difficulty):
+        for r, nz in enumerate(noise):
+            write_rollout(a / "json", "t", i, q=d + nz, rollout=r)
+            write_rollout(b / "json", "t", i, q=d + 0.04 + nz, rollout=r)
+
+    merged, coverage = load_pair(a, b)
+    assert coverage["n_paired"] == 6          # units, not the 24 rollouts per arm
+    unp = unpaired_stats(merged)
+
+    # Recompute the honest baseline straight from the per-instance means.
+    import statistics as st
+    means_a = [d + st.fmean(noise) for d in difficulty]
+    means_b = [d + 0.04 + st.fmean(noise) for d in difficulty]
+    expected = math.sqrt(st.variance(means_a) / 6 + st.variance(means_b) / 6)
+    assert unp["se_dq"] == pytest.approx(expected, abs=5e-4)
+
+    # The pseudoreplicated version -- 24 rollouts treated as independent -- would
+    # be materially smaller. Assert we are not reporting that.
+    raw = [d + nz for d in difficulty for nz in noise]
+    pseudo = math.sqrt(2 * st.variance(raw) / 24)
+    assert pseudo < unp["se_dq"]
 
 
 def test_paired_beats_unpaired_when_instances_differ_in_difficulty(tmp_path):

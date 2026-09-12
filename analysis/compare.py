@@ -3,9 +3,9 @@ Paired comparison of two rollout sweeps.
 
 Why paired
 ----------
-The evaluator is nondeterministic and we run one rollout per instance, so a single
-sweep's mean Q carries real sampling noise. Comparing two INDEPENDENT 36-rollout sweeps
-means the difference has to clear the noise of both:
+The evaluator is nondeterministic, so a single sweep's mean Q carries real sampling
+noise. Comparing two INDEPENDENT sweeps means the difference has to clear the noise of
+both (below, at one rollout per instance and 36 instances):
 
     se_unpaired = sqrt(var_A/n_A + var_B/n_B)
 
@@ -206,8 +206,16 @@ def paired_stats(merged: pd.DataFrame, confidence: float = 0.95) -> dict:
 def unpaired_stats(merged: pd.DataFrame, confidence: float = 0.95) -> dict:
     """The same comparison done independently, to show what pairing bought.
 
-    Computed on the SAME rollouts, so the only difference is whether the pairing is
-    used. Any gap between the two min-detectable numbers is free resolution.
+    Computed on the same (task, instance) UNITS the paired test uses -- each arm's
+    per-instance mean over its seeds -- so the only difference between the two
+    numbers is whether the pairing is used. Any gap is free resolution.
+
+    Deliberately NOT computed on raw rollouts. With m seeds per instance, treating
+    m draws from the same instance as m independent samples is pseudoreplication:
+    it divides by n*m when there are only n independent units and returns an SE
+    that is too small. That would be a smaller number than this one, but not a
+    real baseline -- and comparing against it would understate what pairing bought
+    while implying an unpaired design is cheaper than it is.
     """
     a = merged["q_score_a"].astype(float)
     b = merged["q_score_b"].astype(float)
