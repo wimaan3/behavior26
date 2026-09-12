@@ -2,6 +2,9 @@
 data/
 *.hdf5
 *.parquet
+# ...but the derived progress-label sidecars are small (14 MB for 3 tasks) and are
+# how the cloud box gets its labels with the clone. Checked in deliberately.
+!labels/**/*.parquet
 *.mp4
 *.usd
 
