@@ -348,6 +348,24 @@ A nominally graded task with a low `frac_intermediate` is binary in disguise;
 | σ_b share of Var(d_i) at f=0.05, m=1 | 9.1% | 42.4% | |
 | MDE at N=40, m=1, f=0.20 | 0.145 | **0.058** | 2.5× better |
 
+#### §0's premise, rechecked
+
+§0 opens "Every `primary` task has **D = 1**". Post-relabel that is no longer
+literally true — the tier now also carries `cook_bacon` (D=7), `wash_dog_toys`
+(D=6) and `make_pizza` (D=2). **Its conclusion survives anyway**, because two of
+those three are graded in name only:
+
+| primary task, D>1 | D | frac_intermediate | gradient_score |
+|---|---|---|---|
+| `cook_bacon` | 7 | 0.591 | 0.084 |
+| `wash_dog_toys` | 6 | **0.000** | 0.000 |
+| `make_pizza` | 2 | **0.000** | 0.000 |
+
+`wash_dog_toys` and `make_pizza` never occupy an intermediate level: they jump
+0 → 1 and behave exactly like binary tasks despite D>1. Treat the primary tier
+as binary, as §0 says — but on the measurement, not on D. `power.py` now prints
+`frac_intermediate` and flags this case rather than trusting D.
+
 #### The re-run tables
 
 `python analysis/power.py --tasks-from configs/experiments/001-dev-loop.yaml`
