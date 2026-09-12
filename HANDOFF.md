@@ -1,6 +1,69 @@
 # HANDOFF — training
 
-Branch `local/training` (from `local/test-harness`), **not pushed**.
+Work is on `main` and pushed. (This line previously said branch
+`local/training`, not pushed; that was true before the 2026-09-11 session.)
+
+---
+
+## 2026-09-11 session: Jetson relabel merged, pairing bug fixed, power re-run
+
+**Heads-up for whoever picks this up: the local working tree at
+`/home/imaansol/3MagicLabs/stanbeh` was EMPTY at the start of this session** —
+no `.git`, no files, and no clone of `wimaan3/behavior26` anywhere on the
+machine. Everything below was done against a fresh clone of `origin`. Nothing
+was lost that had been pushed, but any unpushed local work from before
+2026-09-05 is gone. Push early.
+
+### Done
+
+| # | Task | Result |
+|---|---|---|
+| 1 | Merge `origin/jetson/labels` into `main` | `7322af4`. Clean, **no conflicts** — `.gitattributes` was already identical on both sides (the Jetson's eol=lf pins won in the earlier merge `076fe29`), so the overlap from last time did not recur. Brings `a6a5a4a` + `d3b1769`: progress re-anchored at episode start, new `graded` tier, new schema columns. |
+| 2 | `compare.py` pairing bug | `66d365d`. Was joining on `rollout_id`. Now pairs on (task, instance) with seeds averaged within each arm. See below. |
+| 3 | Re-run `power.py` on the new shortlist | `eee5b9d`. Binary noise model replaced with a graded one; tables regenerated into a dated revision of `docs/AB_PROTOCOL.md`. |
+| 4 | Budget / partial mode | Already implemented on `main` before this session (`de7c131`) — verified working end-to-end, not rewritten. Stale on-demand figures in `WEEK1_CHARTER.md` superseded. |
+| 5 | Fill in `001-dev-loop.yaml` | `d7e64d4`. Tasks were already correct; added the reserve, regenerated the figures the relabel invalidated, fixed two wrong claims, added tests. |
+
+### The pairing bug, in one line
+
+`JOIN_KEYS` included `rollout_id`, so arm A's rollout 3 was paired with arm B's
+rollout 3 — unrelated draws under a nondeterministic simulator. It also counted
+`n*m` pairs where there are only `n` units, shrinking the SE by ~sqrt(m). On a
+6-instance x 3-seed case with a real, near-constant +0.020 effect, the old key
+reported "not significant" with a detectable floor of 0.25; the fix recovers the
+effect at a floor of 0.0015. **Latent at `num_rollouts: 1`** — the dev loop's
+existing numbers are unaffected, and a test pins that.
+
+### What changed about the A/B design
+
+`sigma_w` on the two tasks we run is **2.7x lower** than the binary model
+assumed, and the MDE at N=40 goes 0.145 -> 0.058. Consequences, all recorded in
+the 2026-09-11 revision of `docs/AB_PROTOCOL.md`:
+
+- Instances beat seeds at equal cost. **1 seed is the answer** across the whole
+  plausible noise range.
+- §2's noise-floor measurement no longer decides the design — it only calibrates
+  how much to believe the MDE. It no longer blocks the first A/B.
+- **`n=3` is the binding constraint.** The frozen instance list `[10, 11, 12]`
+  gives N=6 and an MDE of 0.181 — coarser than the effect the pairing exists to
+  resolve. n=20 reaches 0.058 for 22.3 GPU-hr / $11.
+
+### Open / next
+
+1. **Decide on `n`.** Raising the frozen instance list from 3 to ~20 is the
+   single highest-value change available and it is cheap. It is a protocol
+   change: it needs its own dated revision in `docs/AB_PROTOCOL.md`. **Not done
+   here — it is a design call, not a bug fix.**
+2. Gaps 2–7 in `docs/AB_PROTOCOL.md` §4 remain (gap 1 is fixed, gap 5 is
+   defused for the graded tier only). Gaps 2 and 3 — median pass Q and its
+   spread — are what §3.3 requires for the headline and are still unwritten.
+3. `sigma_b = 0.05` is still assumed, never estimated. It is now ~16% of
+   Var(d_i) at f=0.20 rather than ~2%, so it matters more than it used to.
+4. The Jetson's reward tests (`analysis/reward/tests/`, 54 of them) **all skip
+   here** — they gate on a LeRobot pull at `/home/imaansol/behavior-data`, which
+   does not exist on this box. The relabel logic is unverified locally; it was
+   tested on the Jetson. `tests/test_progress_labels.py` (the merge-script
+   schema pin) does run and passes.
 
 ## 2026-09-04 session: reading the real evaluator
 
