@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """Per-frame progress labels for BEHAVIOR-1K, straight from LeRobot parquet.
 
-    phi_t = D * (1 - cumsum_final + cumsum_t)
+    satisfied_t = s0 + cumsum_t
 
-`phi_t` is the number of goal units satisfied at frame `t`, on the assumption the
-demo ends satisfied. Dividing by `D` gives normalised progress in [0, 1]. `D` is the
-task's goal-unit count; it is **measured from the reward trace**, never predicted --
-see README.md, warning 1.
+`satisfied_t` is the number of goal units true at frame `t`. `s0` is the number
+already true at reset, bounded by the BDDL :init block and pinned inside those bounds
+by the deepest negative excursion of the reward trace. Dividing by `D` gives
+normalised progress in [0, 1]. `D` is the task's goal-unit count; it is **measured
+from the reward trace**, never predicted -- see README.md, warning 1.
+
+The label is anchored at the START of the episode, not the end. The previous recipe,
+`phi_t = D*(1 - cumsum_final + cumsum_t)`, assumed every demo finished the task and
+shifted the curve until it did; a demo that ended one unit short was relabelled as
+having started one unit ahead. It is still reachable as `anchor="terminal"` and is
+what `behavior1k_episode_stats.csv` was measured with.
 
 Emitted per task:
     <out>/<task>/labels.parquet   index, episode_index, frame_index, task_index,
@@ -47,7 +54,12 @@ INTEGRAL_TOL = 1e-3
 
 # Refusal thresholds. phi0 is the fraction of goal units that never fired in a
 # successful demo, so anything meaningfully above zero means the reward under-fired.
-DEFAULT_MAX_PHI0 = 0.05
+# A task is refused when NO episode in it ever reaches the whole goal: the reward can
+# then never express task completion, whatever the policy does. That is the successor
+# to the old `phi0 <= 0.05` gate, which under the terminal anchor could not tell a
+# reward that under-fires from a demo that stopped a step early.
+DEFAULT_MIN_DEMO_COMPLETION = 0.0
+DEFAULT_MAX_PHI0 = None     # optional bound on the reset offset; off by default
 DEFAULT_MIN_VALID_RATE = 0.70
 
 REWARD_COLUMNS = ["index", "episode_index", "frame_index",
@@ -67,14 +79,27 @@ class TaskRefused(Exception):
 # reward repair
 # ---------------------------------------------------------------------------
 
-def repair_negatives(rewards: np.ndarray) -> tuple[np.ndarray, int]:
-    """Zero negatives that would drive the running reward sum below its floor.
+def repair_negatives(rewards: np.ndarray, floor: float = 0.0) -> tuple[np.ndarray, int]:
+    """Zero negatives that would drive the running reward sum below `floor`.
 
     The demo collector rolls the simulator back and replays; the reward function
     emits a debit for credit it never issued in this trace. Such a debit pushes the
-    running sum below zero, which no real predicate flip can do -- you cannot
-    un-satisfy a unit that was never satisfied. Those are dropped. A negative that
-    leaves the sum at or above zero is a genuine predicate flipping back and is kept.
+    running sum below the number of goal units that were satisfied at reset, which no
+    real predicate flip can do -- you cannot un-satisfy a unit that was never
+    satisfied. Those are dropped. A negative that leaves the sum at or above the floor
+    is a genuine predicate flipping back and is kept.
+
+    `floor` is `-s0/D`, i.e. minus the fraction of the goal already true at reset.
+    It defaults to 0, which is only correct for a task whose goal is entirely false
+    at reset. Getting it wrong in either direction is a real defect:
+
+      floor too high (0 when literals start true)
+          the legitimate debit for breaking an initially-true literal is deleted, and
+          the later credit for restoring it is kept -- the trace over-credits. This is
+          what made `cook_bacon` read as 7 units of work when only 6 are.
+      floor too low
+          a rollback debit survives and the episode reads as a predicate flip-back
+          that never happened.
 
     Returns (repaired_rewards, n_dropped).
     """
@@ -84,12 +109,55 @@ def repair_negatives(rewards: np.ndarray) -> tuple[np.ndarray, int]:
     for i, v in enumerate(out):
         if v == 0.0:
             continue
-        if v < 0.0 and running + v < -EPS:
+        if v < 0.0 and running + v < floor - EPS:
             out[i] = 0.0
             dropped += 1
         else:
             running += v
     return out, dropped
+
+
+# ---------------------------------------------------------------------------
+# how much of the goal is already true at reset
+# ---------------------------------------------------------------------------
+
+def initial_satisfied_bounds(task: str, D: int,
+                             census_path: os.PathLike | str | None = None,
+                             ) -> tuple[int, int, str]:
+    """(s0_units, n_unknown, alignment) from the BDDL :init block.
+
+    The reward trace cannot tell "this literal was true at reset and the robot broke
+    it" from "the collector rolled the simulator back and re-issued credit". Only the
+    BDDL says which, so `s0_units` is the count of goal literals the census marks
+    `initially_true: True`.
+
+    Literals marked `None` (unknown -- kinematic relations the `:init` block does not
+    state) are NOT counted. Counting them would let a rollback debit masquerade as a
+    broken initially-true literal, which on a D=1 task pins progress at a constant 1.0
+    and throws the episode away: 104 of 200 `re_shelving_library_books` episodes died
+    that way before this was tightened. They are returned as `n_unknown` instead,
+    because they bound the residual risk in the other direction -- a literal that
+    really is true at reset and gets broken will have its debit repaired away and its
+    restoring credit kept, over-crediting by up to `n_unknown` units.
+
+    The literal-to-unit mapping is only sound when `D` equals the number of goal
+    literals. When it does not -- a quantifier expanded, or a collapsed denominator --
+    no literal can be tied to a unit, so the prior is dropped to 0 and reported
+    `ambiguous`.
+    """
+    if census_path is None:
+        census_path = pathlib.Path(__file__).resolve().parent.parent / "census" / "goal_census_detail.json"
+    census_path = pathlib.Path(census_path)
+    if not census_path.exists():
+        return 0, 0, "no_census"
+    lits = json.loads(census_path.read_text()).get(task)
+    if lits is None:
+        return 0, 0, "no_census"
+    n_true = sum(1 for l in lits if l["initially_true"] is True)
+    n_unknown = sum(1 for l in lits if l["initially_true"] is None)
+    if len(lits) != D:
+        return 0, n_true + n_unknown, "ambiguous"
+    return n_true, n_unknown, "aligned"
 
 
 # ---------------------------------------------------------------------------
@@ -101,24 +169,83 @@ class EpisodeLabels:
     progress: np.ndarray        # float64, normalised, [0, 1]
     satisfied_count: np.ndarray  # float64, raw goal units, [0, D]
     phi0: float                 # normalised progress at t=0
-    phi0_units: float           # phi0 * D == goal units that never fired
+    phi0_units: float           # phi0 * D == goal units already satisfied at reset
     n_dropped_rewards: int      # rollback debits zeroed by repair
     monotone: bool
     valid: bool
     drop_reason: str | None
+    peak: float = float("nan")           # highest progress reached
+    final: float = float("nan")          # progress on the last frame
+    never_credited_units: float = float("nan")   # D * (1 - peak): units never satisfied
+    lost_at_end_units: float = float("nan")      # D * (peak - final): earned then lost
+    max_dip_units: float = 0.0           # largest single downward step, in goal units
 
 
 def episode_labels(rewards: np.ndarray, D: int, terminated_last: bool = True,
-                   truncated_any: bool = False) -> EpisodeLabels:
-    """Build progress labels for one episode and run the validation gates."""
-    repaired, n_dropped = repair_negatives(rewards)
-    cumsum = np.cumsum(repaired)
-    progress = 1.0 - cumsum[-1] + cumsum if len(cumsum) else cumsum
-    satisfied = progress * D
+                   truncated_any: bool = False, s0_units: int = 0,
+                   anchor: str = "init") -> EpisodeLabels:
+    """Build progress labels for one episode and run the validation gates.
 
+    `anchor="init"` (the default) reads the reward trace forward from the goal state
+    at reset:
+
+        satisfied_t = s0 + cumsum_t
+
+    where `s0` is the number of goal units already true at reset, bounded by the BDDL
+    :init block (`initial_satisfied_bounds`) and pinned within those bounds by the
+    deepest negative excursion of the trace. Progress is then whatever the episode
+    actually reached -- it is not forced to end at 1.0.
+
+    `anchor="terminal"` is the historical recipe, `phi_t = D*(1 - cumsum_final +
+    cumsum_t)`, which assumes every demo ends with the goal satisfied and back-shifts
+    the whole curve to make that true. It is retained only so the committed corpus
+    sweep stays reproducible. It has two failure modes the init anchor does not:
+
+      * a demo that ends one unit short is relabelled as though that unit had been
+        satisfied at reset, so `phi0` reports missing instrumentation that is really a
+        truncated demo (48 of 200 `chop_an_onion` episodes, and every task in the
+        UNDER_FIRES band);
+      * with `s0 > 0` it silently over-credits, because the debit for breaking an
+        initially-true literal is repaired away while the credit for restoring it is
+        kept.
+    """
+    if anchor not in ("init", "terminal"):
+        raise ValueError(f"anchor must be 'init' or 'terminal', not {anchor!r}")
+    if not 0 <= s0_units <= D:
+        raise ValueError(f"s0_units {s0_units} outside [0, {D}]")
+
+    if anchor == "terminal":
+        repaired, n_dropped = repair_negatives(rewards)
+        cumsum = np.cumsum(repaired)
+        progress = 1.0 - cumsum[-1] + cumsum if len(cumsum) else cumsum
+    else:
+        # The census prior is a claim about the scene, not about this episode. Cap it
+        # per episode at D - (units this trace credits), because a trace that credits
+        # k units cannot have started with more than D - k already satisfied. This is
+        # what catches a prior that is simply wrong: 44 of 200 cook_bacon episodes earn
+        # credit for CLOSING the refrigerator without ever debiting for opening it, so
+        # in those episodes the fridge was open at reset and the census's
+        # `not open(...) initially_true` does not hold. Lowering s0 also lowers the
+        # repair floor, which can change the trace, so iterate to a fixed point.
+        s0 = float(s0_units)
+        for _ in range(8):
+            repaired, n_dropped = repair_negatives(rewards, floor=-s0 / D)
+            cumsum = np.cumsum(repaired)
+            capped = min(s0, D - float(cumsum.max()) * D) if len(cumsum) else s0
+            capped = max(0.0, capped)
+            if abs(capped - s0) < EPS:
+                break
+            s0 = capped
+        s0_units = s0
+        progress = s0_units / D + cumsum
+
+    satisfied = progress * D
     phi0 = float(progress[0]) if len(progress) else float("nan")
     phi0_units = phi0 * D
-    monotone = bool(np.all(np.diff(progress) >= -EPS)) if len(progress) > 1 else True
+    steps = np.diff(progress) if len(progress) > 1 else np.zeros(0)
+    monotone = bool(np.all(steps >= -EPS))
+    peak = float(progress.max()) if len(progress) else float("nan")
+    final = float(progress[-1]) if len(progress) else float("nan")
 
     reason = None
     if not terminated_last:
@@ -129,12 +256,20 @@ def episode_labels(rewards: np.ndarray, D: int, terminated_last: bool = True,
         reason = "phi0_out_of_range"
     elif abs(phi0_units - round(phi0_units)) > INTEGRAL_TOL:
         reason = "phi0_not_integral"
-    elif phi0 >= 1.0 - EPS:
-        # Progress is the constant 1.0: the episode terminated having credited nothing,
-        # so the label would teach that a freshly-reset scene is already complete.
-        # Passes range and integrality, so it needs its own gate.
+    elif peak > 1.0 + EPS:
+        # The trace credits more than D units. Under the init anchor this is the
+        # rollback replay signature -- the same unit credited twice -- and it is a
+        # corrupted trace, not a labelling choice. 3 of 200 cook_bacon episodes.
+        reason = "over_credited"
+    elif peak - float(progress.min()) < EPS:
+        # The label is a constant for the whole episode -- the reward never fired, so
+        # there is nothing to learn from it and, in a demo that is supposed to have
+        # reached the goal, it is evidence the reward did not fire at all. Under the
+        # terminal anchor this showed up as the constant 1.0 ("already complete at
+        # reset"); under the init anchor it is the constant phi0. Either way it passes
+        # range and integrality, so it needs its own gate.
         reason = "no_headroom"
-    elif progress.min() < -EPS or progress.max() > 1.0 + EPS:
+    elif progress.min() < -EPS:
         reason = "progress_out_of_range"
 
     return EpisodeLabels(
@@ -142,7 +277,48 @@ def episode_labels(rewards: np.ndarray, D: int, terminated_last: bool = True,
         satisfied_count=np.clip(satisfied, 0.0, D),
         phi0=phi0, phi0_units=phi0_units, n_dropped_rewards=n_dropped,
         monotone=monotone, valid=reason is None, drop_reason=reason,
+        peak=peak, final=final,
+        # clamped at 0: the gates already reject peak > 1, so anything below zero here
+        # is float32 round-off and a negative "units never credited" reads as nonsense
+        never_credited_units=max(0.0, D * (1.0 - peak)),
+        lost_at_end_units=max(0.0, D * (peak - final)),
+        max_dip_units=float(-steps.min() * D) if len(steps) and steps.min() < 0 else 0.0,
     )
+
+
+# ---------------------------------------------------------------------------
+# progress structure -- does this task's label carry a gradient at all?
+# ---------------------------------------------------------------------------
+
+def progress_structure(progress: np.ndarray, D: int) -> dict:
+    """Shape of one episode's progress curve.
+
+    `D` counts goal units; it says nothing about whether they are reached one at a
+    time. `cook_bacon` has D=7 and fires 6 of them in a single frame 1.5% before the
+    end, which is a step function wearing a multi-unit denominator. These are the
+    numbers that tell the two apart.
+    """
+    n = len(progress)
+    if n == 0:
+        return {}
+    lo, hi = float(progress.min()), float(progress.max())
+    steps = np.diff(progress) if n > 1 else np.zeros(0)
+    up = steps[steps > EPS]
+    rising = np.nonzero(progress > progress[0] + EPS)[0]
+    return {
+        # fraction of the episode spent strictly between the lowest and highest values
+        # the episode reaches -- 0 for a step function, ~0.5+ for a genuine staircase.
+        # Anchored on min/max rather than first/last so an episode that ends short is
+        # still measured over the range it actually covered.
+        "frac_intermediate": float(np.mean((progress > lo + EPS) & (progress < hi - EPS))),
+        # largest single jump as a fraction of the WHOLE goal. cook_bacon scores 0.86:
+        # six of its seven units land in one frame, so D=7 buys no gradient.
+        "max_step_frac": float(up.max()) if len(up) else float("nan"),
+        "n_credit_events": int(len(up)),
+        "n_levels": int(len(np.unique(np.round(progress * D, 6)))),
+        "t_first_credit": float(rising[0] / (n - 1)) if len(rising) and n > 1 else float("nan"),
+        "mean_progress": float(progress.mean()),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -309,18 +485,35 @@ def load_reward_map(path: os.PathLike | str,
             "n_valid": int(r["n_valid"]),
             "measurement_scope": "full-200ep",
         })
+        # init-anchored fields, present once measure_corpus.py has been re-run
+        for col in ("never_credited_mean", "lost_at_end_mean", "phi0_init_mean",
+                    "demo_completion_rate", "initially_true_literals",
+                    "frac_intermediate", "max_step_frac", "t_first_credit"):
+            if col in r.index and not pd.isna(r[col]):
+                rec[col] = float(r[col])
     return rmap
 
 
 def check_task_usable(task: str, reward_map: dict,
-                      max_phi0: float = DEFAULT_MAX_PHI0,
-                      min_valid_rate: float = DEFAULT_MIN_VALID_RATE) -> dict:
+                      max_phi0: float | None = DEFAULT_MAX_PHI0,
+                      min_valid_rate: float = DEFAULT_MIN_VALID_RATE,
+                      min_demo_completion: float = DEFAULT_MIN_DEMO_COMPLETION) -> dict:
     """Raise TaskRefused unless this task's reward instrumentation is trustworthy.
 
-    The detector is phi0. phi0 * D is the number of goal units that never fired in a
-    demo that reached the goal, so phi0 = 0 is evidence of complete instrumentation
-    and a high phi0 is evidence the reward under-fires. See README.md, warning 2 --
-    and warning 3, which is why this is necessary but not sufficient.
+    The detector is `demo_completion_rate`: the share of valid episodes whose progress
+    reaches 1.0. A task where that is zero has no demo anywhere in its 200 that shows
+    the whole goal satisfied, which is instrumentation failure, not a hard task --
+    `putting_dishes_away_after_cleaning` fires exactly once out of D=14 in 200 of 200.
+
+    What this deliberately does NOT refuse is a task where some demos finish and
+    others stop a unit short. Under the init anchor those short episodes are labelled
+    correctly with the progress they actually reached; the old gate read them as
+    missing instrumentation and threw away most of the corpus with real gradient.
+
+    `max_phi0`, if given, additionally bounds the progress offset at reset -- the
+    fraction of the goal already true before the robot moves. It is off by default:
+    the offset is a property of the scene, not a defect. `wash_dog_toys` starts at
+    0.333 because two of its six literals are satisfied at reset and never broken.
     """
     rec = reward_map.get(task)
     if rec is None:
@@ -332,19 +525,37 @@ def check_task_usable(task: str, reward_map: dict,
         raise TaskRefused(task, "no reward signal at all in the demos -- D is not "
                                 "measurable, so no progress label can be built")
 
-    phi0 = float(rec.get("phi0_mean", 0.0))
-    evidence = (f"mean phi0 = {phi0:.4f} ({rec.get('measurement_scope', 'sample-28pct')}) "
-                f"with D = {D}, so {phi0 * D:.1f} of {D} goal units never fire even in "
-                f"demos that reach the goal; labels would encode a task already "
-                f"{phi0:.0%} complete at t=0")
-
+    scope = rec.get("measurement_scope", "sample-28pct")
     instr = rec.get("reward_instrumentation")
-    if instr not in ("ok", None):
-        raise TaskRefused(task, f"reward_instrumentation = {instr!r} -- {evidence}")
+    completion = rec.get("demo_completion_rate")
+    never = rec.get("never_credited_mean")
 
-    if phi0 > max_phi0:
-        raise TaskRefused(task, f"reward instrumentation suspect -- {evidence}. "
-                                f"Threshold is phi0 <= {max_phi0}")
+    if instr not in ("ok", None):
+        raise TaskRefused(task, f"reward_instrumentation = {instr!r} ({scope})")
+
+    if completion is None:
+        # pre-init-anchor map: fall back to the terminal-anchored phi0 so an old
+        # reward map still refuses the reference defect rather than silently passing
+        phi0 = float(rec.get("phi0_mean", 0.0))
+        if phi0 > 0.05:
+            raise TaskRefused(
+                task, f"mean phi0 = {phi0:.4f} ({scope}) with D = {D}, so {phi0 * D:.1f} "
+                      f"of {D} goal units are unaccounted for. This map predates the "
+                      f"init anchor -- re-run measure_corpus.py for a real verdict")
+    elif float(completion) <= min_demo_completion:
+        raise TaskRefused(
+            task, f"no demo reaches the whole goal: {float(completion):.1%} of valid "
+                  f"episodes end at progress 1.0 ({scope}), with {float(never or 0):.2f} "
+                  f"of {D} goal units never credited anywhere in the mean episode. The "
+                  f"reward cannot express completion of this task")
+
+    if max_phi0 is not None:
+        offset = float(rec.get("phi0_init_mean", rec.get("phi0_mean", 0.0)))
+        if offset > max_phi0:
+            raise TaskRefused(
+                task, f"progress starts at {offset:.3f} ({offset * D:.1f} of {D} goal "
+                      f"units already true at reset), above the --max-phi0 bound "
+                      f"{max_phi0}")
 
     valid_rate = float(rec.get("valid_rate", 1.0))
     if valid_rate < min_valid_rate:
@@ -357,13 +568,21 @@ def check_task_usable(task: str, reward_map: dict,
 # denominator audit (README warning 3)
 # ---------------------------------------------------------------------------
 
-def denominator_status(task: str, D: int, phi0_mean: float,
+def denominator_status(task: str, D: int, never_credited_mean: float,
+                       demo_completion_rate: float | None = None,
                        census_path: os.PathLike | str | None = None) -> tuple[str, int | None]:
     """Compare D against the BDDL predicates that must flip. (status, must_flip).
 
-    phi0 only shows firing relative to D. If D was itself collapsed below the true
-    goal size, phi0 = 0 merely confirms D and the events agree and says nothing about
-    whether D matches the goal -- a second, independent defect mode phi0 cannot see.
+    The under-firing arm is measured with units that are NEVER credited anywhere in
+    the episode -- `D * (1 - peak)` -- not with terminal-anchored phi0. phi0 under the
+    old anchor was the sum of two unrelated things, units the reward never credited
+    and units the demo earned and then lost before it ended, and the second dominates:
+    of the 39 tasks that read UNDER_FIRES with >85% of their must-flip count observed,
+    only `wash_dog_toys` has units that never credit at all.
+
+    The other blindness is unchanged: if D was itself collapsed below the true goal
+    size, a clean firing record merely confirms D and the events agree and says
+    nothing about whether D matches the goal.
     """
     if census_path is None:
         census_path = pathlib.Path(__file__).resolve().parent.parent / "census" / "goal_census_detail.json"
@@ -379,8 +598,14 @@ def denominator_status(task: str, D: int, phi0_mean: float,
     must_flip = sum(1 for l in lits if l["initially_true"] is not True)
     if D < must_flip:
         return "COLLAPSED", must_flip
-    if D * (1.0 - phi0_mean) < D - 1e-6:
-        return "UNDER_FIRES", must_flip
+    if demo_completion_rate is None:
+        return ("DEAD_UNITS" if never_credited_mean > 1e-6 else "CONSISTENT"), must_flip
+    if demo_completion_rate <= 1e-9 and never_credited_mean > 1e-6:
+        # not one demo in the corpus ever shows the whole goal
+        return "DEAD_UNITS", must_flip
+    if demo_completion_rate < 1.0 - 1e-9:
+        # some demos finish, others stop short: the reward is fine, the demos truncate
+        return "ENDS_SHORT", must_flip
     return "CONSISTENT", must_flip
 
 
@@ -391,11 +616,14 @@ def denominator_status(task: str, D: int, phi0_mean: float,
 def build_task_labels(task: str, ds: Dataset, reward_map: dict,
                       out_dir: os.PathLike | str,
                       max_episodes: int | None = None,
-                      max_phi0: float = DEFAULT_MAX_PHI0,
+                      max_phi0: float | None = DEFAULT_MAX_PHI0,
                       min_valid_rate: float = DEFAULT_MIN_VALID_RATE,
-                      refuse_collapsed: bool = False) -> dict:
+                      refuse_collapsed: bool = False,
+                      drop_incomplete: bool = False,
+                      min_demo_completion: float = DEFAULT_MIN_DEMO_COMPLETION) -> dict:
     """Emit labels.parquet + manifest.json for one task. Raises TaskRefused."""
-    rec = check_task_usable(task, reward_map, max_phi0, min_valid_rate)
+    rec = check_task_usable(task, reward_map, max_phi0, min_valid_rate,
+                            min_demo_completion)
     D = int(rec["D"])
     task_index = ds.name_to_index.get(task, rec.get("task_index"))
     if task_index is None:
@@ -409,7 +637,10 @@ def build_task_labels(task: str, ds: Dataset, reward_map: dict,
         raise TaskRefused(task, f"not every reward magnitude is an integer multiple of "
                                 f"1/{D} -- D is wrong")
 
-    dstatus, must_flip = denominator_status(task, D, float(rec.get("phi0_mean", 0.0)))
+    dstatus, must_flip = denominator_status(
+        task, D, float(rec.get("never_credited_mean") or 0.0),
+        rec.get("demo_completion_rate"))
+    s0_prior, n_unknown_init, alignment = initial_satisfied_bounds(task, D)
     if refuse_collapsed and dstatus == "COLLAPSED":
         raise TaskRefused(task, f"denominator {dstatus} -- D = {D} but {must_flip} BDDL "
                                 f"predicates must flip, so {must_flip - D} of the goal is "
@@ -421,20 +652,32 @@ def build_task_labels(task: str, ds: Dataset, reward_map: dict,
         episodes = episodes[:max_episodes]
 
     parts, drop_reasons, phi0s = [], {}, []
-    used, dropped, nonmonotone, rewards_repaired = 0, 0, 0, 0
+    never, lost, dips, structure = [], [], [], []
+    used, dropped, nonmonotone, rewards_repaired, ended_short = 0, 0, 0, 0, 0
     for ep in episodes:
         e = frame[frame.episode_index == ep]
         lab = episode_labels(
             e["next.reward"].to_numpy(np.float64), D,
             terminated_last=bool(e["next.terminated"].iloc[-1]),
             truncated_any=bool(e["next.truncated"].any()),
+            s0_units=s0_prior,
         )
         if not lab.valid:
             dropped += 1
             drop_reasons[lab.drop_reason] = drop_reasons.get(lab.drop_reason, 0) + 1
             continue
+        short = lab.final < 1.0 - EPS
+        if short and drop_incomplete:
+            dropped += 1
+            drop_reasons["incomplete_demo"] = drop_reasons.get("incomplete_demo", 0) + 1
+            continue
         used += 1
+        ended_short += int(short)
         phi0s.append(lab.phi0)
+        never.append(lab.never_credited_units)
+        lost.append(lab.lost_at_end_units)
+        dips.append(lab.max_dip_units)
+        structure.append(progress_structure(lab.progress, D))
         rewards_repaired += lab.n_dropped_rewards
         nonmonotone += 0 if lab.monotone else 1
         parts.append(pd.DataFrame({
@@ -465,9 +708,24 @@ def build_task_labels(task: str, ds: Dataset, reward_map: dict,
         "episodes_used": used,
         "episodes_dropped": dropped,
         "drop_reasons": drop_reasons,
+        "anchor": "init",
         "mean_phi0": float(np.mean(phi0s)) if phi0s else None,
         "max_phi0": float(np.max(phi0s)) if phi0s else None,
         "mean_phi0_units": float(np.mean(phi0s) * D) if phi0s else None,
+        "initially_true_literals": s0_prior,
+        "initially_true_unknown": n_unknown_init,
+        "census_alignment": alignment,
+        "progress_offset_at_reset": (float(np.mean(phi0s)) if phi0s else None),
+        "mean_never_credited_units": float(np.mean(never)) if never else None,
+        "mean_lost_at_end_units": float(np.mean(lost)) if lost else None,
+        "max_dip_units": float(np.max(dips)) if dips else None,
+        "episodes_ended_short": ended_short,
+        "demo_completion_rate": (1.0 - ended_short / used) if used else None,
+        "progress_structure": {
+            k: float(np.nanmean([st[k] for st in structure])) for k in
+            ("frac_intermediate", "max_step_frac", "n_credit_events", "n_levels",
+             "t_first_credit", "mean_progress")
+        } if structure else None,
         "frames": int(sum(len(p) for p in parts)),
         "rollback_rewards_zeroed": rewards_repaired,
         "episodes_nonmonotonic": nonmonotone,
@@ -504,10 +762,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     p.add_argument("--tasks-from", default=None, help="CSV with a `task` column")
     p.add_argument("--reward-map", default=str(here / "behavior1k_reward_map.json"))
     p.add_argument("--max-episodes", type=int, default=None)
-    p.add_argument("--max-phi0", type=float, default=DEFAULT_MAX_PHI0)
+    p.add_argument("--max-phi0", type=float, default=DEFAULT_MAX_PHI0,
+                   help="optional bound on the progress offset at reset. Off by "
+                        "default -- the offset is a property of the scene, not a defect")
+    p.add_argument("--min-demo-completion", type=float, default=DEFAULT_MIN_DEMO_COMPLETION,
+                   help="refuse a task when at most this share of its valid episodes "
+                        "reach progress 1.0 (default 0: refuse only when none do)")
     p.add_argument("--min-valid-rate", type=float, default=DEFAULT_MIN_VALID_RATE)
     p.add_argument("--refuse-collapsed", action="store_true",
                    help="also refuse tasks whose D is below the BDDL must-flip count")
+    p.add_argument("--drop-incomplete-demos", action="store_true",
+                   help="drop episodes that end below progress 1.0. Off by default: "
+                        "under the init anchor such an episode is correctly labelled, "
+                        "it just does not finish the task. Turn it on if the head is "
+                        "trained to predict 1.0 at the end of every demo.")
     p.add_argument("--strict", action="store_true", help="abort on the first refusal")
     a = p.parse_args(argv)
 
@@ -527,7 +795,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     for task in tasks:
         try:
             man = build_task_labels(task, ds, rmap, out, a.max_episodes,
-                                    a.max_phi0, a.min_valid_rate, a.refuse_collapsed)
+                                    a.max_phi0, a.min_valid_rate, a.refuse_collapsed,
+                                    a.drop_incomplete_demos, a.min_demo_completion)
         except TaskRefused as exc:
             refused.append({"task": task, "reason": exc.reason})
             d = out / task
@@ -540,9 +809,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             continue
         emitted.append(man)
         flag = "" if man["denominator_status"] == "CONSISTENT" else f"  [{man['denominator_status']}]"
+        ps = man["progress_structure"] or {}
         print(f"ok       {task}: D={man['D']} eps={man['episodes_used']}"
               f"/{man['episodes_considered']} frames={man['frames']} "
-              f"mean_phi0={man['mean_phi0']:.4f}{flag}")
+              f"offset@reset={man['mean_phi0']:.4f} "
+              f"complete={man['demo_completion_rate']:.0%} "
+              f"gradient={ps.get('frac_intermediate', float('nan')):.2f}"
+              f"/maxstep={ps.get('max_step_frac', float('nan')):.2f}{flag}")
         if man["denominator_status"] == "COLLAPSED":
             print(f"WARNING  {task}: D = {man['D']} but {man['must_flip_predicates']} BDDL "
                   f"predicates must flip -- part of the goal is invisible to the reward. "
