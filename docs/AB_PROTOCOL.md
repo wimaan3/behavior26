@@ -16,6 +16,12 @@ discovered by spending them.
 > arithmetic: "THE DETECTION FLOOR" in revision 2026-09-11c. The response to an
 > inconclusive result is pre-registered in the same revision — read it before
 > the first rollout, not after the result.
+>
+> **OPEN DECISION, before shot one:** k=2 vs **k=4**. Widening takes the
+> generalisable MDE from 0.199 to 0.042 for ~+$15 of eval, and turns "helps on
+> these two tasks" into "helps on BEHAVIOR". It hinges on whether training cost
+> tracks steps or tasks, which **session B measures**. Decide it there — see
+> revision 2026-09-11d. Do not let this be settled by default.
 
 ---
 
@@ -335,6 +341,106 @@ actually run — see the 2026-09-11 revision — but still stands for the D=1 ti
 
 ## Revisions
 
+### 2026-09-11d — k=4 becomes a decision BEFORE shot one, not a consolation after it
+
+Revision 2026-09-11c filed "widen to k=4" under Branch 3, i.e. as a response to a
+disappointing result. **That was the wrong place for it.** k=2 → k=4 is the
+largest single improvement in claim strength available to this project, and a
+design choice that valuable must be made before the first rollout, not
+discovered after a weak one. Branch 3 still stands as a *fallback*; this
+revision adds the decision point that should come first.
+
+#### Why it is the biggest lever we have
+
+From "THE DETECTION FLOOR" in 2026-09-11c, the task-level floor at σ_task = 0.02:
+
+| | k=2 | k=4 |
+|---|---|---|
+| generalisable MDE (σ_task=0.02) | **0.199** | **0.042** |
+| within-task MDE at f=0.20, n=27 | 0.049 | 0.036 |
+| eval, both arms, n=27 | 30.1 GPU-hr, $9–15 | 68.3 GPU-hr, $20–34 |
+
+That is the difference between **"helps on these two tasks"** and **"helps on
+BEHAVIOR"**, for **+38.2 GPU-hr ≈ +$11–19** of evaluation. Nothing else on the
+table moves the claim that far for that little. The within-task MDE improving as
+a side effect (0.049 → 0.036) is a bonus, not the point.
+
+#### The open question: does training cost track steps, or tasks?
+
+The above is the *evaluation* cost, and it is small. The decision hinges on
+**training** cost, which is not yet measured.
+
+The hypothesis is that it is roughly flat: π₀.₅ trains multi-task, so four tasks
+at the same step budget is **the same number of gradient steps on more diverse
+data** — not twice the training. If that holds, k=4 costs ~nothing in training
+and +$11–19 in eval, and it should simply be taken.
+
+It is a hypothesis and it can fail two ways:
+1. **Throughput** — a four-task mix may cost more wall-clock per step
+   (dataloader, more norm-stat groups, worse locality).
+2. **Convergence** — four tasks may need *more steps* to reach the same loss,
+   in which case cost tracks tasks after all and the trade changes.
+
+#### DECISION POINT: after session B, before shot one
+
+Session B (the training-throughput session) measures exactly this. **Decide k=2
+vs k=4 there, on the evidence, before any A/B rollout.** Do not defer it into
+Branch 3.
+
+What session B must report for this decision to be makeable:
+
+| measurement | why |
+|---|---|
+| steps/sec on a 2-task mix vs a 4-task mix, same config | isolates throughput |
+| `action_loss` and `progress_loss` vs step for both mixes | isolates convergence — does 4-task need more steps for the same loss? |
+| peak memory for both mixes | a 4-task mix that does not fit is a different conversation |
+
+**Pre-committed decision rule**, so this is not re-argued with the numbers in
+hand:
+
+- **Throughput within ~10% and steps-to-target-loss within ~25% → cost tracks
+  STEPS. Take k=4.** The eval delta is $11–19 and the claim strength roughly
+  quintuples.
+- **Four tasks need materially more steps, or throughput drops sharply → cost
+  tracks TASKS.** Re-price against the $200 budget and default to k=2, recording
+  the measured training delta so the choice is auditable.
+- **Doesn't fit in memory → k=2**, and note it as a hardware constraint rather
+  than a design preference.
+
+#### The 3rd and 4th tasks, if k=4 is taken
+
+- **3rd: `outfit_a_basic_toolbox`.** Rank 2 on the graded tier, already
+  measured. `frac_intermediate` 0.811, `census_alignment` aligned, and the best
+  demo-completion rate of the top four (0.79) with the lowest never-credited
+  count (0.265). The strongest available addition on every axis.
+- **4th: `preparing_lunch_box`** — and **not** `thawing_frozen_food`, despite
+  the latter ranking higher on `gradient_score` (0.682 vs 0.600). Our own
+  defect report lists `thawing_frozen_food` among tasks where the reward may be
+  under-firing: **18 of 200 demos reach the goal** and 1.84 units are never
+  credited, with `census_alignment` ambiguous. A task whose goal is largely
+  unreachable in the demo corpus adds a task-level draw near the floor — it
+  would inflate σ_task rather than help estimate it, which is the opposite of
+  why we are widening. `preparing_lunch_box` is aligned, 0.525 demo completion,
+  0.665 never-credited.
+
+#### Two things adopting k=4 breaks — fix them in the same change, not after
+
+1. **`outfit_a_basic_toolbox` is currently the RESERVE** in
+   `001-dev-loop.yaml`. Promoting it to a run task leaves the reserve slot
+   empty. Name a new reserve in the same edit.
+2. **`tests/test_dev_loop_config.py::test_every_task_is_genuinely_graded`
+   asserts `frac_intermediate > 0.75`, and `preparing_lunch_box` is 0.721 — it
+   would fail.** That threshold was calibrated on the k=2 pair (0.803, 0.805)
+   and is tighter than the concept needs; `power.py` flags "graded in name only"
+   at < 0.2, and 0.721 is comfortably graded. If k=4 is adopted, restate the
+   threshold deliberately with the reasoning, rather than loosening it to make a
+   red test go green.
+
+Neither is a reason not to take k=4. Both are reasons to take it as a considered
+change rather than a quick one.
+
+---
+
 ### 2026-09-11c — n=27; the detection floor, stated; and what we do if the CI spans zero
 
 Three things: the instance list moves again, this design's resolution limit is
@@ -420,6 +526,8 @@ Consequences to carry into the write-up:
 - If the goal becomes a claim about the benchmark, the next spend is **more
   tasks**, not more instances. k=4 at n=27 costs roughly double and buys a real
   task-level column; n=54 at k=2 costs the same and buys none.
+  **This is now a live decision scheduled before shot one, not a contingency —
+  see revision 2026-09-11d.**
 
 ---
 
@@ -457,9 +565,13 @@ is not optional.
 **Branch 3 — the two tasks disagree in sign, or differ by more than the pooled
 |ΔQ|.** σ_task is large and the pooled estimate is meaningless. More instances
 would sharpen a number that is not worth sharpening. Take **a different task
-pair**, or better, widen to k=4 using the graded tier (`outfit_a_basic_toolbox`,
-`thawing_frozen_food` are ranks 2 and 3 and already measured). This is the only
-branch that buys generality.
+pair**, or widen to k=4. This is the only branch that buys generality.
+**But k=4 should already have been decided before shot one — see revision
+2026-09-11d, which moves it to a decision point after session B.** If it was
+considered and declined there, this branch is where that decision gets revisited
+with evidence; it should not be the first time the option is raised.
+(Candidates and the reason to prefer `preparing_lunch_box` over
+`thawing_frozen_food` are in 2026-09-11d.)
 
 **Not permitted, in any branch:** extending the run because the result is nearly
 significant, re-running one arm and keeping the better number, or reporting the
