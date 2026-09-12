@@ -116,12 +116,18 @@ def test_satisfied_count_is_progress_times_D(ds):
 # validation gates
 # --------------------------------------------------------------------------
 
-def test_over_firing_episode_is_dropped_as_out_of_range(ds):
-    """cook_bacon episode 9203 credits 8/7 units -> phi0 = -1/7, outside [0,1]."""
+def test_over_firing_episode_is_dropped_as_over_credited(ds):
+    """cook_bacon episode 9203 credits 8 of its 7 units.
+
+    The terminal anchor saw this as phi0 = -1/7, out of range. The init anchor sees it
+    for what it is -- a trace that credits more of the goal than the goal contains,
+    which is the rollback-replay signature -- and names the gate accordingly.
+    """
     r = ds.episode_rewards(task_index=46, episode_index=9203)
     ep = labels.episode_labels(r, D=7)
     assert not ep.valid
-    assert ep.drop_reason == "phi0_out_of_range"
+    assert ep.drop_reason == "over_credited"
+    assert ep.peak > 1.0
 
 
 def test_clean_episode_passes_every_gate(ds):
@@ -174,7 +180,7 @@ def test_refuses_the_under_instrumented_reference_task(rmap):
     with pytest.raises(labels.TaskRefused) as exc:
         labels.check_task_usable("putting_dishes_away_after_cleaning", rmap)
     msg = str(exc.value)
-    assert "phi0" in msg and "14" in msg
+    assert "PROVEN_incomplete" in msg
 
 
 def test_refuses_an_unknown_task(rmap):
@@ -207,14 +213,20 @@ def test_build_task_labels_writes_parquet_aligned_to_frame_index(tmp_path, ds, r
     assert man["episodes_used"] == 5
 
 
-def test_manifest_records_D_counts_drop_reasons_and_mean_phi0(tmp_path, ds, rmap):
+def test_manifest_records_D_counts_drop_reasons_and_the_reset_offset(tmp_path, ds, rmap):
     man = labels.build_task_labels("cook_bacon", ds, rmap, tmp_path, max_episodes=10)
     assert man["task"] == "cook_bacon"
     assert man["D"] == 7
     assert man["episodes_used"] + man["episodes_dropped"] == 10
     assert man["episodes_dropped"] >= 1
-    assert "phi0_out_of_range" in man["drop_reasons"]
-    assert man["mean_phi0"] == pytest.approx(0.0, abs=1e-6)
+    assert "over_credited" in man["drop_reasons"]
+    # one of cook_bacon's seven literals -- `not open(refrigerator)` -- is satisfied at
+    # reset, so progress starts at 1/7 in every episode that begins with the door shut.
+    assert man["initially_true_literals"] == 1
+    assert man["census_alignment"] == "aligned"
+    assert 0.0 <= man["mean_phi0"] <= 1.0 / 7 + 1e-9
+    assert man["mean_never_credited_units"] == pytest.approx(0.0, abs=1e-6)
+    assert man["demo_completion_rate"] == pytest.approx(1.0)
 
 
 def test_build_refuses_and_writes_no_labels_for_the_defective_task(tmp_path, ds, rmap):
@@ -259,6 +271,12 @@ def test_pipeline_reproduces_the_committed_sweep(ds, task_index, task_name, D):
 
     That CSV is the 5,677-episode measurement the whole recipe rests on. If this
     drifts, either the pipeline changed or the dataset was re-patched underneath us.
+
+    It was measured with the terminal anchor, so the pin names that anchor explicitly
+    rather than tracking whatever the default happens to be. The two anchors agree
+    exactly on turning_on_radio and vacuuming_floors -- on a task with nothing true at
+    reset and demos that all finish, the init anchor reduces to the old formula. They
+    part company on cook_bacon, which has both.
     """
     hist = _historical(task_index)
     assert hist, f"no rows for task {task_index} in {EPISODE_STATS}"
@@ -272,6 +290,7 @@ def test_pipeline_reproduces_the_committed_sweep(ds, task_index, task_name, D):
             e["next.reward"].to_numpy(np.float64), D,
             terminated_last=bool(e["next.terminated"].iloc[-1]),
             truncated_any=bool(e["next.truncated"].any()),
+            anchor="terminal",
         )
         assert lab.phi0 == pytest.approx(float(row["phi0"]), abs=1e-4), f"ep {ep} phi0"
         assert lab.n_dropped_rewards == int(row["dropped"]), f"ep {ep} repair count"
@@ -314,11 +333,40 @@ def test_reward_map_prefers_full_corpus_phi0_over_the_sample():
     assert rec["measurement_scope"] == "full-200ep"
 
 
-def test_refuses_a_task_that_only_under_fires_at_full_scale():
+def test_the_task_that_only_under_fired_at_full_scale_is_now_accepted():
+    """installing_a_fax_machine is not an instrumentation defect -- its demos truncate.
+
+    Terminal-anchored phi0 read 0.1075 across 200 episodes and the task was refused as
+    under-instrumented. Init-anchored, 78.5% of its episodes reach progress 1.0 and the
+    rest stop one unit short; nothing is wrong with the reward. The gate must accept it
+    and the status must say which of the two it is.
+    """
     rmap = labels.load_reward_map(REWARD_MAP)
+    rec = labels.check_task_usable("installing_a_fax_machine", rmap)   # must not raise
+    assert rec["demo_completion_rate"] > 0.5
+    status, _ = labels.denominator_status(
+        "installing_a_fax_machine", int(rec["D"]),
+        float(rec["never_credited_mean"]), float(rec["demo_completion_rate"]))
+    assert status == "ENDS_SHORT"
+
+
+def test_still_refuses_when_no_demo_in_the_task_ever_completes():
+    """The gate that replaced phi0 must catch the reference defect on its own.
+
+    putting_dishes_away_after_cleaning is also flagged `PROVEN_incomplete` in the map,
+    which short-circuits first, so the flag is cleared here to leave the completion
+    gate as the only thing standing between this task and a label. Its measured
+    numbers are untouched.
+    """
+    rmap = labels.load_reward_map(REWARD_MAP)
+    rec = dict(rmap["putting_dishes_away_after_cleaning"], reward_instrumentation="ok")
+    assert rec["demo_completion_rate"] == 0.0
+    assert rec["never_credited_mean"] > 12
     with pytest.raises(labels.TaskRefused) as exc:
-        labels.check_task_usable("installing_a_fax_machine", rmap)
-    assert "0.1075" in str(exc.value)
+        labels.check_task_usable("putting_dishes_away_after_cleaning",
+                                 {"putting_dishes_away_after_cleaning": rec})
+    msg = str(exc.value)
+    assert "no demo reaches the whole goal" in msg and "14" in msg
 
 
 def test_sample_scope_is_kept_for_tasks_with_no_full_measurement(tmp_path):
@@ -375,3 +423,198 @@ def test_collapsed_denominator_is_refused_when_asked(tmp_path, ds, rmap):
                                  max_episodes=3, refuse_collapsed=True)
     assert "COLLAPSED" in str(exc.value)
     assert not (tmp_path / "make_microwave_popcorn" / "labels.parquet").exists()
+
+
+# --------------------------------------------------------------------------
+# the init anchor
+# --------------------------------------------------------------------------
+
+def test_init_anchor_matches_the_old_formula_when_nothing_is_true_at_reset():
+    """With s0 = 0 and a demo that finishes, the two anchors are the same curve.
+
+    This is why 12 of the 14 CONSISTENT tasks are unaffected by the change: their goal
+    is entirely false at reset and their demos all reach it.
+    """
+    r = np.zeros(10)
+    r[3] = r[7] = 0.5
+    init = labels.episode_labels(r, D=2)
+    term = labels.episode_labels(r, D=2, anchor="terminal")
+    np.testing.assert_allclose(init.progress, term.progress, atol=1e-9)
+    assert init.phi0 == pytest.approx(0.0) and init.final == pytest.approx(1.0)
+
+
+def test_short_demo_keeps_the_progress_it_actually_reached():
+    """A demo that stops a unit short must not be back-shifted into starting ahead.
+
+    Terminal anchor: 3 of 4 units credited -> the whole curve is lifted by 1/4 and the
+    episode is reported as 25% complete before the robot moves. That is the reading
+    that put 39 tasks in the UNDER_FIRES band. Init anchor: starts at 0, ends at 0.75.
+    """
+    r = np.zeros(20)
+    r[[4, 9, 14]] = 0.25
+    init = labels.episode_labels(r, D=4)
+    term = labels.episode_labels(r, D=4, anchor="terminal")
+    assert init.phi0 == pytest.approx(0.0)
+    assert init.final == pytest.approx(0.75)
+    assert init.never_credited_units == pytest.approx(1.0)
+    assert init.lost_at_end_units == pytest.approx(0.0)
+    assert term.phi0 == pytest.approx(0.25)
+    assert term.final == pytest.approx(1.0)
+
+
+def test_a_literal_true_at_reset_puts_the_curve_above_zero_at_t0():
+    """s0=1 of D=7: the trace debits for breaking it, so the debit must survive repair."""
+    r = np.zeros(10)
+    r[2] = -1 / 7        # the initially-true literal is broken
+    r[5] = 1 / 7         # and restored
+    r[8] = 6 / 7         # the six real units land
+    ep = labels.episode_labels(r, D=7, s0_units=1)
+    assert ep.phi0 == pytest.approx(1 / 7)
+    assert ep.progress[3] == pytest.approx(0.0)      # broken
+    assert ep.final == pytest.approx(1.0)
+    assert ep.n_dropped_rewards == 0                 # nothing repaired away
+    assert not ep.monotone and ep.max_dip_units == pytest.approx(1.0)
+
+
+def test_the_census_prior_is_capped_by_what_the_trace_credits():
+    """A prior of 1 unit cannot stand when the trace credits all D of them.
+
+    44 of 200 cook_bacon episodes earn credit for CLOSING the refrigerator with no
+    preceding debit for opening it, so in those episodes the door was open at reset and
+    the census's `not open(...) initially_true` is simply false. Uncapped, s0=1 makes
+    the episode credit 8 of 7 units and the whole episode is thrown away.
+    """
+    r = np.zeros(10)
+    r[1] = 1 / 7         # closed, with no debit before it
+    r[3] = -1 / 7
+    r[5] = 1 / 7
+    r[8] = 6 / 7
+    ep = labels.episode_labels(r, D=7, s0_units=1)
+    assert ep.valid, ep.drop_reason
+    assert ep.phi0 == pytest.approx(0.0)             # prior capped away
+    assert ep.peak == pytest.approx(1.0)
+    assert ep.final == pytest.approx(1.0)
+
+
+def test_unknown_init_literals_do_not_raise_the_anchor(ds):
+    """`initially_true: None` must not be counted, or a rollback debit becomes an s0.
+
+    On a D=1 task that reading pins progress at the constant 1.0 and the episode is
+    dropped for having no headroom; it cost 104 of 200 re_shelving_library_books
+    episodes while the bound counted unknowns.
+    """
+    s0, n_unknown, alignment = labels.initial_satisfied_bounds("chop_an_onion", D=4)
+    assert alignment == "aligned"
+    assert s0 == 0 and n_unknown == 2
+
+    r = np.zeros(500)
+    r[100] = -1.0        # rollback debit
+    r[200] = 1.0
+    ep = labels.episode_labels(r, D=1, s0_units=0)
+    assert ep.valid and ep.phi0 == pytest.approx(0.0)
+    assert ep.n_dropped_rewards == 1
+
+
+def test_initial_satisfied_bounds_reports_ambiguity_when_D_is_not_the_literal_count():
+    """thawing_frozen_food has 9 goal literals and D=7: no literal maps to a unit."""
+    s0, n_unknown, alignment = labels.initial_satisfied_bounds("thawing_frozen_food", D=7)
+    assert alignment == "ambiguous" and s0 == 0
+
+    s0, n_unknown, alignment = labels.initial_satisfied_bounds("wash_dog_toys", D=6)
+    assert alignment == "aligned" and s0 == 2 and n_unknown == 0
+
+
+# --------------------------------------------------------------------------
+# progress structure
+# --------------------------------------------------------------------------
+
+def test_progress_structure_separates_a_step_function_from_a_staircase():
+    """D says how many units. It does not say whether they arrive one at a time."""
+    step = np.concatenate([np.zeros(90), np.ones(10)])          # D=7, all at once
+    stair = np.repeat(np.arange(5) / 4.0, 20)                   # D=4, evenly spread
+
+    a = labels.progress_structure(step, D=7)
+    b = labels.progress_structure(stair, D=4)
+
+    assert a["frac_intermediate"] == pytest.approx(0.0)
+    assert a["max_step_frac"] == pytest.approx(1.0)
+    assert a["n_levels"] == 2
+
+    assert b["frac_intermediate"] > 0.5
+    assert b["max_step_frac"] == pytest.approx(0.25)
+    assert b["n_levels"] == 5
+
+
+def test_cook_bacon_lands_six_of_its_seven_units_in_one_frame(ds):
+    """The reason D is not a proxy for gradient, measured on the real task.
+
+    Every cook_bacon episode has exactly one +6/7 reward sample, and nothing fires
+    after it. A progress label built from this is a step function with a 1/7 bump.
+    """
+    for episode_index in ds.episode_indices(task_index=46)[:15]:
+        r = ds.episode_rewards(task_index=46, episode_index=episode_index)
+        six = np.nonzero(np.abs(r * 7 - 6) < 1e-3)[0]
+        assert len(six) == 1, f"ep {episode_index}"
+        assert not np.any(np.abs(r[six[0] + 1:]) > 1e-9), f"ep {episode_index}"
+
+    lab = labels.episode_labels(ds.episode_rewards(46, 9200), D=7, s0_units=1)
+    st = labels.progress_structure(lab.progress, D=7)
+    assert st["max_step_frac"] == pytest.approx(6 / 7, abs=1e-3)
+
+
+# --------------------------------------------------------------------------
+# emitted schema -- pinned because downstream joins on it
+# --------------------------------------------------------------------------
+
+EXPECTED_SCHEMA = {
+    "index": "int64",
+    "episode_index": "int64",
+    "frame_index": "int64",
+    "task_index": "int32",
+    "progress": "float",          # pyarrow's name for float32
+    "satisfied_count": "float",
+}
+
+
+def test_emitted_label_schema_is_exactly_as_pinned(tmp_path, ds, rmap):
+    """Column names, order and physical types. Downstream merges join on this.
+
+    The init anchor changes the VALUES in `progress` and `satisfied_count`. It must not
+    change the schema, the join keys, or the range.
+    """
+    labels.build_task_labels("cook_bacon", ds, rmap, tmp_path, max_episodes=5)
+    schema = pq.read_schema(tmp_path / "cook_bacon" / "labels.parquet")
+
+    assert schema.names == list(EXPECTED_SCHEMA)
+    for name, want in EXPECTED_SCHEMA.items():
+        assert str(schema.field(name).type) == want, name
+
+    t = pq.read_table(tmp_path / "cook_bacon" / "labels.parquet").to_pandas()
+    assert t.progress.min() >= 0.0 and t.progress.max() <= 1.0
+    assert t.satisfied_count.max() <= 7.0
+    np.testing.assert_allclose(t.satisfied_count, t.progress * 7, atol=1e-4)
+
+
+def test_join_keys_are_unique_and_dense(tmp_path, ds, rmap):
+    """(episode_index, frame_index) is the join key and must stay a primary key."""
+    labels.build_task_labels("cook_bacon", ds, rmap, tmp_path, max_episodes=5)
+    t = pq.read_table(tmp_path / "cook_bacon" / "labels.parquet").to_pandas()
+
+    assert not t.duplicated(["episode_index", "frame_index"]).any()
+    assert not t[["episode_index", "frame_index", "index", "progress"]].isna().any().any()
+    for _, grp in t.groupby("episode_index"):
+        assert grp.sort_values("frame_index").frame_index.tolist() == list(range(len(grp)))
+
+
+def test_incomplete_demos_are_kept_by_default_and_droppable_on_request(tmp_path, ds, rmap):
+    """An episode that ends short is correctly labelled, so it is kept unless asked."""
+    kept = labels.build_task_labels("installing_a_fax_machine", ds, rmap, tmp_path,
+                                    max_episodes=40)
+    assert kept["episodes_ended_short"] > 0
+    assert kept["demo_completion_rate"] < 1.0
+
+    dropped = labels.build_task_labels("installing_a_fax_machine", ds, rmap, tmp_path,
+                                       max_episodes=40, drop_incomplete=True)
+    assert dropped["episodes_ended_short"] == 0
+    assert dropped["demo_completion_rate"] == pytest.approx(1.0)
+    assert dropped["drop_reasons"]["incomplete_demo"] == kept["episodes_ended_short"]
