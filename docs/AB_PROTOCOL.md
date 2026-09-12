@@ -7,6 +7,16 @@ We get two, maybe three A/B cycles at ~50 GPU-hr and 2–3 days each. This
 document exists so the design is chosen before the first one instead of
 discovered by spending them.
 
+> **Resolution limit, stated up front.** This design resolves **ΔQ ≥ ~0.05 on
+> its two tasks**. Below that is outside its resolution, and a CI spanning zero
+> means inconclusive, not "no effect". The binding constraint is **k = 2 tasks,
+> not instance count** — no number of instances or seeds lowers the task-level
+> floor. A result here is a claim about `set_up_a_coffee_station_in_your_kitchen`
+> and `putting_shoes_on_rack`, **not about BEHAVIOR**. Full statement and the
+> arithmetic: "THE DETECTION FLOOR" in revision 2026-09-11c. The response to an
+> inconclusive result is pre-registered in the same revision — read it before
+> the first rollout, not after the result.
+
 ---
 
 ## 0a. Revision: budget cut to $200, and the tasks changed (2026-09-05)
@@ -110,6 +120,14 @@ MDE      = (t_{0.975,N−1} + t_{0.80,N−1}) · sqrt(Var(d_i)/N),   N = k·n
 - `σ_b` — SD across instances of the *true* effect. Pairing removes instance
   difficulty, not effect heterogeneity, so this **does not shrink with m** and
   is a hard floor on any budget. Assumed 0.05 until the first A/B estimates it.
+
+> **What these tables do and do not cover.** Every MDE below is a statement
+> about the tasks in the design, not about BEHAVIOR. The model folds all
+> heterogeneity into one per-unit `σ_b`, so its floor shrinks as `σ_b/√N` —
+> correct if the heterogeneity is between *instances*, optimistic if it is
+> between *tasks*. The task-level term is `σ_task²/k`, which **n does not touch
+> at all**; at k=2 it is estimated from one contrast. See "THE DETECTION FLOOR"
+> in revision 2026-09-11c.
 
 Cost model: `rollout_s = scene_load + eval_timeout_frames / fps`, at 13.5 fps
 and 225 s load, ×2 arms. Scene load does not scale with episode length, so a
@@ -222,8 +240,8 @@ ones. That is a design change, and it goes in a dated revision below.
 - Instances are **training** instances (ids < 301). Every public-test instance
   (301–320) is scored, so iterating there is tuning on the leaderboard.
 - The list is frozen in `configs/experiments/001-dev-loop.yaml` and changes only
-  by dated revision here. **Changed once: revision 2026-09-11b took it from
-  `[10, 11, 12]` to instances 10–29 (n=20).**
+  by dated revision here. **Changed twice: revision 2026-09-11b took it from
+  `[10, 11, 12]` to n=20, and 2026-09-11c to n=27 (instances 10–36).**
 
 ### 3.2 Seeds and passes
 
@@ -262,6 +280,10 @@ scores get bumped out of the top 5.
 - CI includes 0 → **inconclusive, not "no effect."** Record the point estimate
   and the achieved MDE. Spending a second cycle on the same question is only
   justified if the point estimate exceeds the MDE the *next* design could reach.
+  **The branch to take is pre-registered** — manipulation check first, then one
+  of {larger λ / more instances / a different task pair} depending on where the
+  point estimate falls and whether the two tasks agree. See revision
+  2026-09-11c §3. Decided before the number existed; do not re-litigate it after.
 - A third cycle on the same question is not available. Choose accordingly.
 
 ### 3.5 Both arms train from the same commit — hard rule
@@ -313,10 +335,147 @@ actually run — see the 2026-09-11 revision — but still stands for the D=1 ti
 
 ## Revisions
 
+### 2026-09-11c — n=27; the detection floor, stated; and what we do if the CI spans zero
+
+Three things: the instance list moves again, this design's resolution limit is
+written down as a limitation rather than left to be derived, and the response to
+an inconclusive result is fixed **now, before any number exists**.
+
+#### 1. n = 20 → 27 (instances 10–36)
+
+Revision 2026-09-11b took n to 20, which reaches MDE 0.058 at f=0.20 — short of
+the 0.05 we care about at pessimistic noise. **n=27 reaches 0.049**, so the
+design clears its target across the whole plausible noise range rather than only
+the optimistic end.
+
+| n | N | GPU-hr | $ spot | f=0.05 | f=0.10 | f=0.20 | f=0.40 |
+|---|---|---|---|---|---|---|---|
+| 3 | 6 | 3.3 | $1–2 | 0.109 | 0.137 | 0.181 | 0.245 |
+| 20 | 40 | 22.3 | $7–11 | 0.035 | 0.044 | 0.058 | 0.078 |
+| **27** | **54** | **30.1** | **$9–15** | **0.030** | **0.037** | **0.049** | **0.067** |
+| 54 | 108 | 60.1 | $18–30 | 0.021 | 0.026 | 0.034 | 0.047 |
+
+Same contiguity and prefix reasoning as 2026-09-11b: ids 10–36, a block, with
+`[10, 11, 12]` still the prefix. All 27 verified present for both tasks and for
+the `outfit_a_basic_toolbox` reserve.
+
+---
+
+#### 2. THE DETECTION FLOOR — read this before reading any result
+
+**This design resolves ΔQ ≥ ~0.05, for these two tasks. Below that is outside
+its resolution, and the binding constraint is k=2 tasks, not instance count.**
+
+That second clause is the part that is easy to get wrong, so here it is
+explicitly. Write the per-instance difference as
+
+```
+d_ti = μ + τ_t + ε_ti          τ_t ~ (0, σ_task²)   between TASKS
+                               ε_ti ~ (0, σ_inst²)  between instances, within task
+
+Var(d̄) = σ_task²/k  +  σ_inst²/(k·n)  +  2σ_w²/(k·n·m)
+         └─ does NOT shrink with n ─┘
+```
+
+Only the first term matters here, and **n is absent from it.** Adding instances
+drives the second and third terms down and leaves the first exactly where it
+was. At k=2 that term is σ_task²/2, permanently.
+
+What that costs, as a minimum detectable ΔQ at *any* n and *any* m:
+
+| σ_task | k=2 | k=4 | k=8 | k=12 |
+|---|---|---|---|---|
+| 0.02 | **0.199** | 0.042 | 0.023 | 0.018 |
+| 0.03 | **0.299** | 0.062 | 0.035 | 0.027 |
+| 0.05 | **0.498** | 0.104 | 0.058 | 0.044 |
+
+The k=2 column is brutal because a task-level effect estimated from two draws
+carries one degree of freedom, and t(1, 0.975) = 12.7. **No amount of instances
+or seeds moves that column.**
+
+So there are two different claims available from this experiment, and they have
+very different support:
+
+- **"The progress head helps on these two tasks."** Supported. MDE 0.049 at
+  f=0.20, N=54. This is what §1's tables describe, and it is a real result.
+- **"The progress head helps on BEHAVIOR."** **Not supported, at any budget we
+  can reach with k=2.** We would be generalising from two draws.
+
+**`analysis/power.py` reports the first, not the second.** Its model folds all
+heterogeneity into a single per-unit σ_b = 0.05, so its MDE shrinks as
+σ_b/√N — which is right if effect heterogeneity is between *instances* and
+optimistic if it is between *tasks*. With k=2 we cannot tell the two apart: the
+data gives one task-level contrast. Treat every σ_b-derived floor in §1 and in
+the 2026-09-11 revision as conditional on heterogeneity being instance-level.
+
+Consequences to carry into the write-up:
+
+- Report ΔQ **per task** as well as pooled. If the two tasks disagree in sign or
+  size, the pooled number is hiding the finding, and σ_task is not small.
+- Never write "on BEHAVIOR" or "generalises" about a k=2 result. Write "on
+  `set_up_a_coffee_station_in_your_kitchen` and `putting_shoes_on_rack`".
+- An effect below ~0.05 is **not a null result** — it is outside our resolution.
+  §3.4 already says a CI spanning zero is inconclusive rather than "no effect";
+  this is the quantitative reason.
+- If the goal becomes a claim about the benchmark, the next spend is **more
+  tasks**, not more instances. k=4 at n=27 costs roughly double and buys a real
+  task-level column; n=54 at k=2 costs the same and buys none.
+
+---
+
+#### 3. PRE-REGISTERED: what we do if the CI spans zero
+
+Fixed before the first rollout, per §3.4. We have two, maybe three cycles, and
+§3.4 forbids a third on the same question — so at most one of the branches below
+is ever taken. **Check them in order; the first that matches decides.**
+
+**Branch 0 — manipulation check, before anything else.**
+Was the treatment actually delivered? `compute_losses` returns
+`{action_loss, progress_loss, loss}` and `train_b1k.py` logs them separately,
+precisely so this is answerable. If `progress_loss` is flat, NaN, or absent in
+arm B's logs, the head never learned and **this is not a null result — it is a
+broken run.** Fix and re-run the same design. Does not consume the question.
+
+**Branch 1 — point estimate below the floor (|ΔQ| < 0.02).**
+The effect, if any, is smaller than this design can ever resolve: reaching 0.02
+needs n=159 at f=0.20, and the instance-level floor at N=54 is 0.019 even at
+infinite seeds. **Do not buy more instances — they cannot get there.** Take one
+of:
+  - **larger λ**, if Branch 0 shows the head learning but weakly. Current
+    `progress_loss_weight = 0.1` in `pi05_b1k_frozen_vlm_progress`. Raise it and
+    re-run; this tests a *stronger treatment*, not the same one again.
+  - otherwise **stop** and report the interval honestly as a bounded null on
+    these two tasks. That is a publishable result and it costs no cycle.
+
+**Branch 2 — point estimate in 0.02–0.05, CI spanning zero, both tasks agreeing
+in sign.** Under-powered, not absent. This is the only branch where **more
+instances** is correct. n=54 reaches 0.034 at f=0.20 for $18–30. Pre-committed
+rule: spend the cycle only if the observed |ΔQ| exceeds the MDE the *next*
+design would reach — i.e. only if |ΔQ| > 0.034. §3.4 requires that test and it
+is not optional.
+
+**Branch 3 — the two tasks disagree in sign, or differ by more than the pooled
+|ΔQ|.** σ_task is large and the pooled estimate is meaningless. More instances
+would sharpen a number that is not worth sharpening. Take **a different task
+pair**, or better, widen to k=4 using the graded tier (`outfit_a_basic_toolbox`,
+`thawing_frozen_food` are ranks 2 and 3 and already measured). This is the only
+branch that buys generality.
+
+**Not permitted, in any branch:** extending the run because the result is nearly
+significant, re-running one arm and keeping the better number, or reporting the
+best pass. §3.3 and §3.4 already forbid these; naming them here removes the
+temptation at the moment it will actually be felt.
+
+---
+
 ### 2026-09-11b — the frozen instance list goes from n=3 to n=20
 
 **This changes §3.1's frozen list.** `configs/experiments/001-dev-loop.yaml`
 now runs instances **10–29** instead of **[10, 11, 12]**.
+
+> **Superseded by 2026-09-11c**, which took n to **27** (ids 10–36) so the
+> design clears 0.05 at pessimistic noise too. The reasoning below stands; only
+> the number changed.
 
 #### Why the freeze does not protect anything here
 
