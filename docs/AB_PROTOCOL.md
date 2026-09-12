@@ -13,10 +13,15 @@ discovered by spending them.
 
 The A/B now runs on **two graded tasks**, not the D=1 shortlist:
 
-| task | idx | D | rel_eval_cost | phi0_mean |
+| task | idx | D | rel_eval_cost | progress_offset_at_reset |
 |---|---|---|---|---|
-| `set_up_a_coffee_station_in_your_kitchen` | 10 | 6 | 0.594 | 0.241 |
-| `putting_shoes_on_rack` | 22 | 10 | 0.733 | 0.111 |
+| `set_up_a_coffee_station_in_your_kitchen` | 10 | 6 | 0.594 | 0.165 |
+| `putting_shoes_on_rack` | 22 | 10 | 0.733 | 0.000 |
+
+> **Corrected 2026-09-11.** This table read `phi0_mean` 0.241 / 0.111 before the
+> Jetson's relabel (`a6a5a4a`), which re-anchored progress at episode start
+> instead of at the goal. The column is now `progress_offset_at_reset` and the
+> numbers above are the post-relabel ones. See the 2026-09-11 revision.
 
 **This is good news and it partly supersedes §0 below.** D=6 and D=10 mean Q is
 graded, not binary, so the "no low-noise regime" argument does not apply to
@@ -27,9 +32,12 @@ if we ever A/B on those.
 
 Two consequences that do carry over:
 
-- **The baseline is not zero.** `phi0_mean` is what a do-nothing policy already
-  banks, because Q is scored on the FINAL state and these tasks start partly
-  satisfied. Any reported ΔQ sits on top of ~0.24 and ~0.11, not on top of 0.
+- **The baseline is not zero — for one of them.** `progress_offset_at_reset` is
+  what a do-nothing policy already banks, because Q is scored on the FINAL state
+  and the task starts partly satisfied. Post-relabel that is **0.165 for the
+  coffee station and 0.000 for the shoe rack**: ΔQ on the coffee station sits on
+  top of a floor, ΔQ on the shoe rack starts from zero. They are not symmetric
+  and a per-task breakdown is required when reporting.
 - **σ_w must still be measured.** Graded Q reduces the variance; it does not
   remove simulator indeterminism. §2 stands, and its task choice
   (`turning_on_radio`, the only released checkpoint) is unchanged.
@@ -288,7 +296,7 @@ It implements the coverage guard and the paired t-interval, and nothing else in
 
 | # | Gap | Why it matters |
 |---|---|---|
-| 1 | **Joins on `rollout_id`** (`JOIN_KEYS = ["task","instance_id","rollout_id"]`) | Pairs A's rollout 3 with B's rollout 3. Under nondeterminism there is no correspondence between them. With m>1 this is simply the wrong pairing; it must aggregate seeds per (task, instance) first, then pair on (task, instance). **This is the one that produces a wrong number rather than a missing one.** |
+| 1 | ~~**Joins on `rollout_id`**~~ — **FIXED 2026-09-11** (`66d365d`) | Pairs A's rollout 3 with B's rollout 3. Under nondeterminism there is no correspondence between them. Now aggregates seeds per (task, instance) within each arm, then pairs on (task, instance); `PAIR_KEYS` no longer contains `rollout_id`. This was the one that produced a wrong number rather than a missing one. |
 | 2 | Reports **mean** ΔQ only | §3.3 requires the median pass and its spread. No pass-level concept exists in the code. |
 | 3 | No per-pass decomposition | Cannot produce "median pass Q, range [a,b]" for either arm — the headline number the protocol requires. |
 | 4 | No provenance check | Nothing verifies both arms share a commit, dataset root, or patch hash. §3.5 is currently a rule with no enforcement. |
@@ -296,11 +304,130 @@ It implements the coverage guard and the paired t-interval, and nothing else in
 | 6 | `min_detectable_dq` is post-hoc | Computed from observed SE. Useful as a diagnostic, but there is no check that achieved N matches the pre-registered design (§3.4). |
 | 7 | No stopping-rule record | Nothing carries the pre-registered design, so nothing can flag that a run was extended. |
 
-Gap 1 is a correctness bug under the protocol; 2–4 are missing features; 5–7 are
-rigour.
+Gap 1 was a correctness bug under the protocol and is fixed. 2–4 are missing
+features; 5–7 are rigour. Gap 5 is substantially defused for the two tasks we
+actually run — see the 2026-09-11 revision — but still stands for the D=1 tier.
 
 ---
 
 ## Revisions
 
-*(none — initial version)*
+### 2026-09-11 — power re-run on the post-relabel shortlist; §1 superseded for the graded tier
+
+The Jetson's relabel (`a6a5a4a`, `d3b1769`) is merged. It re-anchors progress at
+episode start and adds a **`graded` tier** to `task_shortlist.csv`, which is
+where both tasks we actually run now live. §1's tables were generated against
+the `primary` tier under the assumption that every task is D=1 and Q therefore
+binary. **That assumption does not hold for our design, and §1 is superseded for
+it.** §0 and §1 continue to govern the D=1 tier.
+
+#### What changed in the model
+
+`analysis/power.py` no longer assumes binary Q. Q moves in steps of one credit
+unit, so with `f` the fraction of a task's `D` goal units that are coin-flips:
+
+```
+σ_w = 0.5 · sqrt(f · D) · step        step = measured max_step_frac
+```
+
+At D=1, `step` = 1 and this is exactly the old `σ_w² = 0.25f`. At D>1, `step` ≈
+1/D, so σ_w falls as **sqrt(D)** — a flipped unit moves Q by 1/D, not by the
+whole thing. The measured `max_step_frac` agrees with 1/D to within 2% on both
+tasks, i.e. the goal predicates carry equal weight.
+
+Grading is only real if episodes occupy the intermediate levels, and here they
+do — `frac_intermediate` is **0.81** (coffee station) and **0.80** (shoe rack).
+A nominally graded task with a low `frac_intermediate` is binary in disguise;
+`power.py` now prints the figure and flags that case.
+
+| | binary (D=1) | graded (our two) | |
+|---|---|---|---|
+| σ_w at f=0.05 | 0.112 | 0.041 | 2.7× lower |
+| σ_w at f=0.20 | 0.224 | 0.082 | 2.7× lower |
+| σ_b share of Var(d_i) at f=0.20, m=1 | 2.4% | 15.6% | |
+| σ_b share of Var(d_i) at f=0.05, m=1 | 9.1% | 42.4% | |
+| MDE at N=40, m=1, f=0.20 | 0.145 | **0.058** | 2.5× better |
+
+#### The re-run tables
+
+`python analysis/power.py --tasks-from configs/experiments/001-dev-loop.yaml`
+(new flag — the table now describes the design we actually froze, rather than
+the cheapest k off a tier we do not run):
+
+**1 seed per instance per arm:**
+
+| design | N | rollouts | GPU-hr | USD | f=0.05 | f=0.10 | f=0.20 | f=0.40 |
+|---|---|---|---|---|---|---|---|---|
+| 2×3 | 6 | 12 | 3.3 | 2 | 0.109 | 0.137 | 0.181 | 0.245 |
+| 2×5 | 10 | 20 | 5.6 | 3 | 0.076 | 0.096 | 0.126 | 0.171 |
+| 2×10 | 20 | 40 | 11.1 | 6 | 0.051 | 0.064 | 0.084 | 0.114 |
+| 2×20 | 40 | 80 | 22.3 | 11 | 0.035 | 0.044 | 0.058 | 0.078 |
+
+**3 seeds per instance per arm:**
+
+| design | N | rollouts | GPU-hr | USD | f=0.05 | f=0.10 | f=0.20 | f=0.40 |
+|---|---|---|---|---|---|---|---|---|
+| 2×3 | 6 | 36 | 10.0 | 5 | 0.086 | 0.098 | 0.119 | 0.153 |
+| 2×5 | 10 | 60 | 16.7 | 8 | 0.060 | 0.069 | 0.083 | 0.107 |
+| 2×10 | 20 | 120 | 33.4 | 17 | 0.040 | 0.046 | 0.055 | 0.071 |
+| 2×20 | 40 | 240 | 66.8 | 33 | 0.027 | 0.031 | 0.038 | 0.049 |
+
+#### What it changes about the design
+
+- **The discordant-pairs framing (§0.2) mostly dissolves.** With D=6 and D=10
+  and ~80% of each episode at intermediate progress, per-instance outcomes are
+  not binary, so "only instances where the arms disagree carry information" no
+  longer describes our regime. Gap 5 in §4 is defused for these two tasks and
+  still stands for the D=1 tier.
+- **Instances beat seeds, decisively.** 2×10 at 1 seed (11.1 GPU-hr) and 2×5 at
+  3 seeds (16.7 GPU-hr) reach the *same* MDE of ~0.084 at f=0.20 — the seeded
+  design costs 1.5× for nothing. `n` cuts both variance terms; `m` cuts only
+  `2σ_w²/m` and never touches `σ_b²`. **Spend the eval budget on instances.**
+- **§2's noise-floor measurement is no longer decisive.** Its stated job was to
+  answer "is f below 0.10 or above 0.20", because that was the 1-seed/3-seed
+  decision. On graded tasks 1 seed is the answer across that whole range, so §2
+  now only calibrates *how much* to believe the MDE, not what design to buy. It
+  is still worth its $3–5, but it no longer blocks the first A/B.
+- **n = 3 is too few and it is the binding constraint.** The frozen instance
+  list is `[10, 11, 12]`, giving N=6 and an MDE of **0.181** at f=0.20 — larger
+  than the 1st-to-5th place gap the pairing was introduced to resolve. Going to
+  n=20 costs 22.3 GPU-hr / **$11** and reaches 0.058. Changing the list is a
+  protocol change and needs its own dated revision; this one only records that
+  the current list cannot answer the question.
+
+#### Costs, recomputed at spot
+
+Recomputed from `analysis/reward/full_corpus_lengths.csv` (all 100 tasks) under
+the §1 cost model:
+
+| item | rollouts | GPU-hr | $0.30/hr | $0.50/hr |
+|---|---|---|---|---|
+| Submission: 2 tasks × 20 public instances | 40 | 11.1 | $3.34 | $5.57 |
+| A/B at the recommended 2×20, 1 seed, 2 arms | 80 | 22.3 | $6.69 | $11.15 |
+| Noise-floor measurement (§2) | 72 | 9.3 | $2.79 | $4.65 |
+| *(not doing)* full 100-task submission | 2,000 | 776 | **$233** | **$388** |
+
+The full submission is not merely expensive, it **exceeds the entire $200
+project budget even at the cheapest spot rate** — $233 of eval alone, before any
+training. That is the arithmetic that settles it, and it is firmer than the
+~$450 working figure it replaces.
+
+**The 2-task ceiling is 0.020, and the full submission would score ~0.025.** The
+ceiling is arithmetic: Q averages over 100 tasks and 98 of ours are zero, so
+2/100 even at Q=1.0 on both. The ~0.025 is what the full run would be expected
+to *achieve*. Spending $233–388 more to move 0.020 → 0.025 is not a trade this
+budget can make, and it is not what the contribution rests on.
+
+#### Also in this revision
+
+- `analysis/compare.py` gap 1 is fixed (`66d365d`): pairing is now on
+  (task, instance) with seeds averaged within each arm, which is the `d_i` this
+  document's model has always specified. Before the fix, `compare.py` and
+  `power.py` were describing different quantities.
+- `analysis/power.py` gains `--tasks-from <config.yaml>`, so the power table and
+  the frozen config cannot drift apart.
+- The §0a task table's `phi0_mean` column was corrected in place to
+  `progress_offset_at_reset`; the relabel redefined the quantity, so the old
+  values were wrong rather than merely stale. The shoe rack's offset is **0.000**
+  — a do-nothing policy banks nothing there, unlike the coffee station's 0.165.
+
