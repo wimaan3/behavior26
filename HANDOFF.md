@@ -54,19 +54,29 @@ the 2026-09-11 revision of `docs/AB_PROTOCOL.md`:
 
 ### Open / next
 
-1. ~~**Decide on `n`.**~~ **DONE** — revision 2026-09-11b took the frozen list
-   from `[10, 11, 12]` to instances 10–29 (n=20). MDE 0.181 → 0.058 at f=0.20
-   for $7–11. Note what it does *not* buy: 0.05 needs n=27 at pessimistic noise,
-   and **0.02 is unreachable at two tasks** (σ_b floor at N=40 is 0.0227). If
-   the expected effect is near 0.02, the design needs more tasks, not more
-   instances. **n=27 is worth considering before the first cycle** — a few
-   dollars, and cheaper to change now than after.
-2. Gaps 2–7 in `docs/AB_PROTOCOL.md` §4 remain (gap 1 is fixed, gap 5 is
+1. ~~**Decide on `n`.**~~ **DONE** — revisions 2026-09-11b and 2026-09-11c took
+   the frozen list from `[10, 11, 12]` to **n=27, instances 10–36**. MDE
+   0.181 → **0.049** at f=0.20 for $9–15.
+
+2. **Know the floor before reading any result.** This design resolves
+   **ΔQ ≥ ~0.05 on its two tasks**. The binding constraint is **k=2 tasks, not
+   n**: the task-level variance term is σ_task²/k, which no number of instances
+   or seeds touches. At k=2 it is one contrast on one degree of freedom, so a
+   claim "about BEHAVIOR" is not available at any budget we can reach. If that
+   claim is what's wanted, the next spend is **more tasks** (k=4 at n=27), not
+   more instances. Full arithmetic in revision 2026-09-11c.
+
+3. **The inconclusive-result response is pre-registered** (revision 2026-09-11c
+   §3) — manipulation check on `progress_loss` first, then one of {larger λ /
+   more instances / different task pair} by where the point estimate falls and
+   whether the two tasks agree. Decided before any number exists. Do not
+   re-litigate after seeing the result.
+4. Gaps 2–7 in `docs/AB_PROTOCOL.md` §4 remain (gap 1 is fixed, gap 5 is
    defused for the graded tier only). Gaps 2 and 3 — median pass Q and its
    spread — are what §3.3 requires for the headline and are still unwritten.
-3. `sigma_b = 0.05` is still assumed, never estimated. It is now ~16% of
+5. `sigma_b = 0.05` is still assumed, never estimated. It is now ~16% of
    Var(d_i) at f=0.20 rather than ~2%, so it matters more than it used to.
-4. The Jetson's reward tests (`analysis/reward/tests/`, 54 of them) **all skip
+6. The Jetson's reward tests (`analysis/reward/tests/`, 54 of them) **all skip
    here** — they gate on a LeRobot pull at `/home/imaansol/behavior-data`, which
    does not exist on this box. The relabel logic is unverified locally; it was
    tested on the Jetson. `tests/test_progress_labels.py` (the merge-script

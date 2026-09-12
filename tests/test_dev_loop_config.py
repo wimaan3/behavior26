@@ -102,14 +102,15 @@ def test_instance_ids_exist_in_the_challenge_dataset(cfg):
 def test_instance_count_matches_the_frozen_design(cfg):
     """n is the design, not an accident.
 
-    n=20 was chosen in the 2026-09-11 protocol revision: at N=40 the MDE is
-    0.058 at f=0.20, against 0.181 at the previous n=3. Changing n changes every
-    MDE the protocol quotes, so it must go through a dated revision -- this test
-    is what makes a silent edit fail.
+    n=27 was chosen in revision 2026-09-11c: at N=54 the MDE is 0.049 at f=0.20,
+    so the design clears its 0.05 target at pessimistic noise and not merely at
+    optimistic noise (n=20 gave 0.058). Changing n changes every MDE the protocol
+    quotes, so it must go through a dated revision -- this test is what makes a
+    silent edit fail.
     """
     instances = cfg["instances"]
-    assert len(instances) == 20, (
-        f"n={len(instances)}, but the frozen design is n=20. Changing it needs a "
+    assert len(instances) == 27, (
+        f"n={len(instances)}, but the frozen design is n=27. Changing it needs a "
         "dated revision in docs/AB_PROTOCOL.md.")
     assert len(set(instances)) == len(instances), "duplicate instance ids"
     # A duplicate or a gap would quietly change N without changing len().
@@ -157,3 +158,47 @@ def test_quoted_figures_match_their_sources(cfg, shortlist):
 
     # The pre-relabel figures must not reappear as live values.
     assert "phi0_mean" not in text.split("This replaces the pre-relabel")[0]
+
+
+def test_protocol_quoted_mde_matches_what_power_py_computes(cfg):
+    """The doc, the config and the tool must agree on the design's resolution.
+
+    docs/AB_PROTOCOL.md states a resolution limit of ~0.05 and revision
+    2026-09-11c quotes 0.049 at f=0.20 for the frozen design. Those numbers are
+    load-bearing -- the pre-registered branches key off them -- but they are
+    hand-copied into prose, so nothing but this test stops the config changing
+    and the doc keeping the old figure.
+    """
+    import sys
+    sys.path.insert(0, str(REPO))
+    from analysis.power import load_tasks, mde, pooled_sigma_w
+
+    tasks = load_tasks(SHORTLIST, tier="", names=cfg["tasks"])
+    n_units = len(cfg["tasks"]) * len(cfg["instances"])
+    assert n_units == 54, f"N={n_units}; the protocol's tables assume N=54"
+
+    got = mde(n_units, pooled_sigma_w(tasks, 0.20), 0.05, cfg["num_rollouts"])
+    assert got == pytest.approx(0.049, abs=0.001), (
+        f"power.py gives MDE {got:.4f} at f=0.20, but revision 2026-09-11c "
+        "quotes 0.049. Update the revision, or the design drifted.")
+
+    # The headline claim in the top-of-document banner.
+    assert got <= 0.05, (
+        "the protocol says this design resolves dQ >= ~0.05; it no longer does")
+
+
+def test_the_detection_floor_is_documented_not_left_to_be_derived(cfg):
+    """A reader must learn the limit from us.
+
+    Pins that the protocol states the resolution limit, names k=2 as the binding
+    constraint, and pre-registers the response to an inconclusive result. These
+    are the parts a reader is most likely to need and least likely to derive.
+    """
+    text = (REPO / "docs" / "AB_PROTOCOL.md").read_text()
+    for phrase in (
+        "THE DETECTION FLOOR",
+        "Resolution limit, stated up front",
+        "PRE-REGISTERED",
+        "manipulation check",
+    ):
+        assert phrase in text, f"AB_PROTOCOL.md no longer states: {phrase!r}"

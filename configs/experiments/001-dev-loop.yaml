@@ -80,13 +80,15 @@ tasks:
   - putting_shoes_on_rack
 mode: train                       # NOT public_test -- see rule 2 above
 
-# TRAINING instance ids. Raised from [10, 11, 12] to n=20 on 2026-09-11; see the
-# dated revision in docs/AB_PROTOCOL.md for the reasoning. n=3 gave N=6 and an
-# MDE of 0.181, which cannot see an effect anywhere near the size we expect.
+# TRAINING instance ids. Raised from [10, 11, 12] to n=27 on 2026-09-11; see
+# revisions 2026-09-11b and 2026-09-11c in docs/AB_PROTOCOL.md. n=3 gave N=6 and
+# an MDE of 0.181, which cannot see an effect anywhere near the size we expect.
+# n=27 gives N=54 and an MDE of 0.049 at f=0.20 -- chosen so the design clears
+# the 0.05 target even at pessimistic noise, not just at optimistic noise.
 #
 # VERIFIED against the challenge dataset, not assumed: every task ships exactly
 # 300 training instances, and for both tasks here they are ids 0-299 contiguous,
-# so 10-29 all exist. (Checked by enumerating
+# so 10-36 all exist. (Checked by enumerating
 # `2026-challenge-task-instances.zip` from the behavior-1k/zipped-datasets HF
 # repo -- the *-tro_state.json files the evaluator loads in
 # Evaluator.load_task_instance. Note the range is task-dependent: the other 50
@@ -94,8 +96,13 @@ mode: train                       # NOT public_test -- see rule 2 above
 #
 # Kept contiguous and kept the old [10, 11, 12] as a prefix, so anything already
 # run on those three stays inside the new set rather than beside it.
-instances: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-            20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+#
+# Adding instances past this buys little: n=54 would only reach 0.034 at f=0.20
+# for double the cost. The design's real limit is k=2 TASKS, not n -- see
+# "the detection floor" in the 2026-09-11c revision before reading any result.
+instances: [10, 11, 12, 13, 14, 15, 16, 17, 18,
+            19, 20, 21, 22, 23, 24, 25, 26, 27,
+            28, 29, 30, 31, 32, 33, 34, 35, 36]
 num_rollouts: 1
 
 host: 127.0.0.1
