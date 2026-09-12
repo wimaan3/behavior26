@@ -193,6 +193,22 @@ One full leaderboard submission is a multi-week job on one card. You need parall
 
 ### Cost estimate
 
+> **SUPERSEDED, 2026-09-11.** The figures below are historical: they price a
+> full 100-task submission and a full training run at on-demand rates, against
+> a project total of $2,500–5,500. **The actual budget is $200**, all costs are
+> now quoted at spot, and we are not running either. The live numbers are in
+> `configs/experiments/001-dev-loop.yaml` and the 2026-09-11 revision of
+> [AB_PROTOCOL](AB_PROTOCOL.md):
+>
+> | item | GPU-hr | spot |
+> |---|---|---|
+> | Our partial submission: 2 tasks × 20 instances | 11.1 | $3–6 |
+> | A/B at 2×20, 1 seed, both arms | 22.3 | $7–11 |
+> | *(not doing)* full 100-task submission | 776 | $233–388 |
+>
+> The full submission exceeds the entire budget on eval alone. Kept below
+> unedited because the reasoning that led to the cut is part of the record.
+
 Rough, to be corrected by W1-C:
 
 - **One full evaluation pass** (2,000 rollouts, ~700–840 GPU-hr) at $0.40–0.70/hr for a 4090 ≈ **$300–600**. Parallelised 20-way, that is a bit over a day of wall-clock for the same money.
