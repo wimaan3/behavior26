@@ -192,9 +192,67 @@ mock evaluator — none of it has met a GPU.
 Delivers:
 - **baseline Q** on the released π₀.₅ baseline;
 - **measured seconds-per-rollout** — which replaces the assumed 13.5 fps and
-  225 s scene load that every cost figure in §1 currently rests on.
+  225 s scene load that every cost figure in §1 currently rests on;
+- **`import omnigibson` wall-clock from the volume env** — see below.
 
 Budget: **~$25.**
+
+#### Timing `import omnigibson` on the volume env
+
+The conda env lives on the network volume (`scripts/setup_cloud.sh`). A conda
+env is thousands of small files, and network storage charges per-file latency,
+so the import that is seconds on local disk can be minutes on a volume. That
+cost lands on every process start, so it has to be measured before we plan
+around it.
+
+**Measure it after the first import, not on it.** The first `import omnigibson`
+on any pod includes a one-time shader compile the repo already documents at up
+to ~5 minutes. That is not storage. And because `OMNIGIBSON_APPDATA_PATH` is
+deliberately on container disk, the shader cache does **not** survive the pod —
+so every new pod pays that compile again, including the A5000 one. Record it
+separately as a per-pod fixed cost.
+
+```bash
+source /workspace/env.sh
+time python -c "import omnigibson"        # 1st: includes the shader compile
+time python -c "import omnigibson"        # 2nd: fresh process, this is the number
+time python -c "import omnigibson"        # 3rd: confirm the 2nd was not a fluke
+```
+
+Report all three. The 2nd/3rd are the steady-state per-process cost.
+
+**What it changes — less than it looks.** The import is paid **per job, not per
+rollout**: `harness/launch.py :: build_jobs` groups instances into one
+subprocess precisely to amortize it, and `--instances-per-job` defaults to `0`,
+meaning one job per task. So a k=2 A/B cycle pays **4 imports**, not 108. Even
+at 5 minutes that is 20 minutes ≈ $0.25 — irrelevant.
+
+It only bites under parallelism, where `--workers N` with a small
+`--instances-per-job` multiplies job count. So the real output of this
+measurement is a ceiling on how finely we may parallelise:
+
+```
+imports per cycle = 2 arms x k tasks x ceil(n / instances_per_job)
+added cost        = imports x import_seconds x $/hr / 3600
+```
+
+If the import is slow, in order of preference:
+
+1. **Leave `--instances-per-job` at 0** (fewer, longer jobs). Costs parallelism,
+   not money. This is already the default and may simply be the answer.
+2. **Keep the env off the volume but still skip reinstalls**: build it at a fixed
+   *container-disk* path (e.g. `/opt/behavior-env`), tar it onto the volume, and
+   extract to that same path on each new pod. Identical path on every pod, so
+   the not-relocatable constraint is still satisfied, and imports run at local
+   disk speed. Costs one extraction per pod instead of one reinstall.
+3. **Rebuild per pod** and give up the volume env entirely.
+
+**It does not change whether to run the A5000 comparison.** Even in the worst
+case — option 3, a full reinstall on the A5000 pod — that is ~30–60 min of
+$0.27/hr time, call it $0.15–0.30. Choosing the cheaper card correctly saves
+$8–14 *per A/B cycle* on ~30 GPU-hr of evaluation. The test pays for itself
+against a full reinstall. What a slow import changes is **where the env lives**,
+not whether we compare cards.
 
 ### Session B — first contact with training
 
