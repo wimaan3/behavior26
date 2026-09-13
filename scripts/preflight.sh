@@ -26,6 +26,56 @@ warn() { printf "  \033[33mwarn\033[0m  %s\n" "$1"; }
 echo "==> preflight  ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
 echo
 
+# -- 0. what this box ACTUALLY has ------------------------------------------------------
+# nproc and free report the HOST. A container is bounded by its cgroup, and the gap
+# is not small: the session-A pod showed 192 CPUs / 723 GB against a real 20.4 /
+# 84 GB. Printing the host numbers here would actively mislead whoever sizes a
+# sweep, so print the limits and say what nproc claims only to contradict it.
+echo "0. box resources (cgroup limits, not nproc/free)"
+CPUQ=""
+if [ -f /sys/fs/cgroup/cpu.max ]; then                       # cgroup v2
+  read -r _q _p < /sys/fs/cgroup/cpu.max
+  [ "${_q}" != "max" ] && CPUQ="$(awk -v q="${_q}" -v p="${_p}" 'BEGIN{printf "%.1f", q/p}')"
+elif [ -f /sys/fs/cgroup/cpu/cpu.cfs_quota_us ]; then        # cgroup v1
+  _q="$(cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us)"
+  _p="$(cat /sys/fs/cgroup/cpu/cpu.cfs_period_us 2>/dev/null || echo 100000)"
+  [ "${_q}" -gt 0 ] 2>/dev/null && CPUQ="$(awk -v q="${_q}" -v p="${_p}" 'BEGIN{printf "%.1f", q/p}')"
+fi
+if [ -n "${CPUQ}" ]; then
+  pass "CPU quota   ${CPUQ} cores   (nproc claims $(nproc) -- do NOT size workers by nproc)"
+else
+  warn "CPU quota   unlimited/unknown; nproc claims $(nproc)"
+  CPUQ="$(nproc)"
+fi
+
+MEML=""
+for f in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory/memory.limit_in_bytes; do
+  [ -f "$f" ] || continue
+  _m="$(cat "$f")"
+  case "${_m}" in max|"") ;; *) [ "${_m}" -lt 1000000000000000 ] 2>/dev/null \
+      && MEML="$(awk -v m="${_m}" 'BEGIN{printf "%.0f", m/1073741824}')" ;;
+  esac
+done
+if [ -n "${MEML}" ]; then
+  pass "memory      ${MEML} GB      (free claims $(free -g | awk '/^Mem:/{print $2}') GB)"
+else
+  warn "memory      unlimited/unknown; free claims $(free -g | awk '/^Mem:/{print $2}') GB"
+fi
+
+if command -v nvidia-smi >/dev/null 2>&1; then
+  pass "GPU         $(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader | head -1)"
+fi
+
+# Each eval worker is a full OmniGibson instance. Upstream's TORCH_NUM_THREADS is
+# None in v3.9.2, so torch sizes its pool from detected cores and ignores the
+# cgroup -- pin it per worker, then divide.
+THREADS="${OMP_NUM_THREADS:-4}"
+warn "eval workers: ~$(awk -v c="${CPUQ}" -v t="${THREADS}" 'BEGIN{printf "%d", (c/t)}') concurrent (${CPUQ} cores / ${THREADS} threads per worker)"
+warn "  --workers defaults to 1. Pin OMP_NUM_THREADS=${THREADS} per worker:"
+warn "  upstream evaluator.py has TORCH_NUM_THREADS = None, so torch would"
+warn "  otherwise size its pool from $(nproc) detected cores and oversubscribe."
+echo
+
 # -- 1. does our own suite pass on this box at all --------------------------------------
 # A green suite here means the clone is intact, python works, and the tool deps
 # resolve. A red one means stop now, not after the install.
