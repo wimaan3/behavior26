@@ -117,12 +117,50 @@ fi
 rm -f "${VOLUME_ROOT}/.write-test"
 
 echo "==> volume layout"
+echo "    conda    ${CONDA_ROOT:-${VOLUME_ROOT}/miniforge3}"
 echo "    env      ${ENV_PREFIX}"
 echo "    repo     ${ROOT}"
 echo "    dataset  ${OG_DATA}"
 echo "    appdata  ${OG_APPDATA}   (container disk -- cache, deliberately not on the volume)"
 
 nvidia-smi || { echo "no NVIDIA driver visible -- wrong instance type?"; exit 1; }
+
+# -- conda ------------------------------------------------------------------------------
+# The RunPod pytorch images ship no conda, and upstream's setup.sh does
+# `command -v conda >/dev/null || { echo "ERROR: Conda not found"; exit 1; }`
+# (setup.sh l.231) -- so it dies two minutes in. Bootstrap Miniforge ourselves.
+#
+# It goes on the VOLUME for the same reason the env does: one install ever, and a
+# second pod mounting this volume gets it free. Upstream sources
+# "$(conda info --base)/etc/profile.d/conda.sh" itself (l.239), so having conda
+# on PATH is all it needs from us.
+#
+# Trade-off, recorded: conda is itself thousands of small files, and on NFS every
+# conda operation pays per-file latency. If the `import omnigibson` timing shows
+# NFS is punishing, moving CONDA_ROOT to container disk is a one-line change --
+# the ENV must stay on the volume (it is the expensive part), but conda need not.
+CONDA_ROOT="${CONDA_ROOT:-${VOLUME_ROOT}/miniforge3}"
+
+if ! command -v conda >/dev/null 2>&1; then
+  if [ ! -x "${CONDA_ROOT}/bin/conda" ]; then
+    echo "==> no conda on this box; bootstrapping Miniforge to ${CONDA_ROOT}"
+    _mf_url="https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+    _mf_tmp="$(mktemp -d)"
+    curl -fsSL -o "${_mf_tmp}/miniforge.sh" "${_mf_url}" \
+      || { echo "ERROR: could not download Miniforge from ${_mf_url}" >&2; exit 1; }
+    bash "${_mf_tmp}/miniforge.sh" -b -p "${CONDA_ROOT}" >/dev/null \
+      || { echo "ERROR: Miniforge install failed" >&2; exit 1; }
+    rm -rf "${_mf_tmp}"
+    echo "==> miniforge installed"
+  else
+    echo "==> reusing conda at ${CONDA_ROOT}"
+  fi
+  export PATH="${CONDA_ROOT}/bin:${PATH}"
+fi
+# shellcheck disable=SC1090,SC1091
+[ -f "${CONDA_ROOT}/etc/profile.d/conda.sh" ] && . "${CONDA_ROOT}/etc/profile.d/conda.sh"
+command -v conda >/dev/null || { echo "ERROR: conda still not on PATH" >&2; exit 1; }
+echo "==> conda: $(conda --version) at $(command -v conda)"
 
 mkdir -p "${ENVS_DIR}" "${OG_DATA}" "${OG_APPDATA}"
 
@@ -138,6 +176,8 @@ cat > "${ENV_SH}" <<EOF
 # Source this in every shell on any pod mounting this volume.
 #   source ${ENV_SH}
 # The conda env here was created at this exact path and cannot be moved.
+export PATH="${CONDA_ROOT}/bin:\$PATH"
+[ -f "${CONDA_ROOT}/etc/profile.d/conda.sh" ] && . "${CONDA_ROOT}/etc/profile.d/conda.sh"
 export CONDA_ENVS_PATH="${ENVS_DIR}"
 export OMNIGIBSON_DATA_PATH="${OG_DATA}"
 export OMNIGIBSON_APPDATA_PATH="${OG_APPDATA}"
