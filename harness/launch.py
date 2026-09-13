@@ -182,8 +182,30 @@ def load_config(path: Path) -> dict:
 def build_jobs(cfg: dict, instances_per_job: int) -> list[Job]:
     """Split the (task x instance) grid into evaluator invocations.
 
-    Grouping instances into one subprocess amortizes process startup and the OmniGibson
-    import. Scene load is per-trial regardless, so grouping costs little.
+    Grouping instances into one subprocess amortizes process startup, the OmniGibson
+    import, AND -- measured 2026-09-13, contradicting what this docstring used to
+    claim -- the SCENE LOAD, which dominates everything else.
+
+    "Scene load is per-trial regardless, so grouping costs little" was wrong, and
+    wrong in the expensive direction. Measured on an RTX 4090, turning_on_radio,
+    warm cache (docs/sessionA-2026-09-13/scene-reuse.jsonl):
+
+        1 instance  -> 720 s
+        3 instances -> 719 s      (3 distinct instance_ids, 51 steps each)
+
+    Ratio 1.00x. No reuse would have predicted ~2160 s. The scene is loaded once
+    per INVOCATION and reused across instances, exactly as the challenge's design
+    implies: instances are `*-tro_state.json` STATE files layered onto one scene,
+    not separate scenes.
+
+    So grouping does not "cost little" -- it saves ~12 warm minutes per instance,
+    and `--instances-per-job 0` (all of a task's instances in one job, the
+    default) is the correct setting, not merely a tolerable one. Splitting a task
+    across jobs multiplies the dominant cost term by the number of chunks.
+
+    CAVEAT: verified to 3 instances. RSS was ~13.7 GB with one; whether 27
+    instances in one invocation leaks or OOMs is NOT established. Check that
+    before committing a full n=27 sweep to a single job.
     """
     tasks: list[str] = cfg["tasks"]
     instances: list[int] = cfg["instances"]

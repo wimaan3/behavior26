@@ -1,0 +1,4 @@
+{"indices": "0", "label": "cold_1inst_low", "max_steps": 50, "rc": 0, "rollouts": 1, "steps_total": 51, "wall_s": 1346}
+{"indices": "0", "label": "warm_1inst_low", "max_steps": 50, "rc": 0, "rollouts": 1, "steps_total": 51, "wall_s": 720}
+{"indices": "0", "label": "warm_1inst_high", "max_steps": 550, "rc": 0, "rollouts": 1, "steps_total": 551, "wall_s": 713}
+{"indices": "0 1 2", "label": "warm_3inst_low", "max_steps": 50, "rc": 0, "rollouts": 3, "steps_total": 153, "wall_s": 719}
