@@ -125,6 +125,17 @@ Treat "it passed on my machine" as saying nothing about any of these.
   1st**. The first includes a one-time shader compile (~5 min) and, because
   `OMNIGIBSON_APPDATA_PATH` is on container disk by design, every new pod pays
   it again. The 2nd/3rd are the steady-state per-process cost.
+- **Scheduling consequence, now measured.** At the default
+  `--instances-per-job 0` the frozen k=2 design makes only **2 jobs for ~5 worker
+  slots** — the box is more than half idle. Set
+  `--instances-per-job ≈ (tasks × instances) / 5` (**11** for k=2, n=27) → 6 jobs,
+  all slots filled, **4.4 min** of import overhead against ~20-min rollouts.
+  Past ~50 jobs the 44 s starts to matter (≈37 min). The default is right for a
+  single task and wrong for a sweep, which is exactly the kind of thing left
+  alone — so the table and the rule are in the README next to the flag.
+  **Unverified:** whether 5 OmniGibson instances fit the 84 GB cgroup limit.
+  Memory, not CPU, may be the real worker bound — measure peak RSS of one
+  instance during the rollout leg before turning workers up.
 - Context for reading it: the import is paid **per job, not per rollout**
   (`build_jobs` amortizes it; `--instances-per-job` defaults to 0 = one job per
   task), so a k=2 cycle pays 4 imports. It only becomes material under
