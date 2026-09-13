@@ -369,3 +369,19 @@ def test_the_dataset_stage_is_runnable_on_its_own(tmp_path, stub_bin):
         assert fn in text, f"{fn} missing from the dataset stage"
     assert "accept_license=True" in text
     assert "OMNI_KIT_ACCEPT_EULA" in text
+
+
+def test_preflight_checks_the_dataset_actually_landed(tmp_path):
+    """Same shape as the g++ trap: an empty og-data costs a pod-hour to discover.
+
+    A present-but-empty dataset does not fail at import. It fails at scene load,
+    after the box is already billing -- and the error names a USD file, not the
+    missing download. One second here.
+    """
+    text = (REPO / "scripts" / "preflight.sh").read_text()
+    assert "0f. dataset" in text
+    assert "download_dataset.sh" in text, "the check must say how to fix it"
+    # -d alone passes on the empty directory setup_cloud.sh itself creates.
+    assert "ls -A" in text.split("0f. dataset")[1][:1200], (
+        "an existing-but-empty og-data is the case we actually hit"
+    )
