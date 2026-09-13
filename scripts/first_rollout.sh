@@ -150,8 +150,21 @@ if rows:
         "q_score": (d.get("q_score") or {}).get("final"),
         "success": d.get("success"),
         "sim_steps": steps, "sim_time_s": sim_t,
-        "stepping_fps": round(steps / sim_t, 2) if steps and sim_t else None,
-        "scene_load_s": round(int(elapsed) - sim_t, 1) if sim_t else None,
+        # NO throughput field here, deliberately. The evaluator writes no
+        # wall-clock: time.simulator_time is SIMULATED seconds (51 steps x 1/30),
+        # so the obvious `steps / simulator_time` is identically the 30 Hz sim
+        # timestep. It was reported as "stepping_fps" until 2026-09-13 and came
+        # back as exactly 30.00 on two runs whose wall times differed by 473 s.
+        # Three thread conditions would have produced three identical 30.00s and
+        # read as "threads make no difference" -- a null result that looks clean.
+        # Throughput needs a wall clock; see AB_PROTOCOL "measuring stepping
+        # throughput" for the two-point method that supplies one.
+        "sim_rate_hz": round(steps / sim_t, 2) if steps and sim_t else None,
+        # Total wall for the process: load + stepping + teardown, NOT decomposed.
+        # Previously published as "scene_load_s" via wall - simulator_time, which
+        # silently folds the whole stepping phase into "load" once episodes are
+        # longer than a smoke test.
+        "wall_total_s": int(elapsed),
         # CONTINUOUS trajectory fields. Q on a D=1 task is binary and hides any
         # divergence short of flipping the outcome; these move every step, so two
         # runs that diverge at all will differ here even when Q agrees. That
@@ -173,7 +186,7 @@ print(f"  {'env':<16} {_e.get('os')} | {_e.get('gpu')} | drv {_e.get('driver')}"
 print(f"  {'renderer':<16} {(_e.get('vulkan_devices') or ['?'])[0]} | icd rc={_e.get('vulkan_icd_negotiate_rc')}")
 print(f"  {'commit':<16} {_e.get('behavior26_commit')}{' (DIRTY)' if _e.get('behavior26_dirty') else ''}")
 for k in ("condition", "intra_threads", "inter_threads", "wall_s", "sim_steps",
-          "sim_time_s", "stepping_fps", "scene_load_s", "q_score", "success",
+          "sim_time_s", "sim_rate_hz", "wall_total_s", "q_score", "success",
           "steps", "dist_base", "dist_left", "dist_right",
           "normalized_agent_distance", "normalized_time"):
     if k in rec:

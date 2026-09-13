@@ -51,3 +51,44 @@ def test_the_split_is_explained():
     text = ROLLOUT.read_text()
     assert "8 GB" in text or "8GB" in text, "cite the measurement that forced the split"
     assert "--write-video" in text
+
+
+# ----------------------------------------- the metric that measured nothing (2026-09-13)
+
+def test_no_metric_is_derived_from_simulator_time_alone():
+    """`stepping_fps = steps / simulator_time` is a tautology, not a measurement.
+
+    The evaluator's JSON carries NO wall-clock field -- only:
+        time.simulator_steps = 51
+        time.simulator_time  = 1.7      <- SIMULATED seconds, 51 x 1/30
+        time.normalized_time = 42.15
+    so steps/simulator_time is identically the 30 Hz sim timestep. Both smoke
+    runs on the 4090 reported exactly 30.0 while wall time differed by 473 s.
+
+    Caught before the thread matrix ran on it. Three conditions would have
+    returned three identical 30.0s and read as "threads make no difference",
+    which is the most expensive kind of wrong: a null result that looks clean.
+
+    A throughput metric must divide by WALL time or not exist.
+    """
+    text = ROLLOUT.read_text()
+    # steps/simulator_time is fine ARITHMETIC -- it is the sim rate, and naming it
+    # sim_rate_hz is honest. What must not exist is that quantity wearing a
+    # throughput name, because that is what invited the wrong reading.
+    emitted = re.findall(r'^\s*"(\w+)":', text, re.M)
+    for name in emitted:
+        assert not ("fps" in name or "throughput" in name), (
+            f'"{name}" reads as a throughput metric; the evaluator provides no '
+            f"wall clock to build one from"
+        )
+    assert "sim_rate_hz" in emitted, "the sim rate should still be recorded, correctly named"
+
+
+def test_scene_load_is_not_silently_wall_minus_simulated_time():
+    """`scene_load_s = wall_s - simulator_time` conflates everything non-simulated
+    into 'scene load'. At 51 steps the error is 1.7 s and invisible; at full
+    episode length it is the entire stepping phase, mislabelled."""
+    text = ROLLOUT.read_text()
+    assert "int(elapsed) - sim_t" not in text, (
+        "scene_load_s must not be wall minus SIMULATED time -- those are different clocks"
+    )

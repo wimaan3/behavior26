@@ -1230,3 +1230,76 @@ budget can make, and it is not what the contribution rests on.
   values were wrong rather than merely stale. The shoe rack's offset is **0.000**
   — a do-nothing policy banks nothing there, unlike the coffee station's 0.165.
 
+
+
+---
+
+## Revision 2026-09-13e — scene load dominates, and the fps metric measured nothing
+
+First successful scene load of the project, on an RTX 4090 (16 vCPU allocated,
+13.6 cores by cgroup), EU-RO-1, driver 580.178.04, image
+`selkies-egl-desktop:26.04`, commit `4625909`. Raw records:
+`docs/sessionA-2026-09-13/smoke-turning_on_radio.jsonl`.
+
+### Two measurements that stand
+
+`turning_on_radio`, instance 0, null policy, `MAX_STEPS=50`, identical
+invocations:
+
+| run | wall_s |
+|---|---|
+| 1 (cold) | **1028** |
+| 2 (warm, same pod, fresh process) | **555** |
+
+A second load of the same scene costs **46% less**. There is real caching — page
+cache over the 91 GB dataset on NFS, and/or shader cache — but it converges to
+**~9 minutes, not to zero**. Cold is **~17 minutes**.
+
+This is the dominant term in every eval cost estimate we have. It is paid per
+scene load, which is why `--instances-per-job` is the lever that matters: it is
+the difference between paying ~9 minutes once per task and once per instance.
+**Whether the evaluator actually reuses a loaded scene across instances within a
+job is NOT yet established** — it is the single highest-value thing to measure
+next, and it changes the A/B design by an order of magnitude either way.
+
+### One metric that did not stand
+
+`stepping_fps` was computed as `simulator_steps / simulator_time`. The evaluator
+writes **no wall-clock field at all** — its `time` block is:
+
+```
+time.simulator_steps = 51
+time.simulator_time  = 1.7      <- SIMULATED seconds: 51 x 1/30
+time.normalized_time = 42.15
+```
+
+so that ratio is identically the 30 Hz sim timestep. Both runs above reported
+**exactly 30.00** while their wall times differed by 473 s.
+
+Caught before the a/b/c matrix ran on it. The matrix would have produced three
+identical `30.00`s and read as *"thread settings make no difference"* — a null
+result that looks clean and is entirely an artefact of the instrument.
+
+`scene_load_s` had the same flaw one layer down: `wall_s - simulator_time`. At 51
+steps the error is 1.7 s and invisible; at full episode length it folds the whole
+stepping phase into "load".
+
+Both are now removed. `first_rollout.sh` reports `sim_rate_hz` (honestly named,
+and expected to be a constant 30) and `wall_total_s` (undecomposed).
+
+### Measuring stepping throughput — the two-point method
+
+Two options were considered.
+
+**(a) A timing env wrapper.** Subclass the eval wrapper, timestamp first
+reset-complete and each step, write a sidecar. One run per condition.
+
+**(b) Two-point subtraction.** Run each condition at two step counts; marginal
+wall per step is `(wall_N - wall_M) / (N - M)`. The fixed load cost cancels.
+
+**(b) wins, and the reason is not cost.** The experiment asks whether thread
+settings change per-step cost. Option (a) adds our own per-Python-step timing
+work *to the path being measured*, under thread settings that are the
+independent variable — the instrument would be part of the effect. (b) measures
+the unmodified evaluation path and needs nothing from upstream. It costs one
+extra run per condition, roughly 9 warm minutes each.
