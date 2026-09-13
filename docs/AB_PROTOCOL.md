@@ -302,6 +302,61 @@ Delivers:
 - **steps/sec for a 2-task vs a 4-task mix** — this is the **k=2 / k=4 gate**
   (revision 2026-09-11d). It is the one measurement that decides a design
   question rather than confirming a guess.
+- **`action_loss` and `progress_loss` separately, at step 0 and across the first
+  100 steps** — this calibrates λ. See below.
+
+#### Calibrating λ (`progress_loss_weight`) — measurement, not intuition
+
+The patched model computes
+
+```
+loss = action_loss + progress_loss_weight * progress_loss
+```
+
+with both terms broadcast to the same shape, so their means are directly
+comparable. **`progress_loss_weight = 0.1` is a guess made before anyone had
+seen either loss's scale** — and it is our one hyperparameter we cannot sweep,
+since a sweep costs a training run each.
+
+The target: the progress term should be a **meaningful but minority**
+contributor — roughly **10–30% of total loss** — so it shapes the shared
+representation without competing with the primary objective.
+
+The share the progress term actually contributes is
+
+```
+share = λ·P / (A + λ·P)          A = mean action_loss, P = mean progress_loss
+```
+
+and since `A` and `P` are measured, λ is not a guess — **solve for it**:
+
+```
+λ = share·A / ((1 − share)·P)
+     share=0.10  ->  λ = 0.111 · A/P
+     share=0.30  ->  λ = 0.429 · A/P
+```
+
+So report `A`, `P`, `A/P`, and the share that λ=0.1 currently produces. Reading:
+
+| measured | meaning | action |
+|---|---|---|
+| `A` and `P` within ~1 order of magnitude | λ=0.1 lands near the target band | keep 0.1 |
+| `P` ~100× **smaller** than `A` | λ=0.1 makes the head nearly inert — the A/B would return a null **for a trivial reason**, not because the idea failed | raise λ to the solved value |
+| `P` ~100× **larger** than `A` | the progress term dominates and degrades action prediction | lower λ to the solved value |
+
+Two things to get right when reading it:
+
+- **Confirm `progress_loss` is present at all.** If `observation.progress` is
+  None the key is absent and `loss == action_loss` — the head is enabled but
+  unsupervised, and every ratio below is meaningless. This is the same check as
+  Branch 0 of revision 2026-09-11c §3; do it first.
+- **Report the trend across the 100 steps, not just step 0.** `A` falls as the
+  model learns and `P` moves as the head learns, so `A/P` drifts. A λ calibrated
+  on step 0 alone can be wrong by the time it matters. If the ratio is still
+  moving sharply at step 100, say so rather than pinning λ to an early transient.
+
+This is cheap — the 100-step rung already runs — and it converts the one
+un-sweepable hyperparameter we have from a guess into a measurement.
 
 Note the asymmetry between them: session A measures things we have *assumed*
 (throughput, cost); session B measures a thing we have *not decided* (k). If

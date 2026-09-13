@@ -103,7 +103,17 @@ assert the things session B actually depends on rather than assuming them:
 - the cgroup CPU and memory limits (not `nproc`/`free`), and VRAM headroom
   against the 3.3B model;
 - `progress_loss` present in the loss dict — the manipulation check in
-  AB_PROTOCOL revision 2026-09-11c §3 depends on it;
+  AB_PROTOCOL revision 2026-09-11c §3 depends on it, AND every λ ratio is
+  meaningless without it (absent key means `loss == action_loss`, i.e. the head
+  is enabled but unsupervised);
+- **`action_loss` and `progress_loss` magnitudes at step 0 and over the first
+  100 steps** — this calibrates λ. `progress_loss_weight = 0.1` was set before
+  anyone had seen either loss's scale, and it is the one hyperparameter we
+  cannot sweep. Since `loss = A + λ·P` with both terms comparable, λ is solvable
+  rather than guessable: `λ = share·A/((1−share)·P)`, target share 10–30%. If
+  `P` is ~100× smaller than `A`, λ=0.1 makes the head nearly inert and the A/B
+  returns a null for a trivial reason. Report the trend across the 100 steps,
+  not just step 0 — `A/P` drifts as both terms learn. Full rule in §1a;
 - dataset root on **local disk**, not the network volume (`train_cloud.sh:132`
   warns data loading will dominate otherwise).
 
