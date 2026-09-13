@@ -81,6 +81,32 @@ bash scripts/train_cloud.sh --dry-run                 # walks the whole plan
 > `TORCH_NUM_THREADS`), then the practical bound is **~4–5 concurrent workers**
 > on a 20-CPU box — `20.4 / 4`. Not 192, and not the vCPU count on the invoice.
 > `scripts/preflight.sh` prints the cgroup limits and this derived bound.
+>
+> **`--instances-per-job` defaults to 0, which is right for one task and wrong
+> for a sweep.** `build_jobs` chunks per task, so the job count is
+> `k × ceil(n / instances_per_job)`, and `0` means one job per task. At k=2 that
+> is **2 jobs for ~5 worker slots — the box sits more than half idle.**
+>
+> Splitting costs one `import omnigibson` per job, measured at **~44 s** on the
+> session-A pod. Against rollouts of roughly 20 minutes that is a good trade:
+>
+> | `--instances-per-job` | jobs | slots used | import overhead |
+> |---|---|---|---|
+> | 0 (default) | 2 | 2 / 5 | 1.5 min |
+> | 14 | 4 | 4 / 5 | 2.9 min |
+> | **11** | **6** | **5 / 5** | **4.4 min** |
+> | 6 | 10 | 5 / 5 | 7.3 min |
+> | 1 | 54 | 5 / 5 | 39.6 min |
+>
+> **Rule of thumb: `--instances-per-job ≈ (tasks × instances) / 5`** — 11 for the
+> frozen k=2, n=27 design. The 44 s only starts to hurt past ~50 jobs (≈37 min),
+> which is where per-instance jobs land.
+>
+> Two caveats before turning workers up. Each worker needs **its own policy
+> server port** (`--base-port`; worker *i* uses `base_port + i`), so N workers
+> means N servers. And each is a **full OmniGibson instance** — the binding
+> constraint may be the **84 GB cgroup memory limit**, not the 20.4 CPUs. Measure
+> one instance's peak RSS before assuming 5 fit; that number is not yet known.
 
 ### 3. A real rollout (needs a rented GPU)
 
