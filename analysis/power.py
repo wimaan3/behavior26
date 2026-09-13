@@ -191,12 +191,17 @@ def pooled_sigma_w(tasks: list[dict], f: float) -> float:
     return math.sqrt(sum(sigma_w_for(t, f) ** 2 for t in tasks) / len(tasks))
 
 
+# Per-instance reset, measured at n=27 on an RTX 4090 (see cycle_hours). Survives
+# scene reuse; independent of episode length.
+DEFAULT_RESET_S = 30.8
+
+
 def rollout_hours(frames: float, fps: float, scene_load_s: float) -> float:
     return (scene_load_s + frames / fps) / 3600.0
 
 
 def cycle_hours(tasks: list, n: int, m: int, fps: float, scene_load_s: float,
-                reuse_scene: bool = True) -> float:
+                reuse_scene: bool = True, reset_s: float = DEFAULT_RESET_S) -> float:
     """GPU-hours for ONE full A/B cycle: 2 arms x k tasks x n instances x m seeds.
 
     `reuse_scene` is the difference between two cost models that disagree by an
@@ -211,15 +216,22 @@ def cycle_hours(tasks: list, n: int, m: int, fps: float, scene_load_s: float,
         no reuse: 2 * m * n * sum_tasks( scene_load + frames / fps )
 
     The stepping term is identical in both -- every instance is still a full
-    episode. Reuse amortises the LOAD only, which matters because the load is
-    ~715 s of a 720 s null-policy rollout.
+    episode. Reuse amortises the LOAD only.
+
+    `reset_s` is the per-instance cost that survives reuse: loading the instance
+    state and repositioning the scene. MEASURED at n=27 as **30.8 s**, and very
+    regular (rollouts landed at 1064, 1094, 1135 ... 1803, 1834, 1864 s).
+
+    The earlier n=3 run implied this was ~0 (719 s for three against 720 s for
+    one). That was a resolution failure, not a measurement: two extra instances
+    at ~31 s is 62 s against ~720 s of NFS-variable load. Do not set it to 0.
 
     CAVEAT on `fps`: our own measurement of the stepping term used a null policy
     and found it below resolution. It therefore bounds simulator+rendering cost
     and says nothing about a real arm's inference, which does NOT amortise. Keep
     `fps` at the organizers' figure until an arm is benchmarked.
     """
-    stepping_s = sum(n * t["frames"] / fps for t in tasks)
+    stepping_s = sum(n * (reset_s + t["frames"] / fps) for t in tasks)
     load_s = (len(tasks) * scene_load_s if reuse_scene
               else n * len(tasks) * scene_load_s)
     return 2 * m * (load_s + stepping_s) / 3600.0
