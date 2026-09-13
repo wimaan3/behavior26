@@ -31,8 +31,28 @@ and the convention was wrong repo-wide.
 | Hidden test | 321–340 | Never touch. |
 
 A full public submission is **100 tasks × 20 instances × 1 rollout = 2,000
-rollouts**. At the organizers' published throughput (~13.5 FPS full-res RGB+D)
-plus 150–300s scene load per trial, one rollout is roughly **20–25 minutes**:
+rollouts**.
+
+> **REVISED 2026-09-13.** The figure below assumed scene load is paid **per
+> trial**. Measured, it is paid **per evaluator invocation** and reused across
+> instances: 3 instances cost 719 s against 720 s for 1. Under reuse a full
+> submission is **100 jobs** (one per task, 20 instances riding along), not 2,000
+> loads — roughly **20–37 GPU-hours** rather than 700–840. See AB_PROTOCOL
+> revision 2026-09-13f.
+>
+> **That revision is an upper bound on the saving, not a settled number**, for one
+> reason: our measurement ran a **null policy**. `policy/null_server.py` returns
+> zeros and does no inference, so the per-frame cost it measured is simulator +
+> rendering only. The organizers' ~13.5 FPS is end-to-end with a real policy.
+> Those two numbers disagree by orders of magnitude, and the gap is most plausibly
+> **policy inference**, which does NOT amortize across instances — every instance
+> is a full episode of forward passes. Under a real π₀.₅ arm the per-job cost may
+> well be dominated by stepping again, at roughly
+> `n × episode_frames / throughput`. Treat the collapse as established for the
+> **simulator** and unmeasured for the **policy** until an arm is benchmarked.
+
+At the organizers' published throughput (~13.5 FPS full-res RGB+D) plus 150–300s
+scene load per trial, one rollout is roughly **20–25 minutes**:
 
 **2,000 rollouts ≈ 700–840 GPU-hours ≈ ~7–9 days on 4 cards, ~3.5–4.5 days on 8.**
 
