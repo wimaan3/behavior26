@@ -56,7 +56,10 @@ def stub_bin(tmp_path: Path) -> Path:
     d.mkdir()
     # conda too: without it the script would try to DOWNLOAD Miniforge during the
     # test run. A unit test must not reach the network or install a toolchain.
-    for name in ("nvidia-smi", "git", "conda"):
+    # python too: the dataset stage shells out to it. A bare pod has none, but by
+    # the time that stage runs the env provides one -- stubbing it models that
+    # without letting a test reach the network or write 36 GB.
+    for name in ("nvidia-smi", "git", "conda", "python"):
         p = d / name
         p.write_text("#!/usr/bin/env bash\nexit 0\n")
         p.chmod(0o755)
@@ -308,3 +311,61 @@ def test_preflight_checks_for_a_cxx_compiler():
     assert "0c. build toolchain" in text
     assert "InvalidCxxCompiler" in text, "must name the error it prevents"
     assert "gcc alone is not enough" in text, "gcc present + g++ absent is the real case"
+
+
+# ------------------------------------ the dataset is a SEPARATE artifact from the env
+
+
+def test_existing_env_does_not_skip_a_missing_dataset(tmp_path, stub_bin):
+    """Found the hard way, at 5am, ~$4 in.
+
+    The env and the dataset are two independent artifacts on the volume, but one
+    condition gated both: `if [ -d "${ENV_PREFIX}" ]` skipped the whole upstream
+    `./setup.sh --dataset ...` call. The first install died at the dataset step
+    (no g++). After the compiler fix the env DID exist, so the re-run reported
+    success in seconds with og-data still empty -- a silent partial install that
+    only shows up when a scene fails to load.
+
+    The dataset stage must be guarded on the DATASET's own presence.
+    """
+    vol = tmp_path / "workspace"
+    vol.mkdir()
+    (vol / "envs" / "behavior" / "bin").mkdir(parents=True)
+    (vol / "BEHAVIOR-1K").mkdir()
+    (vol / "og-data").mkdir()                      # present but EMPTY
+    res = _run(vol, env_extra={"ALLOW_CONTAINER_DISK": "1"}, stub_bin=stub_bin)
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "Skipping install" in res.stdout, "the env itself is still reused"
+    assert "dataset" in res.stdout.lower()
+    assert "og-data is empty" in res.stdout, (
+        "a reused env must not carry an empty dataset past the installer"
+    )
+
+
+def test_a_populated_dataset_is_not_redownloaded(tmp_path, stub_bin):
+    """36 GB over NFS. The guard has to be idempotent or every re-run is an hour."""
+    vol = tmp_path / "workspace"
+    vol.mkdir()
+    (vol / "envs" / "behavior" / "bin").mkdir(parents=True)
+    (vol / "BEHAVIOR-1K").mkdir()
+    (vol / "og-data" / "assets").mkdir(parents=True)
+    res = _run(vol, env_extra={"ALLOW_CONTAINER_DISK": "1"}, stub_bin=stub_bin)
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "og-data is empty" not in res.stdout
+    assert "dataset already present" in res.stdout
+
+
+def test_the_dataset_stage_is_runnable_on_its_own(tmp_path, stub_bin):
+    """It has to be, because that is the state a failed install leaves you in:
+    env built, dataset missing, and no appetite for re-running the installer."""
+    script = REPO / "scripts" / "download_dataset.sh"
+    assert script.exists(), "the dataset stage must be its own entry point"
+    text = script.read_text()
+    # The three upstream calls, verbatim -- if upstream renames one, this is the
+    # place that has to change, and the test says so out loud.
+    for fn in ("download_omnigibson_robot_assets",
+               "download_behavior_1k_assets",
+               "download_2026_challenge_task_instances"):
+        assert fn in text, f"{fn} missing from the dataset stage"
+    assert "accept_license=True" in text
+    assert "OMNI_KIT_ACCEPT_EULA" in text
