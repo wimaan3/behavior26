@@ -37,7 +37,21 @@ COND="${THREAD_CONDITION:-a}"
 # truncated rollout's Q and fps are not comparable to a full one, so never put a
 # MAX_STEPS run in the results the protocol quotes.
 MAX_STEPS="${MAX_STEPS:-}"
-OUT="${OUT:-rollouts/000-baseline-smoke-${COND}}"
+# Video goes to SCRATCH, results go to the REPO. Two artifacts, two requirements.
+#
+# The evaluator runs with --write-video at full-res RGBD. This default used to be
+# `rollouts/...`, relative to CWD -- and the documented way to run this is from the
+# repo checkout, which on a pod lives on the network volume. Measured 2026-09-13:
+# that volume is 142 GB of 150 used (og-data 91, envs 44), leaving **~8 GB free**.
+# A three-condition matrix of full-res video into 8 GB fills the volume partway
+# through the measurement, which loses the run AND the box it was running on.
+#
+# ROLLOUT_SCRATCH overrides it; on a pod point it at container disk (the default
+# /tmp already is). Videos are reproducible and disposable -- copy out the one you
+# want to look at.
+OUT="${OUT:-${ROLLOUT_SCRATCH:-/tmp}/rollouts/000-baseline-smoke-${COND}}"
+# ...whereas thread_conditions.jsonl is kilobytes, is what AB_PROTOCOL quotes, and
+# is version-controlled. It stays in the repo. Do not "tidy" these into one place.
 RESULTS="${RESULTS:-${REPO}/rollouts/thread_conditions.jsonl}"
 
 case "${COND}" in
