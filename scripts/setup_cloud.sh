@@ -230,6 +230,21 @@ else
     --accept-conda-tos --accept-nvidia-eula --accept-dataset-tos
 fi
 
+# -- the C++ compiler torch.compile needs at import time --------------------------------
+# selkies-egl-desktop:26.04 ships gcc but NOT g++, and `import omnigibson` invokes
+# TorchInductor, which needs a C++ driver. Without it the install dies ~100 minutes
+# in, at the dataset step, with InvalidCxxCompiler -- an error that names neither
+# the image nor the missing package. Install it into the ENV, which needs no root:
+# the image may be non-root with sudo password-gated (this one is).
+if ! command -v g++ >/dev/null 2>&1 \
+   && ! ls "${ENV_PREFIX}/bin/"*g++ >/dev/null 2>&1; then
+  echo "==> no g++ on this box; installing cxx-compiler into ${ENV_PREFIX}"
+  conda install -y -q -c conda-forge cxx-compiler -p "${ENV_PREFIX}" >/dev/null \
+    || echo "!! cxx-compiler install failed -- 'import omnigibson' will fail" >&2
+else
+  echo "==> C++ compiler present"
+fi
+
 cat <<NOTES
 
 ==> next

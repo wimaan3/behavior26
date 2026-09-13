@@ -97,6 +97,34 @@ else
 fi
 echo
 
+# -- 0c. BUILD TOOLCHAIN ----------------------------------------------------------------
+# `import omnigibson` invokes torch.compile/TorchInductor, which shells out to a
+# C++ compiler to build CPU kernels AT IMPORT TIME. No compiler means:
+#
+#   torch._inductor.exc.InductorError: InvalidCxxCompiler: No working C++ compiler
+#
+# which mentions nothing about the environment and surfaces ~100 minutes into a
+# fresh install, at the dataset step, after the 42 GB env is already built.
+# Measured 2026-09-13 on selkies-egl-desktop:26.04, which ships gcc but NOT g++ --
+# a C compiler is not sufficient, and a desktop image is not a dev image.
+#
+# Fix needs no root: conda install -c conda-forge cxx-compiler -p <env>
+echo "0c. build toolchain"
+CXX_FOUND=""
+for c in "${CXX:-}" g++ c++ clang++ x86_64-conda-linux-gnu-g++; do
+  [ -n "${c}" ] && command -v "${c}" >/dev/null 2>&1 && { CXX_FOUND="$(command -v "${c}")"; break; }
+done
+if [ -n "${CXX_FOUND}" ]; then
+  pass "C++ compiler: ${CXX_FOUND}"
+else
+  fail "NO C++ COMPILER. torch.compile will fail at 'import omnigibson'."
+  echo "        gcc alone is not enough -- Inductor needs a C++ driver."
+  echo "        Fix without root:"
+  echo "          conda install -y -c conda-forge cxx-compiler -p \$CONDA_PREFIX"
+fi
+command -v gcc >/dev/null 2>&1 || warn "no C compiler (gcc) either"
+echo
+
 echo "1. our test suite"
 if ! python3 -c "import pandas, yaml, pyarrow" 2>/dev/null; then
   warn "tool deps missing -- installing requirements-tools.txt"
