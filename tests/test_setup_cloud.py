@@ -39,7 +39,12 @@ def _run(volume_root: Path | str, *, env_extra: dict | None = None,
     for leaked in ("OMNIGIBSON_DATA_PATH", "BEHAVIOR_ROOT", "CONDA_ENVS_PATH"):
         env.pop(leaked, None)
     if stub_bin:
-        env["PATH"] = f"{stub_bin}{os.pathsep}{env['PATH']}"
+        # REPLACE PATH rather than prepend. These tests model a bare pod; if the
+        # developer's own machine has conda (or git, or nvidia-smi) on PATH, the
+        # script takes a different branch and the test silently measures the
+        # wrong thing. Caught exactly that way: a local miniconda3 meant the
+        # conda-bootstrap branch never ran here but did on the pod.
+        env["PATH"] = os.pathsep.join([str(stub_bin), "/usr/bin", "/bin"])
     env.update(env_extra or {})
     return subprocess.run(["bash", str(SETUP)], capture_output=True, text=True, env=env)
 
@@ -49,7 +54,9 @@ def stub_bin(tmp_path: Path) -> Path:
     """Stand-ins for the two commands that need real hardware or the network."""
     d = tmp_path / "stub-bin"
     d.mkdir()
-    for name in ("nvidia-smi", "git"):
+    # conda too: without it the script would try to DOWNLOAD Miniforge during the
+    # test run. A unit test must not reach the network or install a toolchain.
+    for name in ("nvidia-smi", "git", "conda"):
         p = d / name
         p.write_text("#!/usr/bin/env bash\nexit 0\n")
         p.chmod(0o755)
@@ -208,3 +215,50 @@ def test_the_real_bashrc_is_never_touched(tmp_path, stub_bin):
                env_extra={"ALLOW_CONTAINER_DISK": "1"})
     assert res.returncode == 0, res.stdout + res.stderr
     assert bashrc.read_text() == "# untouched\n", "SKIP_BASHRC=1 was not honoured"
+
+
+def test_an_existing_conda_on_the_volume_is_reused_not_redownloaded(tmp_path, stub_bin):
+    """Second pod, and re-runs: Miniforge is installed once, on the volume.
+
+    The RunPod image ships no conda and upstream's setup.sh exits 1 on that
+    (`command -v conda || ... "ERROR: Conda not found"`), which is how the first
+    real run died. We bootstrap it -- but only once.
+    """
+    vol = tmp_path / "workspace"
+    vol.mkdir()
+    (vol / "envs" / "behavior").mkdir(parents=True)
+    (vol / "BEHAVIOR-1K").mkdir()
+    # a conda that exists at CONDA_ROOT but is NOT on PATH
+    croot = vol / "miniforge3"
+    (croot / "bin").mkdir(parents=True)
+    (croot / "bin" / "conda").write_text("#!/usr/bin/env bash\nexit 0\n")
+    (croot / "bin" / "conda").chmod(0o755)
+
+    env = {"ALLOW_CONTAINER_DISK": "1", "CONDA_ROOT": str(croot)}
+    # drop the stubbed conda so the script must find the one at CONDA_ROOT
+    bin_no_conda = tmp_path / "stub-no-conda"
+    bin_no_conda.mkdir()
+    for name in ("nvidia-smi", "git"):
+        q = bin_no_conda / name
+        q.write_text("#!/usr/bin/env bash\nexit 0\n")
+        q.chmod(0o755)
+
+    res = _run(vol, stub_bin=bin_no_conda, home=tmp_path / "home", env_extra=env)
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "reusing conda at" in res.stdout
+    assert "bootstrapping Miniforge" not in res.stdout, "it re-downloaded an existing conda"
+
+
+def test_env_sh_puts_conda_on_path_for_the_next_pod(tmp_path, stub_bin):
+    """env.sh is all the second pod runs. Without conda on PATH it cannot
+    activate anything, and the volume env is unreachable."""
+    vol = tmp_path / "workspace"
+    vol.mkdir()
+    (vol / "envs" / "behavior").mkdir(parents=True)
+    (vol / "BEHAVIOR-1K").mkdir()
+    res = _run(vol, stub_bin=stub_bin, home=tmp_path / "home",
+               env_extra={"ALLOW_CONTAINER_DISK": "1"})
+    assert res.returncode == 0, res.stdout + res.stderr
+    env_sh = (vol / "env.sh").read_text()
+    assert f'{vol}/miniforge3/bin' in env_sh
+    assert "conda.sh" in env_sh
