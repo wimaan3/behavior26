@@ -52,6 +52,63 @@ the 2026-09-11 revision of `docs/AB_PROTOCOL.md`:
   gives N=6 and an MDE of 0.181 — coarser than the effect the pairing exists to
   resolve. n=20 reaches 0.058 for 22.3 GPU-hr / $11.
 
+### A green local suite is NOT evidence the box will work (2026-09-12)
+
+**Our tests validate LOGIC. They do not validate the ENVIRONMENT.** Four defects
+in one afternoon on the pod, all of which passed locally, three of which passed
+*green* rather than failing:
+
+| # | Defect | Why local was green |
+|---|---|---|
+| 1 | `pyarrow` missing from `requirements-tools.txt` | Dev machine had pyarrow from elsewhere. On the pod, `test_progress_labels.py` module-level `importorskip` meant it never COLLECTED — 20 tests silently absent. Pod ran 98, dev ran 121. Both "passed". |
+| 2 | RunPod image ships no conda | Dev machine has `/home/imaansol/miniconda3/bin`, so the conda branch never executed locally. `setup.sh` died at 2 min with `ERROR: Conda not found`. |
+| 3 | A bare clone has no sibling `openpi` / `external/b1k` | Those tests skip, including the live openpi↔evaluator robot-name check — the one that proves the first rollout will not KeyError. |
+| 4 | `setup_cloud.sh` tests **prepended** the stub dir to the real PATH | The developer's own `conda`/`git`/`nvidia-smi` shadowed the stubs, so the tests exercised a different branch than production. This is what let #2 survive being "covered by tests". |
+
+#### Why this class hides so well
+
+- **`importorskip` at module level does not fail — it deletes.** The module
+  drops out of collection and its tests disappear from the run. The summary
+  still says "all passed", just with a smaller number nobody compares.
+- **Prepending to PATH imports the host.** A test that stubs a binary but leaves
+  the real PATH behind is testing the developer's machine, not a bare box.
+- **Presence of a sibling directory changes the suite.** The robotProj checkout
+  runs strictly more tests than a bare clone; see
+  [[behavior26-canonical-checkout]].
+- **The box lies about itself.** `nproc` reports 192 while the cgroup quota is
+  20.4 CPUs; `free` reports 723 GB while the limit is 84 GB. Anything sizing a
+  worker pool from `nproc` will thrash.
+
+#### Countermeasures now in place
+
+- `scripts/preflight.sh` asserts **every test module collects ≥1 test**, so a
+  vanished module fails loudly instead of shrinking the count. Verified by
+  planting a module that cannot import: pytest said "90 passed", preflight
+  failed it.
+- `tests/test_setup_cloud.py` **replaces** PATH (stub + `/usr/bin` + `/bin`)
+  rather than prepending, and stubs `conda` so a unit test cannot reach the
+  network.
+- Preflight runs **on the target box**, before anything expensive.
+
+#### Before session B — the surface is much larger and failures cost more
+
+Session A's environment surface was small and a failure cost $0.14. Session B
+adds CUDA/driver compatibility, jax and torch wheels, the openpi fork and its
+deps, a 330 GB dataset, and VRAM limits — and a failure there wastes a training
+run, not two minutes. **Run preflight on that box first**, and extend it to
+assert the things session B actually depends on rather than assuming them:
+
+- `openpi` importable, and the **live** robot-name check passing — not skipped;
+- jax sees the GPU, and the CUDA/driver pair is one openpi supports;
+- the cgroup CPU and memory limits (not `nproc`/`free`), and VRAM headroom
+  against the 3.3B model;
+- `progress_loss` present in the loss dict — the manipulation check in
+  AB_PROTOCOL revision 2026-09-11c §3 depends on it;
+- dataset root on **local disk**, not the network volume (`train_cloud.sh:132`
+  warns data loading will dominate otherwise).
+
+Treat "it passed on my machine" as saying nothing about any of these.
+
 ### Session A checklist additions (2026-09-12)
 
 - Time `import omnigibson` on the volume env — **the 2nd and 3rd runs, not the
