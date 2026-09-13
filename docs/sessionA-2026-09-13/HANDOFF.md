@@ -9,8 +9,11 @@ Written for the next morning. Read this first, then
 
 ```bash
 # 1. Deploy a NEW pod. Same image, more vCPU than the L4 box had (6).
-#    image:  ghcr.io/selkies-project/selkies-egl-desktop:26.04
-#    volume: 96mu3d0s32  (EU-RO-1, 150 GB STANDARD) mounted EXPLICITLY at /workspace
+#    image:           ghcr.io/selkies-project/selkies-egl-desktop:26.04
+#    volume:          96mu3d0s32 (EU-RO-1, 150 GB STANDARD), mounted EXPLICITLY
+#                     at /workspace -- a different mount point breaks the env,
+#                     it does not merely slow it down.
+#    container disk:  >= 50 GB  (see "Dataset outcome" -- staging is not free)
 #    Region is forced by the volume: EU-RO-1. Do not create a second volume.
 
 # 2. On the box — NOT setup_cloud.sh. The env and dataset are already there.
@@ -37,7 +40,7 @@ left to do.
 | miniforge | `/workspace/miniforge3` | 3.8 GB |
 | BEHAVIOR-1K source, tag `v3.9.2` | `/workspace/BEHAVIOR-1K` | 2.6 GB |
 | `import omnigibson` | — | **succeeds** (`IMPORT_OK`, 2 m 13 s cold) |
-| BEHAVIOR-1K dataset | `/workspace/og-data` | *see "Dataset outcome" below* |
+| BEHAVIOR-1K dataset | `/workspace/og-data` | **complete, all 3 stages `EXIT=0`** |
 
 Everything above is on network volume `96mu3d0s32` and survives pod termination.
 Nothing of value is on container disk.
@@ -69,13 +72,46 @@ state a failed install actually leaves you in.
 
 ---
 
-## Dataset outcome
+## Dataset outcome — COMPLETE
 
-*(In progress at the time of this commit — this section is rewritten with the
-result before the pod is terminated. If it still says this, the run was cut off
-and `/workspace/og-data` should be treated as incomplete: re-run
-`bash scripts/download_dataset.sh` on tomorrow's box, which is idempotent and
-will skip whatever already landed.)*
+All three stages returned `EXIT=0`. `/workspace/og-data` holds:
+
+```
+2026-challenge-task-instances
+behavior-1k-assets
+omnigibson-robot-assets
+omnigibson.key
+```
+
+| stage | start (UTC) | end (UTC) | wall |
+|---|---|---|---|
+| `download_omnigibson_robot_assets` | 07:23:45 | 07:27:57 | 4 m 12 s |
+| `download_behavior_1k_assets` | 07:27:57 | 08:19:48 | **51 m 51 s** |
+| `download_2026_challenge_task_instances` | 08:19:48 | 08:34:38 | 14 m 50 s |
+
+`ALL_EXIT=0`. Pod `8aki9c2672ft6d` terminated immediately after; no pods running.
+
+### Three things this run taught us about the download
+
+1. **It needs ~30 GB of free CONTAINER DISK, not just volume space.** The
+   `behavior_1k_assets` stage stages the whole archive in `/tmp` — container
+   disk — before extracting to the volume. `/tmp/tmpm2oz7sv3` peaked at 30 GB
+   against 19 GB free on a 50 GB overlay. It fit, but not by much. **Give
+   tomorrow's pod a container disk of at least 50 GB**; a smaller one fails with
+   ENOSPC an hour in, and the error names a temp file.
+   Running each stage as its own `python -c` turned out to matter here: the temp
+   dir is reclaimed when the process exits, so stage 3 started with a clean
+   48 GB free. A single upstream invocation would have held all of it.
+2. **The HF Hub requests are unauthenticated** — "Please set a `HF_TOKEN` to
+   enable higher rate limits". That is deliberate: no token goes on rented
+   hardware. It cost us nothing here (52 minutes for the bulk), but a rate-limit
+   stall on a future run is not a bug to go hunting for.
+3. **On-disk footprint is far larger than apparent size** — NFS block allocation
+   ran about 2.5× (`du -sb` 26.1 GB vs `du -sh` 61 G, mid-transfer). The volume
+   is 150 GB and the env alone is 42 GB. **First command tomorrow should be
+   `du -sh /workspace/*`** — the final total was not measured, because by then
+   the tree walk was outrunning its own SSH timeout and the standing instruction
+   was to terminate rather than hold the box for a nice-to-have number.
 
 ---
 
@@ -135,3 +171,21 @@ seven pods, and why `preflight.sh` step 0b now asserts it in seconds.
 - **The eval environment is not the organizers'** — Ubuntu 26.04 / selkies /
   driver 595.91.07. Every reported number carries an
   `scripts/env_fingerprint.py` stamp for this reason.
+
+---
+
+## Spend
+
+Read from RunPod billing after termination, not estimated:
+
+| line | amount |
+|---|---|
+| pod GPU | $3.97 |
+| pod disk + CPU | $0.04 |
+| storage — HIGH (deleted volume `rbo3wtv1po`) | $0.19 |
+| storage — STANDARD (`96mu3d0s32`, ongoing) | $0.06 |
+| **total to date** | **$4.26** |
+
+Against the **$200** budget. Zero pods are running. The only ongoing cost is
+volume `96mu3d0s32` at roughly **$10.50/month** — leave it alone; it holds the
+env and the dataset, and rebuilding them costs far more than storing them.
