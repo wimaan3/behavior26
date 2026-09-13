@@ -75,3 +75,44 @@ def test_script_runs_standalone():
     r = subprocess.run([sys.executable, str(CHECK)], capture_output=True, text=True, timeout=180)
     assert r.returncode in (0, 1)
     assert "Vulkan" in r.stdout or "ICD" in r.stdout or "vulkaninfo" in r.stdout
+
+
+# ------------------------------------------------- environment fingerprint (§3.5b)
+
+def test_fingerprint_captures_the_rendering_stack():
+    """Our stack is not the organizers'. Every reported number must carry it.
+
+    Rendering reaches Q directly -- the rendered image IS the policy input -- so a
+    Q figure without the stack that produced it cannot be distinguished from a
+    replication failure.
+    """
+    sys.path.insert(0, str(REPO / "scripts"))
+    import env_fingerprint
+
+    fp = env_fingerprint.fingerprint()
+    # the rendering-specific fields, which are the point of §3.5b
+    for key in ("os", "vulkan_devices", "vulkan_icd_negotiate_rc",
+                "vulkan_software_rasteriser_present"):
+        assert key in fp, f"fingerprint missing rendering field {key!r}"
+    # provenance: which code produced the number
+    for key in ("behavior26_commit", "behavior26_dirty", "python"):
+        assert key in fp, f"fingerprint missing provenance field {key!r}"
+    # thread config, tying it to §3.5a
+    assert "OMP_NUM_THREADS" in fp
+
+
+def test_fingerprint_is_json_serialisable():
+    """It gets embedded in a JSONL result row; an unserialisable value would
+    lose the whole rollout record rather than just the fingerprint."""
+    import json
+    sys.path.insert(0, str(REPO / "scripts"))
+    import env_fingerprint
+    json.dumps(env_fingerprint.fingerprint(), sort_keys=True)
+
+
+def test_fingerprint_survives_a_box_with_no_gpu():
+    """It runs on a laptop during development too -- it must degrade, not raise."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    import env_fingerprint
+    fp = env_fingerprint.fingerprint()
+    assert fp["vulkan_devices"] == [] or isinstance(fp["vulkan_devices"], list)

@@ -578,6 +578,10 @@ will reproduce, because they replicate under stock. So:
 - Do not re-run a completed A/B "because it was measured under the fast config".
   That is the mistake this section exists to prevent.
 
+> **See also §3.5b**, which is this same argument for the *rendering* stack — a
+> wider channel, since the rendered image is the policy's input rather than an
+> intermediate reduction.
+
 #### Where divergence could actually come from
 
 Not the model forward: `set_num_threads` governs CPU intra-op parallelism, and a
@@ -601,6 +605,73 @@ therefore records `sim_steps`, `steps`, `agent_distance.{base,left,right}`,
 `normalized_agent_distance` and `normalized_time` per condition: they move
 continuously, so they expose a divergence that a binary Q on `turning_on_radio`
 would hide entirely.
+
+---
+
+### 3.5b Our rendering stack is not the organizers' — tag every number with the environment
+
+We evaluate on a stack **nobody else runs**:
+
+| | |
+|---|---|
+| image | `ghcr.io/selkies-project/selkies-egl-desktop:26.04` |
+| OS | Ubuntu 26.04, glibc 2.43 |
+| driver | 595.91.07 |
+| GPU | NVIDIA L4 (24 GB) |
+| renderer | Vulkan, hardware — **llvmpipe is also enumerated** |
+
+That is not a preference. It is the only image out of three tested where NVIDIA's
+Vulkan ICD initialises at all (see
+`docs/sessionA-2026-09-13/RENDERING-POSTMORTEM.md`). The organizers are running
+something else, almost certainly Ubuntu 22.04 with a different driver.
+
+#### Why this reaches Q, and more directly than thread config does
+
+§3.5a's concern is float reduction order — a subtle numeric channel. **Rendering
+is a wider one.** The policy's input *is* the rendered image:
+
+```
+GPU / driver / renderer  ->  RGB + depth pixels  ->  policy actions
+                         ->  trajectory          ->  Q
+```
+
+Different hardware, driver or rasteriser produce different pixels — anti-aliasing,
+sampling, precision, shader compilation all differ — and the policy sees those
+differences directly rather than through a reduction. A trajectory that diverges
+early diverges further with every step.
+
+#### What survives and what does not
+
+Identically to §3.5a, and for the same reason:
+
+- **ΔQ is paired and the environment is constant across arms**, so any offset the
+  stack induces is common to both and cancels in `d_i`. **The A/B remains valid.**
+  Do not re-run a completed comparison because it was measured here.
+- **Absolute Q may not replicate on the organizers' stack.** §3.4's ranking note
+  applies: submissions whose self-reported score cannot be reproduced get bumped,
+  and they reproduce on *their* environment, not ours.
+
+This sharpens §3.3 rather than changing it. **Report the median pass with its
+min–max spread, never a best run.** A best run is the sample most likely to owe
+something to our environment, and the least likely to survive their replication.
+The spread is what tells a reader — and an organizer — how much of the headline
+is stable.
+
+#### Record the fingerprint with every reported number
+
+Not as discipline; mechanically. `scripts/env_fingerprint.py` emits it and
+`first_rollout.sh` embeds it in every result row:
+
+```
+image + OS + glibc + driver + GPU + vulkan device + ICD negotiate rc
+CUDA + torch + intra/inter threads
+behavior26 commit + BEHAVIOR-1K tag + openpi commit + patch sha256
+dataset root + progress_filter sha256
+```
+
+A Q figure without that block is not reportable. If we cannot say which stack
+produced a number, we cannot tell a replication failure from a real effect — and
+that is the distinction the whole protocol exists to protect.
 
 ---
 

@@ -97,6 +97,7 @@ RC=$?
 ELAPSED=$(( $(date +%s) - START ))
 
 # Everything below reads the rollout JSON the evaluator wrote -- no re-derivation.
+PYTHONPATH="${REPO}/scripts${PYTHONPATH:+:${PYTHONPATH}}" \
 python - "${OUT}" "${COND}" "${ELAPSED}" "${TASK}" "${MODE}" "${INSTANCE}" "${RC}" "${RESULTS}" <<'PYEOF'
 import glob, json, os, sys
 out, cond, elapsed, task, mode, inst, rc, results = sys.argv[1:9]
@@ -109,7 +110,17 @@ for p in glob.glob(os.path.join(out, "**", "*.json"), recursive=True):
     except Exception:
         pass
 import torch
+# The environment fingerprint travels with EVERY number. Our rendering stack is
+# not the organizers' (AB_PROTOCOL §3.5b) and rendering reaches Q directly --
+# the rendered image is the policy's input. A Q figure without this block cannot
+# be told apart from a replication failure.
+try:
+    from env_fingerprint import fingerprint as _fp   # via PYTHONPATH=scripts/
+    _env = _fp()
+except Exception as _e:
+    _env = {"fingerprint_error": str(_e)}
 rec = {
+    "env": _env,
     "condition": cond, "task": task, "mode": mode, "instance": int(inst),
     "returncode": int(rc), "wall_s": int(elapsed),
     "max_steps": os.environ.get("MAX_STEPS") or None,   # set => smoke run, not comparable
@@ -143,6 +154,10 @@ if rows:
     })
 print()
 print("=" * 62)
+_e = rec.get("env", {})
+print(f"  {'env':<16} {_e.get('os')} | {_e.get('gpu')} | drv {_e.get('driver')}")
+print(f"  {'renderer':<16} {(_e.get('vulkan_devices') or ['?'])[0]} | icd rc={_e.get('vulkan_icd_negotiate_rc')}")
+print(f"  {'commit':<16} {_e.get('behavior26_commit')}{' (DIRTY)' if _e.get('behavior26_dirty') else ''}")
 for k in ("condition", "intra_threads", "inter_threads", "wall_s", "sim_steps",
           "sim_time_s", "stepping_fps", "scene_load_s", "q_score", "success",
           "steps", "dist_base", "dist_left", "dist_right",
