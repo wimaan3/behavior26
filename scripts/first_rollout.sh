@@ -114,17 +114,33 @@ if rows:
     d = rows[0]
     steps = (d.get("time") or {}).get("simulator_steps")
     sim_t = (d.get("time") or {}).get("simulator_time")
+    dist = d.get("agent_distance") or {}
     rec.update({
         "q_score": (d.get("q_score") or {}).get("final"),
         "success": d.get("success"),
         "sim_steps": steps, "sim_time_s": sim_t,
         "stepping_fps": round(steps / sim_t, 2) if steps and sim_t else None,
         "scene_load_s": round(int(elapsed) - sim_t, 1) if sim_t else None,
+        # CONTINUOUS trajectory fields. Q on a D=1 task is binary and hides any
+        # divergence short of flipping the outcome; these move every step, so two
+        # runs that diverge at all will differ here even when Q agrees. That
+        # matters because OMP_NUM_THREADS is a general OpenMP variable -- other
+        # libraries in the Isaac Sim stack may read it, so a physics-side
+        # difference can survive even if the torch policy path is bit-identical.
+        # A physics-side divergence is the one that would break replication.
+        "steps": d.get("steps"),
+        "dist_base": dist.get("base"),
+        "dist_left": dist.get("left"),
+        "dist_right": dist.get("right"),
+        "normalized_agent_distance": d.get("normalized_agent_distance"),
+        "normalized_time": (d.get("time") or {}).get("normalized_time"),
     })
 print()
 print("=" * 62)
 for k in ("condition", "intra_threads", "inter_threads", "wall_s", "sim_steps",
-          "sim_time_s", "stepping_fps", "scene_load_s", "q_score", "success"):
+          "sim_time_s", "stepping_fps", "scene_load_s", "q_score", "success",
+          "steps", "dist_base", "dist_left", "dist_right",
+          "normalized_agent_distance", "normalized_time"):
     if k in rec:
         print(f"  {k:<16} {rec[k]}")
 print("=" * 62)
