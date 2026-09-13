@@ -19,10 +19,19 @@ Written for the next morning. Read this first, then
 # 2. On the box — NOT setup_cloud.sh. The env and dataset are already there.
 source /workspace/env.sh
 
-# 3. Assert the box can render BEFORE anything expensive (~seconds):
-cd /workspace/behavior26 && bash scripts/preflight.sh
+# 3. The clone on the volume predates tonight's fixes -- the g++ install, the
+#    dataset check, the separated dataset stage are all in commits it does not
+#    have. Pull BEFORE running preflight, or you will run the old checks.
+cd /workspace/behavior26 && git pull origin main
 
-# 4. Only then: scene load, and the (a)/(b)/(c) thread matrix.
+# 4. Assert the box can render BEFORE anything expensive (~seconds).
+#    0b = Vulkan on hardware (not llvmpipe), 0c = g++, 0f = dataset present.
+bash scripts/preflight.sh
+
+# 5. Confirm volume headroom -- the env is 42 GB and NFS allocates ~2.5x apparent.
+du -sh /workspace/*
+
+# 6. Only then: scene load, and the (a)/(b)/(c) thread matrix.
 bash scripts/first_rollout.sh
 ```
 
