@@ -284,3 +284,27 @@ def test_env_sh_puts_the_env_bin_ahead_of_conda_base(tmp_path, stub_bin):
     assert env_bin in path_line and base_bin in path_line
     assert path_line.index(env_bin) < path_line.index(base_bin), (
         f"base conda bin precedes the env bin: {path_line}")
+
+
+def test_setup_installs_a_cxx_compiler_when_absent(tmp_path, stub_bin):
+    """torch.compile needs a C++ driver at `import omnigibson` time.
+
+    selkies-egl-desktop:26.04 ships gcc but NOT g++, and the failure surfaces
+    ~100 minutes into a fresh install -- at the dataset step, after the 42 GB env
+    is built -- as InvalidCxxCompiler, an error naming neither the image nor the
+    missing package. setup_cloud.sh must PROVIDE the compiler, not assume it.
+    """
+    text = (REPO / "scripts" / "setup_cloud.sh").read_text()
+    assert "cxx-compiler" in text, "setup_cloud.sh does not install a C++ compiler"
+    assert "ENV_PREFIX" in text.split("cxx-compiler")[0][-400:], (
+        "the compiler must go into the ENV -- the image may be non-root")
+    # gcc alone must not satisfy the check
+    assert 'command -v g++' in text
+
+
+def test_preflight_checks_for_a_cxx_compiler():
+    """One second of checking against 100 minutes of install."""
+    text = (REPO / "scripts" / "preflight.sh").read_text()
+    assert "0c. build toolchain" in text
+    assert "InvalidCxxCompiler" in text, "must name the error it prevents"
+    assert "gcc alone is not enough" in text, "gcc present + g++ absent is the real case"
