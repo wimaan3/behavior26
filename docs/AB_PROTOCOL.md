@@ -197,6 +197,40 @@ Delivers:
 
 Budget: **~$25.**
 
+#### Preflight — run BEFORE `setup_cloud.sh`
+
+```bash
+bash scripts/preflight.sh        # seconds; exits non-zero and says why
+```
+
+`setup_cloud.sh` is 30–60 minutes and pulls ~30 GB. These three checks take
+seconds and each one fails for a reason that would otherwise surface *after*
+that spend:
+
+1. **`pytest tests/`** — does our own suite pass on this box at all. Green means
+   the clone is intact, python works and the tool deps resolve. Red means stop
+   now, not after the install.
+2. **The BEHAVIOR-1K tag is `v3.9.2`.** The pinned tag moves (it was v3.9.1),
+   and **`v3.9.0` is banned for evaluation** — running it means a full reinstall
+   at best, a submission scored against the wrong evaluator at worst. Preflight
+   refuses a banned tag, and separately confirms the tag still resolves upstream
+   so a retired or mistyped tag fails in seconds rather than 40 minutes into a
+   clone. If the checkout already exists, it checks what it is actually on.
+3. **The robot name is `robot_r1` on both sides.** The evaluator's `r1pro.yaml`
+   says `name: robot_r1`; upstream openpi's `b1k.py` says `name="robot"`. Every
+   observation key is prefixed with it, so a mismatch makes `eval_b1k_wrapper`
+   look up `robot::proprio` while the evaluator publishes `robot_r1::proprio` —
+   **KeyError on the first step of the first rollout**, after the scene has
+   loaded and the money is spent. Preflight checks our vendored yaml and that
+   the openpi patch sets `ROBOT_NAME = "robot_r1"`.
+
+**Run preflight a second time after the openpi fork is installed.** The live
+openpi↔evaluator comparison
+(`test_robot_name_matches_between_openpi_and_the_robot_config`) *skips* when
+openpi is not importable — which is exactly the run where it would tell you
+least. Before openpi exists, preflight can only confirm the patch carries the
+fix; only the second run proves the first step will not KeyError.
+
 #### Timing `import omnigibson` on the volume env
 
 The conda env lives on the network volume (`scripts/setup_cloud.sh`). A conda
