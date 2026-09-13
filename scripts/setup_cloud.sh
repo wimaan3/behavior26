@@ -62,6 +62,30 @@ OG_DATA="${OMNIGIBSON_DATA_PATH:-${VOLUME_ROOT}/og-data}"
 OG_APPDATA="${OMNIGIBSON_APPDATA_PATH:-${HOME}/og-appdata}"   # container disk, on purpose
 ENV_SH="${VOLUME_ROOT}/env.sh"
 
+# An INHERITED OMNIGIBSON_DATA_PATH or BEHAVIOR_ROOT silently wins over
+# VOLUME_ROOT above, and a stale one sends the 29.3 GB dataset somewhere that is
+# not the volume -- which is the exact failure the volume guard exists to stop,
+# arriving through a different door. Found the hard way: env.sh writes a `source`
+# line into ~/.bashrc, so every later login shell re-exports whatever the last
+# run set, including paths under /tmp that no longer exist.
+#
+# A deliberate override INSIDE the volume is fine. One outside it is refused.
+# (OMNIGIBSON_APPDATA_PATH is exempt: it is meant to be off the volume.)
+for _var in OMNIGIBSON_DATA_PATH BEHAVIOR_ROOT; do
+  _val="$(eval "printf '%s' \"\${${_var}:-}\"")"
+  [ -n "${_val}" ] || continue
+  case "${_val}" in
+    "${VOLUME_ROOT}"/*|"${VOLUME_ROOT}") ;;
+    *)
+      echo "ERROR: ${_var}=${_val} points outside VOLUME_ROOT=${VOLUME_ROOT}." >&2
+      echo "       That would put expensive, pod-lifetime artifacts off the volume." >&2
+      echo "       It is usually a stale export from a previous run -- check for" >&2
+      echo "       'source .../env.sh' lines in ~/.bashrc, then: unset ${_var}" >&2
+      exit 1
+      ;;
+  esac
+done
+
 echo "==> pinned tag: ${TAG}"
 echo "    confirm this is current before trusting the run"
 
@@ -123,7 +147,11 @@ EOF
 echo "==> wrote ${ENV_SH}"
 
 # Convenience for THIS pod only; ~/.bashrc is container disk and does not persist.
-if ! grep -qsF "source ${ENV_SH}" "${HOME}/.bashrc" 2>/dev/null; then
+# SKIP_BASHRC=1 suppresses it -- tests must set that, because appending here is a
+# side effect outside any temp dir, and the stale exports it leaves behind are
+# what broke the guard above.
+if [ "${SKIP_BASHRC:-0}" != "1" ] \
+   && ! grep -qsF "source ${ENV_SH}" "${HOME}/.bashrc" 2>/dev/null; then
   echo "source ${ENV_SH}" >> "${HOME}/.bashrc"
 fi
 
