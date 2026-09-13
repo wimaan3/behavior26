@@ -11,6 +11,17 @@ The causal chain is threads -> reduction order -> policy actions -> trajectory
 rather than three rollouts: push one fixed input through the same ops under each
 thread configuration and compare bitwise.
 
+WHERE DIVERGENCE COULD ACTUALLY COME FROM
+-----------------------------------------
+Not the model forward. set_num_threads governs CPU intra-op parallelism; if the
+policy runs on GPU its reduction order is set by the CUDA kernels regardless, so
+CPU digests moving does not transfer to it. The live path is CPU-side work
+BEFORE the GPU -- and in this stack that is concrete: evaluator.py:344-351 does
+per-step relative_pose_transform / th.cat / mat2pose over camera poses and puts
+the result in obs[...::cam_rel_poses], which reaches the policy. The
+eval_small_* and eval_image_* digests below are shaped like those ops. Read
+those, not cpu_matmul, when deciding whether actions can move.
+
 WHAT IT DOES NOT ANSWER
 -----------------------
 Only the TORCH path. OMP_NUM_THREADS is a general OpenMP variable and other
@@ -68,6 +79,23 @@ def main() -> int:
     ).eval()
     with torch.no_grad():
         out["cpu_mlp"] = digest(net(x))
+
+    # --- ops shaped like the ones the eval path actually runs on CPU -------------
+    # evaluator.py:344-351 does per-step pose math and concatenation, and the
+    # result lands in obs[...::cam_rel_poses] -- i.e. it reaches the policy. These
+    # are SMALL, and torch often runs small ops single-threaded regardless of the
+    # pool size, so they may be insensitive to thread count even when big matmuls
+    # are not. That is the whole question, so measure it rather than assume.
+    g2 = torch.Generator().manual_seed(7)
+    poses = torch.randn(8, 4, 4, generator=g2, dtype=torch.float32)
+    out["eval_small_matinv"] = digest(torch.linalg.inv(poses))
+    out["eval_small_matmul"] = digest(poses @ poses.transpose(-1, -2))
+    out["eval_small_cat"] = digest(torch.cat([poses.reshape(8, 16)] * 3, dim=-1))
+
+    # And one image-sized op: full-res RGB+D is the large CPU tensor per step.
+    img = torch.randn(3, 720, 1280, generator=g2, dtype=torch.float32)
+    out["eval_image_mean"] = digest(img.mean(dim=(1, 2)))
+    out["eval_image_scale"] = digest((img * 0.00392156862745098).sum())
 
     if torch.cuda.is_available():
         xg, wg = x.cuda(), w.cuda()

@@ -453,6 +453,78 @@ design              k=<> n=<> m=<>
 
 ---
 
+### 3.5a Thread configuration — tag every number, and do NOT read a dev/stock split as invalidating the A/B
+
+Torch's thread configuration is a free variable that changes throughput and can,
+in principle, change numbers. `evaluator.py` (v3.9.2) ships the disabled remains
+of a known fix — `TORCH_NUM_THREADS = None`, `TORCH_NUM_INTEROP_THREADS = None` —
+so torch sizes both pools from **detected cores**, not the cgroup quota: measured
+**192/192 against a 20.4-core quota** on the session-A pod. A participant traced
+3 fps to contact-cache thread thrashing and reported 20–30 fps with
+`set_num_threads(4)` + `set_num_interop_threads(1)`.
+
+**Every measured number carries the thread configuration it was produced under.**
+`scripts/first_rollout.sh` records `intra_threads` and `inter_threads` in each
+result row for exactly this reason. A seconds-per-rollout or Q figure without
+that tag is not usable.
+
+Conditions, as named in the results:
+
+| | intra-op | inter-op | how |
+|---|---|---|---|
+| **a** stock | detected cores | detected cores | nothing set |
+| **b** | 4 | detected cores | `OMP_NUM_THREADS=4` — reaches the intra-op pool ONLY |
+| **c** | 4 | 1 | `PYTHONPATH=scripts/threadfix` + `BEHAVIOR_TORCH_THREADS/INTEROP` |
+
+#### If the fast config changes the numbers, the A/B is still valid
+
+Suppose actions or trajectories differ between stock and fast, and we therefore
+run **dev iteration under fast and reported numbers under stock**. It is easy to
+read that split as compromising the comparison. **It does not.**
+
+ΔQ is a *paired* difference and the thread configuration is *constant across
+arms*. Both arms run the same config, so whatever offset it induces is common to
+both and cancels in `d_i = Q_B(i) − Q_A(i)`. The A/B remains valid measured
+entirely under the fast config.
+
+What the split does cost is narrower and worth stating exactly: **we lose the
+ability to predict submission Q from dev Q.** The dev number is a valid estimate
+of the *effect*; it stops being a reliable estimate of the *level* the organizers
+will reproduce, because they replicate under stock. So:
+
+- **A/B conclusions** — adopt/reject the progress head — stand on fast-config
+  numbers. No re-run needed.
+- **Any absolute Q we report** — submission, or a claim about baseline level —
+  must be produced under stock config.
+- Do not re-run a completed A/B "because it was measured under the fast config".
+  That is the mistake this section exists to prevent.
+
+#### Where divergence could actually come from
+
+Not the model forward: `set_num_threads` governs CPU intra-op parallelism, and a
+GPU forward pass has its reduction order set by CUDA kernels regardless. The live
+path is CPU-side work before the GPU — concretely `evaluator.py:344-351`, which
+does per-step `relative_pose_transform` / `th.cat` / `mat2pose` over camera poses
+and puts the result in `obs[...::cam_rel_poses]`, where the policy sees it.
+
+Measured with `scripts/thread_numerics_probe.py`: ops of that shape (4×4 pose
+math, concatenation) are **bitwise identical** across thread counts — they are
+below torch's parallelization grain size. Only full reductions over millions of
+elements move. That points toward the favourable branch, but it was measured at
+intra 1-vs-3 on a 6-core box; 192-vs-4 is a different regime and the pod
+measurement governs.
+
+And `OMP_NUM_THREADS` is a **general OpenMP variable** — other libraries in the
+Isaac Sim stack may read it. So torch being bit-identical does not close the
+question. If actions match but the trajectory still moves, the difference is
+physics-side, and that is the one that breaks replication. `first_rollout.sh`
+therefore records `sim_steps`, `steps`, `agent_distance.{base,left,right}`,
+`normalized_agent_distance` and `normalized_time` per condition: they move
+continuously, so they expose a divergence that a binary Q on `turning_on_radio`
+would hide entirely.
+
+---
+
 ### 3.6 Both arms train on the identical filtered dataset — hard rule
 
 **Same status as §3.5: violating this voids the comparison.**
