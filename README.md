@@ -66,6 +66,22 @@ python analysis/power.py                              # A/B design + cost
 bash scripts/train_cloud.sh --dry-run                 # walks the whole plan
 ```
 
+> **Sizing `--workers` on a real box — do not use `nproc`.** Each worker is a
+> full OmniGibson instance, and containers misreport their own size: the session-A
+> pod showed `nproc` 192 and `free` 723 GB against a cgroup quota of **20.4 CPUs**
+> and **84 GB**. `--workers` defaults to 1, so nothing auto-thrashes, but sizing
+> a sweep by eye off `nproc` would.
+>
+> Worse, the throughput knob upstream is **inert**: `evaluator.py` (v3.9.2) has
+> `TORCH_NUM_THREADS = None`, so `th.set_num_threads()` is never called and torch
+> sizes its pool from detected cores — 192 — ignoring the cgroup. One process
+> alone oversubscribes ~9×.
+>
+> So pin threads per worker explicitly (`OMP_NUM_THREADS=4`, or set
+> `TORCH_NUM_THREADS`), then the practical bound is **~4–5 concurrent workers**
+> on a 20-CPU box — `20.4 / 4`. Not 192, and not the vCPU count on the invoice.
+> `scripts/preflight.sh` prints the cgroup limits and this derived bound.
+
 ### 3. A real rollout (needs a rented GPU)
 
 ```bash
