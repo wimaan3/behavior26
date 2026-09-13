@@ -285,6 +285,12 @@ subprocess precisely to amortize it, and `--instances-per-job` defaults to `0`,
 meaning one job per task. So a k=2 A/B cycle pays **4 imports**, not 108. Even
 at 5 minutes that is 20 minutes ≈ $0.25 — irrelevant.
 
+> **SUPERSEDED 2026-09-13 — see revision 2026-09-13f at the end of this file.**
+> Everything below reasons from the 44 s import as the fixed per-job cost. The
+> real fixed cost is the **720 s scene load**, 16× larger, and it is paid per
+> invocation rather than per trial. The conclusions about *where the env lives*
+> still hold; the arithmetic about how finely to parallelise does not.
+
 It only bites under parallelism, where `--workers N` with a small
 `--instances-per-job` multiplies job count. So the real output of this
 measurement is a ceiling on how finely we may parallelise:
@@ -1303,3 +1309,85 @@ work *to the path being measured*, under thread settings that are the
 independent variable — the instrument would be part of the effect. (b) measures
 the unmodified evaluation path and needs nothing from upstream. It costs one
 extra run per condition, roughly 9 warm minutes each.
+
+
+---
+
+## Revision 2026-09-13f — scene load is per JOB, not per trial. The budget reopens.
+
+Both questions from revision 2026-09-13e are now answered, on one pod
+(RTX 4090, 28 vCPU, EU-RO-1, driver 580.178.04, commit `058d0b4`,
+`turning_on_radio`, null policy, mode=train). Raw:
+`docs/sessionA-2026-09-13/scene-reuse.jsonl`.
+
+| run | indices | max_steps | rollouts | wall_s |
+|---|---|---|---|---|
+| cold, 1 instance | `0` | 50 | 1 | **1346** |
+| warm, 1 instance | `0` | 50 | 1 | **720** |
+| warm, 1 instance | `0` | 550 | 1 | **713** |
+| warm, 3 instances | `0 1 2` | 50 | 3 | **719** |
+
+### Q1 — the scene IS reused across instances. Completely.
+
+Three distinct instances (`instance_id` 0, 1, 2, 51 steps each) cost **719 s
+against 720 s for one**. Ratio **1.00×**; no reuse would have predicted ~2160 s.
+
+This matches the challenge's design — instances are `*-tro_state.json` STATE
+files layered onto a single scene, not separate scenes — and the Discord guidance
+that `env.reset()` / `Evaluator.reset` reset between rollouts without restarting
+the simulator.
+
+`harness/launch.py::build_jobs` previously claimed the opposite in its docstring
+("Scene load is per-trial regardless, so grouping costs little"). Corrected.
+
+### Q2 — episode length is very nearly free.
+
+500 extra steps cost **−7 s**: marginal **−0.014 s/step**, i.e. zero within
+run-to-run noise. If the true cost were even 0.1 s/step we would have seen +50 s.
+So of a 720 s run, **~715 s is fixed load and stepping is below our resolution**.
+
+A full ~3,224-frame episode therefore costs about what a 51-step one does. The
+`MAX_STEPS` smoke-test caveat still stands for **Q** — a truncated episode banks
+less goal state — but it no longer buys meaningful wall-clock.
+
+### The cost model that replaces the old one
+
+**Cost ≈ (number of evaluator invocations) × ~12 warm minutes.** Nearly
+independent of instances per job and of episode length.
+
+```
+jobs per A/B cycle = 2 arms x k tasks          (instances and seeds ride along free)
+cycle cost         ~ jobs x 12 min             (warm; ~22 min if the pod is cold)
+```
+
+- k=2 → 4 jobs ≈ **48 min ≈ $0.60**
+- k=4 → 8 jobs ≈ **96 min ≈ $1.20**
+
+at $0.74/hr. Evaluation was the dominant budget line in every earlier estimate;
+on these numbers it is close to a rounding error, and **k=4 at n=27 is affordable**.
+
+### Two consequences that invert earlier guidance
+
+1. **`--instances-per-job 0` is correct, not merely tolerable.** Splitting a
+   task's instances across jobs multiplies the dominant term. The note added in
+   `a8fb7d7` — sizing `--instances-per-job` to spread work across ~5 workers —
+   was reasoning from the 44 s import and is **wrong under a 720 s load**: it
+   would buy parallelism at 5× the scene loads. Superseded.
+2. **Parallelism on a single pod now HURTS.** `--workers N` with instances split
+   N ways pays N scene loads for one GPU's throughput. Parallelise across pods
+   (each paying one load) or not at all.
+
+### What is still not established
+
+- **Reuse verified to 3 instances, not 27.** RSS was ~13.7 GB at one instance.
+  Whether a 27-instance invocation leaks or OOMs is unknown, and it is the one
+  thing that could claw the saving back. Measure before committing an n=27 sweep
+  to a single job.
+- **Absolute wall times are not comparable across pods.** Cold load was 1028 s on
+  a 16-vCPU 4090 and 1346 s on a 28-vCPU one — *more* cores, *slower* load,
+  consistent with NFS I/O rather than CPU being the binding constraint. The
+  warm/cold ratio held (−46.0% vs −46.5%), so ratios travel; absolutes do not.
+- **The thread matrix's fps leg is now nearly pointless.** If stepping is free,
+  thread settings cannot move throughput. What survives is the *numerics*
+  question — whether thread counts perturb physics enough to change Q — which is
+  a correctness check, not a performance one, and should be framed that way.
