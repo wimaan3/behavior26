@@ -79,6 +79,24 @@ echo
 # -- 1. does our own suite pass on this box at all --------------------------------------
 # A green suite here means the clone is intact, python works, and the tool deps
 # resolve. A red one means stop now, not after the install.
+# -- 0b. CAN THIS BOX RENDER? -----------------------------------------------------------
+# The single check that would have replaced an entire evening on 2026-09-13.
+# See scripts/vulkan_check.py for why nvidia-smi and torch.cuda both say nothing
+# about this, and why the failure otherwise surfaces as a segfault minutes into a
+# scene load -- after the install and the 36 GB download are already paid for.
+echo "0b. rendering (Vulkan)"
+if command -v vulkaninfo >/dev/null 2>&1 || [ -f /usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0 ]; then
+  if python3 "${REPO}/scripts/vulkan_check.py"; then
+    :
+  else
+    FAILED=1
+  fi
+else
+  warn "no vulkaninfo and no libGLX_nvidia -- cannot verify rendering here"
+  warn "  (fine on a laptop; on a GPU box install vulkan-tools and re-run)"
+fi
+echo
+
 echo "1. our test suite"
 if ! python3 -c "import pandas, yaml, pyarrow" 2>/dev/null; then
   warn "tool deps missing -- installing requirements-tools.txt"
