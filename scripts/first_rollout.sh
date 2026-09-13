@@ -33,6 +33,10 @@ PORT="${PORT:-8000}"
 MODE="${MODE:-train}"
 INSTANCE="${INSTANCE:-0}"
 COND="${THREAD_CONDITION:-a}"
+# MAX_STEPS truncates the episode. For SMOKE-TESTING the plumbing only -- a
+# truncated rollout's Q and fps are not comparable to a full one, so never put a
+# MAX_STEPS run in the results the protocol quotes.
+MAX_STEPS="${MAX_STEPS:-}"
 OUT="${OUT:-rollouts/000-baseline-smoke-${COND}}"
 RESULTS="${RESULTS:-${REPO}/rollouts/thread_conditions.jsonl}"
 
@@ -86,7 +90,8 @@ python -m omnigibson.eval.eval \
   --env-wrapper omnigibson.eval.wrappers.RGBDFullResWrapper \
   --output-dir "${OUT}" \
   --write-video \
-  --headless
+  --headless \
+  ${MAX_STEPS:+--max-steps ${MAX_STEPS}}
 RC=$?
 
 ELAPSED=$(( $(date +%s) - START ))
@@ -107,6 +112,7 @@ import torch
 rec = {
     "condition": cond, "task": task, "mode": mode, "instance": int(inst),
     "returncode": int(rc), "wall_s": int(elapsed),
+    "max_steps": os.environ.get("MAX_STEPS") or None,   # set => smoke run, not comparable
     "intra_threads": torch.get_num_threads(),
     "inter_threads": torch.get_num_interop_threads(),
 }
