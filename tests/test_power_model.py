@@ -216,12 +216,13 @@ def test_reuse_leaves_the_stepping_term_untouched():
     """Reuse amortises the LOAD. Every instance is still a full episode, and with
     a real policy those frames are not free -- so n must still multiply frames."""
     tasks = [{"frames": 3224.0}]
-    kw = dict(tasks=tasks, fps=13.5, scene_load_s=720.0, reuse_scene=True)
-    h27 = cycle_hours(tasks=tasks, n=27, m=1, fps=13.5, scene_load_s=720.0, reuse_scene=True)
-    h54 = cycle_hours(tasks=tasks, n=54, m=1, fps=13.5, scene_load_s=720.0, reuse_scene=True)
-    stepping_27 = 2 * 27 * 3224.0 / 13.5 / 3600.0
-    stepping_54 = 2 * 54 * 3224.0 / 13.5 / 3600.0
-    assert math.isclose(h54 - h27, stepping_54 - stepping_27, rel_tol=1e-9)
+    kw = dict(tasks=tasks, m=1, fps=13.5, scene_load_s=720.0, reuse_scene=True, reset_s=30.8)
+    h27 = cycle_hours(n=27, **kw)
+    h54 = cycle_hours(n=54, **kw)
+    # Doubling n doubles the PER-INSTANCE work (reset + episode) and nothing else:
+    # the load term is flat, so the delta is exactly 27 more instances.
+    per_instance = 2 * (30.8 + 3224.0 / 13.5) / 3600.0
+    assert math.isclose(h54 - h27, 27 * per_instance, rel_tol=1e-9)
 
 
 def test_zero_instances_still_pays_one_load_per_job():
@@ -229,3 +230,31 @@ def test_zero_instances_still_pays_one_load_per_job():
     tasks = [{"frames": 1000.0}]
     h = cycle_hours(tasks=tasks, n=0, m=1, fps=13.5, scene_load_s=720.0, reuse_scene=True)
     assert math.isclose(h, 2 * 720.0 / 3600.0, rel_tol=1e-9)
+
+
+def test_each_instance_costs_a_reset_even_when_stepping_is_free():
+    """Measured at n=27: 30.8 s per instance, and remarkably regular -- rollouts
+    landed at 1064, 1094, 1135 ... 1803, 1834, 1864 s.
+
+    The n=3 run implied a marginal of ~0 (719 s for three vs 720 s for one). That
+    was not a measurement, it was a resolution failure: two extra instances at
+    ~31 s is 62 s against ~720 s of NFS-variable load. n=27 averages over 26
+    increments and sees it clearly.
+
+    So reuse amortises the SCENE LOAD but not the per-instance reset, which is
+    fixed cost per instance and independent of episode length.
+    """
+    tasks = [{"frames": 3224.0}]
+    kw = dict(m=1, fps=13.5, scene_load_s=1064.0, reuse_scene=True, reset_s=30.8)
+    h1 = cycle_hours(tasks=tasks, n=1, **kw)
+    h27 = cycle_hours(tasks=tasks, n=27, **kw)
+    # 26 extra instances each pay one reset plus one episode of stepping.
+    expected = 2 * 26 * (30.8 + 3224.0 / 13.5) / 3600.0
+    assert math.isclose(h27 - h1, expected, rel_tol=1e-9)
+
+
+def test_reset_defaults_to_the_measured_value_not_zero():
+    """A zero default would silently restore the wrong n=3 conclusion."""
+    import inspect
+    sig = inspect.signature(cycle_hours)
+    assert sig.parameters["reset_s"].default > 0

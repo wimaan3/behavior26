@@ -1429,3 +1429,76 @@ on these numbers it is close to a rounding error, and **k=4 at n=27 is affordabl
   thread settings cannot move throughput. What survives is the *numerics*
   question — whether thread counts perturb physics enough to change Q — which is
   a correctness check, not a performance one, and should be framed that way.
+
+
+---
+
+## Revision 2026-09-13g — reuse holds at n=27, and the marginal is 30.8 s, not zero
+
+The gate on everything in 2026-09-13f. Raw: `docs/sessionA-2026-09-13/scale-n27.txt`.
+
+**27 instances in one evaluator invocation: exit 0, 27/27 rollouts, 27 distinct
+`instance_id`s, wall 1868 s, RSS flat.**
+
+| | |
+|---|---|
+| RSS start / peak / end | 0.01 / **13.84** / 13.77 GB |
+| RSS growth per rollout | **+0.002 GB** |
+| GPU memory | ~14.1 GB, flat |
+
+Memory does not grow with instances. Reuse is safe at n=27, and on this slope
+n=54 would land at ~13.9 GB — no reason to expect a wall.
+
+### The correction: the per-instance marginal is NOT zero
+
+Rollouts landed at 1064, 1094, 1135, … 1803, 1834, 1864 s — strikingly regular:
+
+```
+first rollout      : 1064 s     (cold scene load + first instance)
+rollouts 1 -> 27   :  800 s over 26 instances
+MARGINAL           : 30.8 s per instance
+```
+
+**Revision 2026-09-13f said the marginal was ~0, citing 719 s for three instances
+against 720 s for one. That was a resolution failure, not a measurement.** Two
+extra instances at ~31 s is 62 s against ~720 s of NFS-variable load — inside the
+run-to-run spread. n=27 averages over 26 increments and resolves it cleanly.
+
+The reuse conclusion is unaffected and is if anything stronger: 27 instances cost
+**1868 s against ~36,000 s** for 27 separate cold loads. But "instances are free"
+was wrong; they cost ~31 s each.
+
+### The cost model, third and best version
+
+```
+job_s = scene_load + n x (reset_s + frames / fps)
+        ~1064 cold          ~30.8     <- fps still ASSUMED
+        ~720 warm
+```
+
+`reset_s` is instance-state loading and scene repositioning. It survives reuse
+and is **independent of episode length** — consistent with the two-point result
+that 500 extra steps cost −7 s. `analysis/power.py::cycle_hours` implements this,
+with `DEFAULT_RESET_S = 30.8`.
+
+**`fps` remains the open term and is now the only one.** Our measurements used
+`policy/null_server.py`, which returns zeros and does no inference, so they bound
+the simulator and say nothing about a real arm. The organizers publish ~13.5 FPS
+end-to-end. At n=27 that term is `27 × 3224 / 13.5 ≈ 6,450 s` per job — six times
+the scene load — so **whether evaluation is cheap or expensive is now entirely a
+question about policy inference, not about the simulator.**
+
+### Cost of the design range, k at n=27 (m=1 seed, MDE at f=0.05)
+
+| k | MDE | stepping free | at 13.5 fps |
+|---|---|---|---|
+| 2 | 0.064 | $1 | $6 |
+| 4 | 0.045 | $1 | $13 |
+| 6 | 0.037 | $2 | $22 |
+| 8 | 0.032 | **$2** | **$32** |
+
+At m=3: k=6 → MDE 0.023 ($5 / $65), k=8 → 0.020 ($7 / $96).
+
+Both columns are affordable against $200. **k is no longer gated by evaluation
+cost — it is gated by training cost and by the arm-throughput benchmark that
+fixes which column applies.**
