@@ -227,6 +227,27 @@ else
 fi
 echo
 
+# -- 0f. DID THE DATASET ACTUALLY LAND? -------------------------------------------------
+# Same shape as the g++ trap in 0c: an empty og-data does not fail at import, it
+# fails at SCENE LOAD -- after the box is already billing -- with an error that
+# names a missing USD file rather than a missing download.
+#
+# `-d` is not the check. setup_cloud.sh creates og-data itself, so the directory
+# exists from the first run onward; the case we actually hit was the directory
+# present and EMPTY, because the installer had been skipped. Check for contents.
+echo "0f. dataset"
+OG_DIR="${OMNIGIBSON_DATA_PATH:-${VOLUME_ROOT:-/workspace}/og-data}"
+if [ ! -d "${OG_DIR}" ]; then
+  warn "no ${OG_DIR} yet -- setup_cloud.sh has not run here"
+elif [ -z "$(ls -A "${OG_DIR}" 2>/dev/null)" ]; then
+  fail "${OG_DIR} exists but is EMPTY -- the dataset never downloaded"
+  echo "        Scene load will fail on a missing USD, not on a missing dataset."
+  echo "        Fix: bash scripts/download_dataset.sh   (idempotent, ~36 GB)"
+else
+  pass "dataset present at ${OG_DIR} ($(du -sh "${OG_DIR}" 2>/dev/null | cut -f1))"
+fi
+echo
+
 # -- 0e. SESSION B: can jax actually train here? ----------------------------------------
 # Asserted now rather than discovered during the first PAID training run. jax is
 # openpi's backend; a CUDA/driver pair it does not support leaves it silently on
