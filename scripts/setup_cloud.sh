@@ -235,8 +235,12 @@ cat <<NOTES
 ==> next
     source ${ENV_SH}          # sets CONDA_ENVS_PATH etc, then activates
 
-    First OmniGibson import takes up to ~5 minutes. That is a one-time shader
-    compile, not a hang.
+    MEASURED 2026-09-13: import omnigibson took 45.0 / 44.5 / 44.1 s on runs
+    1/2/3 from the NFS volume, with the GPU at 0% and the appdata shader cache
+    still empty afterwards. The long-standing "~5 minutes, one-time shader
+    compile" note did NOT reproduce on v3.9.2 -- if a compile happens it is on
+    og.Environment(...) creation, not on import. Expect ~45 s; if you see 5
+    minutes, that is worth investigating rather than waiting out.
 
     If it stalls at "HydraEngine rtx failed creating scene renderer":
         export OMNIGIBSON_GPU_ID=0
@@ -255,8 +259,10 @@ cat <<NOTES
     Compare seconds-per-rollout over SEVERAL instances per card, not one:
     the evaluator is nondeterministic and a single rollout's wall-clock varies.
 
-    This pod pays the ~5 min shader compile again on its first OmniGibson
-    import: OMNIGIBSON_APPDATA_PATH is container disk on purpose, so the shader
-    cache does not travel with the volume. Expected, not a fault -- and time the
-    SECOND import, not the first (see docs/AB_PROTOCOL.md, session A).
+    Time the first import on THIS pod carefully: it is the only genuinely COLD
+    read of the env's file tree we can get. The session-A pod could not measure
+    it -- its files were already in page cache from the install (84 GB cgroup
+    limit against a ~20 GB env), so all three runs came out at ~44 s. A cold
+    first import here that is much worse than 44 s is the evidence that would
+    justify moving conda to container disk; one near 44 s says leave it.
 NOTES
