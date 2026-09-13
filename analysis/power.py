@@ -195,6 +195,36 @@ def rollout_hours(frames: float, fps: float, scene_load_s: float) -> float:
     return (scene_load_s + frames / fps) / 3600.0
 
 
+def cycle_hours(tasks: list, n: int, m: int, fps: float, scene_load_s: float,
+                reuse_scene: bool = True) -> float:
+    """GPU-hours for ONE full A/B cycle: 2 arms x k tasks x n instances x m seeds.
+
+    `reuse_scene` is the difference between two cost models that disagree by an
+    order of magnitude at n=27.
+
+    MEASURED 2026-09-13 (docs/sessionA-2026-09-13/scene-reuse.jsonl): one
+    evaluator invocation loads the scene ONCE and reuses it across instances --
+    3 instances cost 719 s against 720 s for 1. So the load is paid per JOB
+    (one per task, per arm, per seed), not per rollout:
+
+        reuse   : 2 * m * sum_tasks( scene_load + n * frames / fps )
+        no reuse: 2 * m * n * sum_tasks( scene_load + frames / fps )
+
+    The stepping term is identical in both -- every instance is still a full
+    episode. Reuse amortises the LOAD only, which matters because the load is
+    ~715 s of a 720 s null-policy rollout.
+
+    CAVEAT on `fps`: our own measurement of the stepping term used a null policy
+    and found it below resolution. It therefore bounds simulator+rendering cost
+    and says nothing about a real arm's inference, which does NOT amortise. Keep
+    `fps` at the organizers' figure until an arm is benchmarked.
+    """
+    stepping_s = sum(n * t["frames"] / fps for t in tasks)
+    load_s = (len(tasks) * scene_load_s if reuse_scene
+              else n * len(tasks) * scene_load_s)
+    return 2 * m * (load_s + stepping_s) / 3600.0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -219,6 +249,11 @@ def main() -> int:
     ap.add_argument("--alpha", type=float, default=0.05)
     ap.add_argument("--power", type=float, default=0.80)
     ap.add_argument("--fps", type=float, default=DEFAULT_FPS)
+    ap.add_argument("--no-scene-reuse", action="store_true",
+                    help="charge scene load once per ROLLOUT instead of once per job. "
+                         "The pre-2026-09-13 model, kept for comparison: measurement "
+                         "shows one invocation loads the scene once and reuses it "
+                         "across instances.")
     ap.add_argument("--scene-load", type=float, default=DEFAULT_SCENE_LOAD_S)
     ap.add_argument("--usd-per-gpu-hour", type=float, default=DEFAULT_GPU_HOUR_USD,
                     help=f"default {DEFAULT_GPU_HOUR_USD} = spot (pessimistic end of "
@@ -304,13 +339,11 @@ def main() -> int:
             if k > len(tasks):
                 continue
             chosen = tasks[:k]                       # always the cheapest k
-            per_arm_hours = sum(
-                rollout_hours(t["frames"], args.fps, args.scene_load) for t in chosen
-            )
             for n in args.instances:
                 units = k * n
                 rollouts = 2 * units * m
-                hours = 2 * n * m * per_arm_hours
+                hours = cycle_hours(chosen, n, m, args.fps, args.scene_load,
+                                    reuse_scene=not args.no_scene_reuse)
                 usd = hours * args.usd_per_gpu_hour
                 # sigma_w depends on the chosen tasks' D, so it is computed per
                 # design rather than once for the whole table.
