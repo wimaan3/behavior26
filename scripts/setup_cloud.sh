@@ -244,6 +244,16 @@ if ! command -v g++ >/dev/null 2>&1 \
 else
   echo "==> C++ compiler present"
 fi
+# -- the dataset ------------------------------------------------------------------------
+# NOT gated on the env. They are separate artifacts that fail separately: the
+# first install here died at the dataset step with the env already built, and
+# the re-run then took the "reusing the env" branch above and skipped the
+# dataset silently. One condition per artifact. Runs AFTER the g++ install
+# because every step below pays an `import omnigibson`.
+DATASET_SH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/download_dataset.sh"
+VOLUME_ROOT="${VOLUME_ROOT}" OMNIGIBSON_DATA_PATH="${OG_DATA}" ENV_SH="${ENV_SH}" \
+  bash "${DATASET_SH}" || echo "!! dataset stage failed -- scenes will not load" >&2
+
 
 cat <<NOTES
 
