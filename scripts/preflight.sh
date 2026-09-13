@@ -40,6 +40,25 @@ else
   fail "pytest failed -- see /tmp/preflight-pytest.log"
   tail -15 /tmp/preflight-pytest.log | sed 's/^/        /'
 fi
+
+# A GREEN SUITE IS NOT FULL COVERAGE. A module-level pytest.importorskip does not
+# report as a skip -- the module fails to COLLECT and its tests vanish from the
+# run entirely, so the summary still says "all passed" with a smaller number
+# nobody reads. That is how a missing pyarrow hid 20 tests on this box while the
+# dev machine ran them all. Assert every test file yields at least one test.
+COLLECTED="$(cd "${REPO}" && python3 -m pytest tests/ -q -p no:cacheprovider \
+              --collect-only 2>/dev/null | grep '^tests/' | sed 's/::.*//' | sort -u)"
+MISSING=""
+for f in "${REPO}"/tests/test_*.py; do
+  rel="tests/$(basename "$f")"
+  printf '%s\n' "${COLLECTED}" | grep -qx "${rel}" || MISSING="${MISSING} ${rel}"
+done
+if [ -n "${MISSING}" ]; then
+  fail "test module(s) collected ZERO tests -- a dependency is missing, not a skip:${MISSING}"
+  echo "        their tests are silently absent from the run above; install the missing dep"
+else
+  pass "all $(printf '%s\n' "${COLLECTED}" | wc -l) test modules collected"
+fi
 echo
 
 # -- 2. the BEHAVIOR-1K tag ------------------------------------------------------------
