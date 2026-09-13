@@ -239,12 +239,36 @@ so the import that is seconds on local disk can be minutes on a volume. That
 cost lands on every process start, so it has to be measured before we plan
 around it.
 
-**Measure it after the first import, not on it.** The first `import omnigibson`
-on any pod includes a one-time shader compile the repo already documents at up
-to ~5 minutes. That is not storage. And because `OMNIGIBSON_APPDATA_PATH` is
-deliberately on container disk, the shader cache does **not** survive the pod —
-so every new pod pays that compile again, including the A5000 one. Record it
-separately as a per-pod fixed cost.
+**MEASURED 2026-09-13 on the session-A pod (RTX 6000 Ada, env on an NFS network
+volume):**
+
+| | |
+|---|---|
+| `import omnigibson`, runs 1 / 2 / 3 | **45.0 / 44.5 / 44.1 s** |
+| cold-vs-warm on scipy / matplotlib / sympy / pandas | within noise (0.8–2.4 s, pairs equal) |
+| NFS walk of the env's 36,494 `.py` files | **22.65 s** (0.621 ms/file) |
+| same walk, container disk (334 files) | 0.014 s (0.042 ms/file) — **14.8× faster per file** |
+| shader cache files under `OMNIGIBSON_APPDATA_PATH` after 3 imports | **0** |
+
+**The "~5 minute shader compile on first import" note did not reproduce.** All
+three imports cost the same ~44 s, the GPU sat at 0% throughout, and the appdata
+cache was still empty afterwards. Either that note is stale for v3.9.2, or the
+compile happens on `og.Environment(...)` creation rather than on import. Do not
+plan around a 5-minute first import without re-checking it.
+
+**Run 1 ≈ run 2 ≈ run 3 also means there was no cold-read penalty to find** —
+the env's files were already in page cache from the install, and the cgroup
+allows 84 GB against a ~20 GB env, so it stays cached. **This pod cannot measure
+the genuinely-cold case.** The A5000 pod's *first* import is the natural
+experiment for that, and it is the number that would justify moving conda to
+container disk. Measure it there before deciding.
+
+What we can say already: **warm import is ~44 s, paid per JOB not per rollout**
+(`build_jobs` amortizes it; `--instances-per-job` defaults to 0 = one job per
+task), so a k=2 A/B cycle pays 4 imports ≈ 3 minutes. That is not worth
+restructuring anything for. The 14.8×-per-file NFS penalty is real but shows up
+in metadata walks — it is why `du -sh` on the volume times out — rather than in
+the import path once cached.
 
 ```bash
 source /workspace/env.sh
