@@ -1,43 +1,135 @@
 #!/usr/bin/env bash
-# THE NUMBER. The single most important output of Week 1.
+# THE NUMBER. The single most important output of session A.
 #
-# Runs one rollout of the only task with a released baseline checkpoint and reports
-# wall-clock. Everything downstream -- how many experiments we can afford, whether a
-# full submission is feasible, how much cloud to buy -- is planned off this figure.
+# Runs one rollout and reports wall clock, STEPPING FPS, and Q. Everything
+# downstream -- how many experiments we can afford, whether a full submission is
+# feasible, how much cloud to buy -- is planned off these figures.
 #
-# Estimate to beat: ~20-25 min/rollout, implying ~350-420 GPU-hours for 1,000 rollouts.
-set -euo pipefail
+# Reports stepping fps separately from wall clock on purpose. Scene load is a
+# fixed 150-300s per trial and does not scale with episode length, so a change
+# that only affects stepping is diluted in wall clock and can be missed.
+#
+# TRAIN MODE BY DEFAULT. The evaluator's --mode defaults to public_test, and
+# this script used to omit --mode entirely -- so it evaluated instance 301, a
+# SCORED public-test instance, bypassing the guard harness/launch.py enforces.
+# Every public instance counts toward the reported score, so repeatedly timing
+# runs there is iterating on the leaderboard. Timing is equally valid on a
+# training instance.
+#
+# Usage:
+#   bash scripts/first_rollout.sh
+#   MODE=public_test INSTANCE=0 bash scripts/first_rollout.sh     # deliberate
+#   THREAD_CONDITION=c bash scripts/first_rollout.sh              # see below
+#
+# Thread conditions (see scripts/threadfix/sitecustomize.py):
+#   a  stock          -- whatever torch picks from detected cores
+#   b  OMP_NUM_THREADS=4 only    -- intra-op 4, inter-op untouched
+#   c  intra 4 + inter 1         -- the disabled upstream fix, in full
+set -uo pipefail
 
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TASK="${TASK:-turning_on_radio}"
 PORT="${PORT:-8000}"
-OUT="${OUT:-rollouts/000-baseline-smoke}"
+MODE="${MODE:-train}"
+INSTANCE="${INSTANCE:-0}"
+COND="${THREAD_CONDITION:-a}"
+OUT="${OUT:-rollouts/000-baseline-smoke-${COND}}"
+RESULTS="${RESULTS:-${REPO}/rollouts/thread_conditions.jsonl}"
+
+case "${COND}" in
+  a) unset OMP_NUM_THREADS BEHAVIOR_TORCH_THREADS BEHAVIOR_TORCH_INTEROP || true ;;
+  b) export OMP_NUM_THREADS=4
+     unset BEHAVIOR_TORCH_THREADS BEHAVIOR_TORCH_INTEROP || true ;;
+  c) export PYTHONPATH="${REPO}/scripts/threadfix${PYTHONPATH:+:${PYTHONPATH}}"
+     export BEHAVIOR_TORCH_THREADS=4 BEHAVIOR_TORCH_INTEROP=1 ;;
+  *) echo "unknown THREAD_CONDITION=${COND} (want a, b or c)" >&2; exit 2 ;;
+esac
+
+echo "==> task ${TASK}  mode ${MODE}  instance ${INSTANCE}  thread-condition ${COND}"
+
+# Fail before the scene loads, not after: a train id that does not ship shows up
+# as FileNotFoundError inside Evaluator.load_task_instance, minutes in.
+python - "${TASK}" "${MODE}" "${INSTANCE}" <<'PYEOF' || exit 1
+import sys, torch
+task, mode, inst = sys.argv[1], sys.argv[2], int(sys.argv[3])
+print(f"    torch intra-op {torch.get_num_threads()}  inter-op {torch.get_num_interop_threads()}")
+try:
+    from omnigibson.utils.asset_utils import get_task_instance_path
+    from omnigibson.eval.utils.eval_utils import get_task_cfg
+    scene = get_task_cfg(task)["scene_model"]
+    name = f"{scene}_task_{task}_0_{inst}_template"
+    p = get_task_instance_path(scene, f"{scene}_task_{task}_instances/{name}-tro_state", mode=mode)
+    if p is None:
+        sys.exit(f"    ERROR: no {mode} instance {inst} for {task} -- it does not ship")
+    print(f"    instance file ok")
+except SystemExit:
+    raise
+except Exception as exc:
+    print(f"    (instance pre-check skipped: {exc})")
+PYEOF
 
 echo "==> policy server must already be running on port ${PORT}"
 curl -sf "http://127.0.0.1:${PORT}/healthz" >/dev/null \
-  || { echo "no server on ${PORT}. Start the vendor serve_b1k.py first."; exit 1; }
+  || { echo "no server on ${PORT}. Start the null server or the vendor serve_b1k.py first."; exit 1; }
 echo "    healthz ok"
 
-mkdir -p "${OUT}"
+mkdir -p "${OUT}" "$(dirname "${RESULTS}")"
 START=$(date +%s)
 
 python -m omnigibson.eval.eval \
   --task-name "${TASK}" \
   --host 127.0.0.1 \
   --port "${PORT}" \
-  --instance-indices 0 \
+  --mode "${MODE}" \
+  --instance-indices "${INSTANCE}" \
   --num-rollouts 1 \
   --env-wrapper omnigibson.eval.wrappers.RGBDFullResWrapper \
   --output-dir "${OUT}" \
   --write-video \
   --headless
+RC=$?
 
 ELAPSED=$(( $(date +%s) - START ))
 
-echo
-echo "======================================================"
-printf "  wall clock        : %d s  (%.1f min)\n" "${ELAPSED}" "$(echo "${ELAPSED}/60" | bc -l)"
-printf "  -> 1,000 rollouts : %.1f GPU-hours\n" "$(echo "${ELAPSED}*1000/3600" | bc -l)"
-echo "======================================================"
-echo
-echo "  Record this in Notion -> Research Log, and in the Week 1 timing table."
-echo "  Break it down: how much was scene load vs. stepping? Check ${OUT}/logs."
+# Everything below reads the rollout JSON the evaluator wrote -- no re-derivation.
+python - "${OUT}" "${COND}" "${ELAPSED}" "${TASK}" "${MODE}" "${INSTANCE}" "${RC}" "${RESULTS}" <<'PYEOF'
+import glob, json, os, sys
+out, cond, elapsed, task, mode, inst, rc, results = sys.argv[1:9]
+rows = []
+for p in glob.glob(os.path.join(out, "**", "*.json"), recursive=True):
+    if os.path.basename(p) == "timing_manifest.json":
+        continue
+    try:
+        rows.append(json.load(open(p)))
+    except Exception:
+        pass
+import torch
+rec = {
+    "condition": cond, "task": task, "mode": mode, "instance": int(inst),
+    "returncode": int(rc), "wall_s": int(elapsed),
+    "intra_threads": torch.get_num_threads(),
+    "inter_threads": torch.get_num_interop_threads(),
+}
+if rows:
+    d = rows[0]
+    steps = (d.get("time") or {}).get("simulator_steps")
+    sim_t = (d.get("time") or {}).get("simulator_time")
+    rec.update({
+        "q_score": (d.get("q_score") or {}).get("final"),
+        "success": d.get("success"),
+        "sim_steps": steps, "sim_time_s": sim_t,
+        "stepping_fps": round(steps / sim_t, 2) if steps and sim_t else None,
+        "scene_load_s": round(int(elapsed) - sim_t, 1) if sim_t else None,
+    })
+print()
+print("=" * 62)
+for k in ("condition", "intra_threads", "inter_threads", "wall_s", "sim_steps",
+          "sim_time_s", "stepping_fps", "scene_load_s", "q_score", "success"):
+    if k in rec:
+        print(f"  {k:<16} {rec[k]}")
+print("=" * 62)
+with open(results, "a") as f:
+    f.write(json.dumps(rec, sort_keys=True) + "\n")
+print(f"  appended -> {results}")
+PYEOF
+exit "${RC}"
