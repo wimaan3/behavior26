@@ -186,3 +186,46 @@ def test_named_tasks_override_tier():
 def test_unknown_task_name_is_an_error():
     with pytest.raises(SystemExit):
         load_tasks(SHORTLIST, tier="", names=["no_such_task"])
+
+
+# ---------------------------------------------- scene load is per JOB (measured 2026-09-13)
+
+from analysis.power import cycle_hours  # noqa: E402
+
+
+def test_scene_load_is_charged_once_per_job_not_once_per_rollout():
+    """Measured: 3 instances in one evaluator invocation cost 719 s against 720 s
+    for one. The scene is loaded once per invocation and reused across instances.
+
+    The old model charged `2 * n * m * (scene_load + frames/fps)`, i.e. one load
+    per rollout. At n=27 that overcharges the dominant term 27-fold and made
+    k=8 look unaffordable when it is not.
+    """
+    tasks = [{"frames": 3224.0}]
+    kw = dict(tasks=tasks, n=27, m=1, fps=13.5, scene_load_s=720.0)
+    per_job = cycle_hours(**kw, reuse_scene=True)
+    per_rollout = cycle_hours(**kw, reuse_scene=False)
+    assert per_job < per_rollout
+
+    # The saving is exactly the loads we no longer pay: 2 arms x m x k x (n-1).
+    saved_s = 2 * 1 * 1 * (27 - 1) * 720.0
+    assert math.isclose(per_rollout - per_job, saved_s / 3600.0, rel_tol=1e-9)
+
+
+def test_reuse_leaves_the_stepping_term_untouched():
+    """Reuse amortises the LOAD. Every instance is still a full episode, and with
+    a real policy those frames are not free -- so n must still multiply frames."""
+    tasks = [{"frames": 3224.0}]
+    kw = dict(tasks=tasks, fps=13.5, scene_load_s=720.0, reuse_scene=True)
+    h27 = cycle_hours(tasks=tasks, n=27, m=1, fps=13.5, scene_load_s=720.0, reuse_scene=True)
+    h54 = cycle_hours(tasks=tasks, n=54, m=1, fps=13.5, scene_load_s=720.0, reuse_scene=True)
+    stepping_27 = 2 * 27 * 3224.0 / 13.5 / 3600.0
+    stepping_54 = 2 * 54 * 3224.0 / 13.5 / 3600.0
+    assert math.isclose(h54 - h27, stepping_54 - stepping_27, rel_tol=1e-9)
+
+
+def test_zero_instances_still_pays_one_load_per_job():
+    """Guard against 'optimise' to n * something, which would make an empty job free."""
+    tasks = [{"frames": 1000.0}]
+    h = cycle_hours(tasks=tasks, n=0, m=1, fps=13.5, scene_load_s=720.0, reuse_scene=True)
+    assert math.isclose(h, 2 * 720.0 / 3600.0, rel_tol=1e-9)
