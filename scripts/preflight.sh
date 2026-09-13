@@ -23,6 +23,10 @@ pass() { printf "  \033[32mok\033[0m    %s\n" "$1"; }
 fail() { printf "  \033[31mFAIL\033[0m  %s\n" "$1"; FAILED=1; }
 warn() { printf "  \033[33mwarn\033[0m  %s\n" "$1"; }
 
+# Tests that INVOKE preflight must not run inside preflight's own pytest call --
+# that recurses forever. They skip on this marker.
+export PREFLIGHT_RUNNING=1
+
 echo "==> preflight  ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
 echo
 
@@ -123,6 +127,135 @@ else
   echo "          conda install -y -c conda-forge cxx-compiler -p \$CONDA_PREFIX"
 fi
 command -v gcc >/dev/null 2>&1 || warn "no C compiler (gcc) either"
+echo
+
+# -- 0d. LATE-FAILURE TRAPS -------------------------------------------------------------
+# Every check here is ~1 second and guards a step costing 30-100 minutes. They
+# share a shape: the failure lands AFTER the expensive part, and reports itself
+# as something other than what it is.
+echo "0d. late-failure traps"
+
+# /dev/shm -- Docker defaults it to 64 MB. PyTorch DataLoader workers share
+# tensors through it, so a small one kills TRAINING (session B, the expensive
+# one) with "Bus error" or "No space left on device" -- neither of which mentions
+# shared memory. Classic, and it does not show up until workers spin up.
+SHM_B="$(df -B1 /dev/shm 2>/dev/null | awk 'NR==2{print $2}')"
+if [ -n "${SHM_B}" ]; then
+  SHM_GB="$(awk -v b="${SHM_B}" 'BEGIN{printf "%.1f", b/1073741824}')"
+  if awk -v b="${SHM_B}" 'BEGIN{exit !(b < 1073741824)}'; then
+    fail "/dev/shm is only ${SHM_GB} GB -- DataLoader workers will die with a bus error"
+    echo "        Docker's default is 64 MB. Recreate the pod with a larger --shm-size,"
+    echo "        or run training with num_workers=0 (slow) as a stopgap."
+  elif awk -v b="${SHM_B}" 'BEGIN{exit !(b < 4294967296)}'; then
+    warn "/dev/shm is ${SHM_GB} GB -- fine for eval, tight for training workers"
+  else
+    pass "/dev/shm ${SHM_GB} GB"
+  fi
+else
+  warn "/dev/shm not found -- cannot check shared memory"
+fi
+
+# ulimit -n -- Isaac Sim opens a great many files (USD assets, extensions). The
+# default 1024 runs out PARTWAY THROUGH SCENE LOAD, with an error about whichever
+# file happened to be next rather than about the limit.
+NOFILE_S="$(ulimit -Sn 2>/dev/null)"; NOFILE_H="$(ulimit -Hn 2>/dev/null)"
+if [ "${NOFILE_S}" = "unlimited" ] || { [ -n "${NOFILE_S}" ] && [ "${NOFILE_S}" -ge 4096 ] 2>/dev/null; }; then
+  pass "open-file limit ${NOFILE_S} (hard ${NOFILE_H})"
+else
+  fail "open-file limit is only ${NOFILE_S} -- Isaac Sim will fail mid scene load"
+  echo "        Raise it: ulimit -n ${NOFILE_H:-65536}   (hard limit is ${NOFILE_H:-unknown})"
+fi
+
+# Free space for the 36 GB dataset, checked BEFORE the download rather than after.
+# NOTE: on a RunPod network volume, df reports the whole shared cluster (2.3 PB
+# observed), NOT our quota -- so a plausible-looking "439T free" means nothing.
+# Detect that and say so rather than passing a check we did not actually make.
+VOL="${VOLUME_ROOT:-/workspace}"
+if [ -d "${VOL}" ]; then
+  VOL_TOT_K="$(df -k "${VOL}" 2>/dev/null | awk 'NR==2{print $2}')"
+  VOL_AVAIL_K="$(df -k "${VOL}" 2>/dev/null | awk 'NR==2{print $4}')"
+  if [ -n "${VOL_TOT_K}" ] && [ "${VOL_TOT_K}" -gt 10737418240 ] 2>/dev/null; then
+    warn "df on ${VOL} reports the shared cluster, not our quota -- cannot verify free space"
+    warn "  the dataset needs ~36 GB; check the volume size in the RunPod console"
+  elif [ -n "${VOL_AVAIL_K}" ] && [ "${VOL_AVAIL_K}" -lt 41943040 ] 2>/dev/null; then
+    fail "only $(awk -v k="${VOL_AVAIL_K}" 'BEGIN{printf "%.1f", k/1048576}') GB free on ${VOL}; the dataset needs ~36 GB"
+  elif [ -n "${VOL_AVAIL_K}" ]; then
+    pass "${VOL} has $(awk -v k="${VOL_AVAIL_K}" 'BEGIN{printf "%.0f", k/1048576}') GB free (dataset needs ~36 GB)"
+  fi
+fi
+
+# /tmp -- Isaac Sim extracts there, and some images mount a tiny tmpfs.
+TMPD="${TMPDIR:-/tmp}"
+if touch "${TMPD}/.preflight-$$" 2>/dev/null; then
+  rm -f "${TMPD}/.preflight-$$"
+  TMP_AVAIL_K="$(df -k "${TMPD}" 2>/dev/null | awk 'NR==2{print $4}')"
+  if [ -n "${TMP_AVAIL_K}" ] && [ "${TMP_AVAIL_K}" -lt 2097152 ] 2>/dev/null; then
+    fail "${TMPD} has only $(awk -v k="${TMP_AVAIL_K}" 'BEGIN{printf "%.1f", k/1048576}') GB -- Isaac Sim extracts there"
+  else
+    pass "${TMPD} writable, $(awk -v k="${TMP_AVAIL_K:-0}" 'BEGIN{printf "%.0f", k/1048576}') GB free"
+  fi
+else
+  fail "${TMPD} is not writable"
+fi
+
+# The env's Python must be 3.11. If it ever resolves to the host's (3.14 on this
+# image) almost nothing has prebuilt wheels and pip compiles from source -- which
+# looks exactly like a slow install but takes HOURS rather than minutes.
+PYV="$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null)"
+PYWHICH="$(command -v python 2>/dev/null)"
+# Only ASSERT 3.11 when we are actually in the behavior env. On a dev laptop any
+# python runs the test suite fine, and a red preflight there teaches people to
+# ignore it -- which would cost us the checks that matter.
+IN_ENV=0
+case "${PYWHICH}" in
+  *"/envs/${BEHAVIOR_ENV_NAME:-behavior}/bin/python") IN_ENV=1 ;;
+esac
+[ "${CONDA_DEFAULT_ENV:-}" = "${BEHAVIOR_ENV_NAME:-behavior}" ] && IN_ENV=1
+
+if [ "${PYV}" = "3.11" ]; then
+  pass "env python ${PYV} (${PYWHICH})"
+elif [ -n "${PYV}" ] && [ "${IN_ENV}" -eq 0 ]; then
+  warn "python is ${PYV} (${PYWHICH}) -- not the behavior env"
+  warn "  fine locally; on the GPU box run 'source \${VOLUME_ROOT:-/workspace}/env.sh' first"
+elif [ -n "${PYV}" ]; then
+  fail "behavior env python is ${PYV}, expected 3.11 -- ${PYWHICH}"
+  echo "        On the wrong interpreter almost nothing has prebuilt wheels and pip"
+  echo "        builds from source: hours, not minutes, looking like a slow install."
+  echo "        Did you 'source ${VOL}/env.sh'?"
+else
+  warn "no python on PATH"
+fi
+echo
+
+# -- 0e. SESSION B: can jax actually train here? ----------------------------------------
+# Asserted now rather than discovered during the first PAID training run. jax is
+# openpi's backend; a CUDA/driver pair it does not support leaves it silently on
+# CPU, which does not crash -- it trains ~100x too slow, the same failure shape as
+# the llvmpipe trap in 0b. Skipped cleanly when openpi/jax is not installed yet,
+# because session A does not need it.
+echo "0e. session B readiness (jax)"
+if python -c "import jax" >/dev/null 2>&1; then
+  JAX_OUT="$(python - <<'JAXPROBE' 2>/dev/null
+import jax
+devs = jax.devices()
+kinds = sorted({d.platform for d in devs})
+print(f"{jax.__version__}|{','.join(kinds)}|{len(devs)}|{devs[0] if devs else 'none'}")
+JAXPROBE
+)"
+  JAX_VER="${JAX_OUT%%|*}"; JAX_REST="${JAX_OUT#*|}"
+  JAX_KINDS="${JAX_REST%%|*}"; JAX_REST="${JAX_REST#*|}"
+  JAX_N="${JAX_REST%%|*}"; JAX_DEV="${JAX_REST#*|}"
+  case "${JAX_KINDS}" in
+    *gpu*|*cuda*|*rocm*)
+      pass "jax ${JAX_VER} sees ${JAX_N} accelerator(s): ${JAX_DEV}" ;;
+    *)
+      fail "jax ${JAX_VER} sees only CPU (${JAX_KINDS}) -- training would be ~100x too slow"
+      echo "        It will NOT crash; it will quietly train on CPU. Check the"
+      echo "        jax[cuda] build against this host's CUDA/driver pair." ;;
+  esac
+else
+  warn "jax not installed -- session B readiness unchecked (fine for session A)"
+fi
 echo
 
 echo "1. our test suite"

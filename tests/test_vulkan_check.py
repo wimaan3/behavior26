@@ -116,3 +116,69 @@ def test_fingerprint_survives_a_box_with_no_gpu():
     import env_fingerprint
     fp = env_fingerprint.fingerprint()
     assert fp["vulkan_devices"] == [] or isinstance(fp["vulkan_devices"], list)
+
+
+# ------------------------------------------------- late-failure traps (preflight 0d/0e)
+
+import subprocess as _sp
+
+
+# preflight.sh runs `pytest tests/`, so a test that runs preflight recurses
+# forever. preflight exports PREFLIGHT_RUNNING=1; these skip on it. (An earlier
+# note in scripts/preflight.sh said "there is deliberately no test that invokes
+# it" for exactly this reason -- this is that constraint, enforced rather than
+# written down.)
+nested = pytest.mark.skipif(
+    bool(__import__("os").environ.get("PREFLIGHT_RUNNING")),
+    reason="invoked from preflight itself; running it again would recurse")
+
+
+def _preflight(env_extra=None, pre=""):
+    """Run preflight and return its output. `pre` runs first in the same shell."""
+    import shlex
+    # REPO contains a space on some checkouts -- quote it or bash splits the path.
+    cmd = f"{pre}bash {shlex.quote(str(REPO / 'scripts' / 'preflight.sh'))}"
+    env = dict(**{k: v for k, v in __import__("os").environ.items()}, **(env_extra or {}))
+    return _sp.run(["bash", "-c", cmd], capture_output=True, text=True, env=env, timeout=900).stdout
+
+
+@nested
+def test_open_file_limit_failure_fires():
+    """Isaac Sim runs out of descriptors PARTWAY THROUGH scene load, and reports
+    whichever file was next rather than the limit."""
+    out = _preflight(pre="ulimit -Sn 256 2>/dev/null; ")
+    assert "open-file limit is only 256" in out
+    assert "Raise it: ulimit -n" in out, "must say how to fix it"
+
+
+@nested
+def test_unwritable_tmp_failure_fires():
+    out = _preflight(env_extra={"TMPDIR": "/nonexistent-tmp-preflight"})
+    assert "is not writable" in out
+
+
+@nested
+def test_wrong_python_fails_only_inside_the_behavior_env():
+    """A red preflight on a dev laptop teaches people to ignore preflight, which
+    would cost us the checks that matter. So: warn outside the env, fail inside."""
+    outside = _preflight()
+    assert "not the behavior env" in outside
+    inside = _preflight(env_extra={"CONDA_DEFAULT_ENV": "behavior"})
+    assert "behavior env python is" in inside
+    assert "prebuilt wheels" in inside, "must explain why the wrong python is slow, not just wrong"
+
+
+def test_preflight_names_the_late_failures_it_prevents():
+    """Each check exists because the real failure is late and misreported. The
+    message has to carry that, or the next person deletes the check."""
+    text = (REPO / "scripts" / "preflight.sh").read_text()
+    for phrase in ("bus error", "mid scene load", "prebuilt wheels",
+                   "shared cluster, not our quota", "100x too slow"):
+        assert phrase in text, f"preflight no longer explains: {phrase!r}"
+
+
+def test_shm_and_jax_checks_are_present():
+    text = (REPO / "scripts" / "preflight.sh").read_text()
+    assert "/dev/shm" in text and "DataLoader workers" in text
+    assert "0e. session B readiness (jax)" in text
+    assert "quietly train on CPU" in text, "the jax failure is silent, not a crash"
