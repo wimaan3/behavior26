@@ -140,6 +140,15 @@ and 225 s load, ×2 arms. Scene load does not scale with episode length, so a
 task at `rel_eval_cost` 0.20 is roughly **0.33×** the wall clock of a 1.0× task,
 not 0.20×. Tasks are always taken cheapest-first off the shortlist.
 
+> **SUPERSEDED 2026-09-13f.** This model charges scene load **per rollout**.
+> Measured, it is per *invocation* and reused across instances, so the right unit
+> is the JOB: `job_s = scene_load + n × episode_frames / fps`, with scene load
+> measured at **720 s warm / 1346 s cold** rather than the assumed 225 s. The
+> per-task `rel_eval_cost` weighting still applies to the stepping term but no
+> longer to the load term, which is now flat per task. **The `fps` term remains
+> the assumed 13.5** — our own measurement of it used a null policy and so does
+> not constrain it. Every USD figure in the table below inherits both errors.
+
 **1 seed per instance per arm** (eval GPU-hr, then MDE by noise level):
 
 | design | N | rollouts | GPU-hr | USD | f=0.05 | f=0.10 | f=0.20 | f=0.40 |
@@ -193,6 +202,10 @@ Delivers:
 - **baseline Q** on the released π₀.₅ baseline;
 - **measured seconds-per-rollout** — which replaces the assumed 13.5 fps and
   225 s scene load that every cost figure in §1 currently rests on;
+  **[PARTLY DELIVERED 2026-09-13f]** scene load measured at 720 s warm / 1346 s
+  cold and shown to be per-invocation, not per-rollout. The **fps half is still
+  open**: it was measured against a null policy, which does no inference, so it
+  bounds the simulator cost and says nothing about a real arm's;
 - **`import omnigibson` wall-clock from the volume env** — see below.
 
 Budget: **~$25.**
@@ -539,6 +552,31 @@ design              k=<> n=<> m=<>
 ---
 
 ### 3.5a Thread configuration — tag every number, and do NOT read a dev/stock split as invalidating the A/B
+
+> **REFRAMED 2026-09-13f — this is now a CORRECTNESS check, not a performance one.**
+>
+> This section was written to find thread settings that improve throughput. On the
+> measured numbers **there is no throughput to improve**: 500 extra simulator steps
+> cost −7 s, so per-step cost is below our resolution and thread settings cannot
+> move it. The wall clock is ~715 s of scene load, which is NFS-I/O-bound — a
+> 28-vCPU box loaded *slower* than a 16-vCPU one.
+>
+> **Drop the fps leg.** It would compare three conditions on a quantity that is
+> approximately zero in all three, and the earlier instrument for it
+> (`stepping_fps`) was measuring the 30 Hz sim timestep rather than throughput.
+>
+> **Keep the numerics leg**, which is the live question and always was the more
+> important one: does changing thread counts perturb the physics enough to shift
+> **Q**? `OMP_NUM_THREADS` is a general OpenMP variable that other libraries in the
+> Isaac Sim stack may read, so a physics-side divergence can survive even when the
+> torch policy path is bit-identical — and a physics-side divergence is what would
+> break replication. That check is cheap (it rides along on rollouts we run
+> anyway) and its output is a yes/no on comparability, not a speed number.
+>
+> One caveat on "no throughput to improve": measured with a **null policy**, which
+> does no inference. If a real arm turns out to be inference-bound, thread
+> settings could matter again — for the *policy* path, not the simulator. Revisit
+> only if an arm benchmark shows stepping is no longer free.
 
 Torch's thread configuration is a free variable that changes throughput and can,
 in principle, change numbers. `evaluator.py` (v3.9.2) ships the disabled remains
