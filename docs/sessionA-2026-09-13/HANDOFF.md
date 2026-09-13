@@ -198,3 +198,66 @@ Read from RunPod billing after termination, not estimated:
 Against the **$200** budget. Zero pods are running. The only ongoing cost is
 volume `96mu3d0s32` at roughly **$10.50/month** — leave it alone; it holds the
 env and the dataset, and rebuilding them costs far more than storing them.
+
+---
+
+## Storage plan — decided 2026-09-13
+
+**Checkpoints and the training corpus go on CONTAINER DISK, synced to HuggingFace.
+Not on the volume. The volume does not get grown.**
+
+### Why (the load-bearing reason is throughput, not capacity)
+
+`train_cloud.sh:123` already refuses to be quiet about this: *"A network mount
+here turns an 8-hour run into a 30-hour one and the symptom is just 'training is
+slow'."* At a measured **14.8× NFS metadata penalty**, writing ~13 GB checkpoints
+and streaming a ~33 GB corpus over NFS is wrong **at any capacity** — so this
+would be the right call even on an empty 1 TB volume. Capacity is the second
+reason, not the first. The off-provider backup we wanted anyway is the third.
+
+The defaults in `train_cloud.sh` are already correct — `OPENPI_ROOT=$HOME/openpi`,
+`DATASET_ROOT=$HOME/data/b1k/<task>`, both container disk. **The risk is someone
+"helpfully" repointing them at `/workspace` to save space.** Don't.
+
+### Session B's pod needs ~200 GB of container disk, not 50
+
+| item | size |
+|---|---|
+| training corpus | **~33 GB per task** × 2–4 tasks = 66–130 GB |
+| checkpoints | ~13 GB each (3.4B params, fp32), several retained |
+| env/image overhead | ~20 GB |
+
+50 GB does not fit one task's corpus plus two checkpoints. Container disk is
+cheap while the pod runs (50 GB cost **$0.04 across ~10 hours** on the session A
+box) and cannot be resized after creation — so ask for ~200 GB up front.
+`train_cloud.sh:138` already warns below 60 GB free; that warning is calibrated
+for checkpoints alone and is *not* sufficient once the corpus shares the disk.
+
+### How much room is actually left on the volume
+
+**`df` cannot answer this.** On a RunPod network volume it reports the shared
+VAST cluster — 2.3 PB total, 439 TB free was the observed reading — not our
+150 GB quota. `preflight.sh` step 0d detects a filesystem over 10 TB and warns
+instead of passing a check it did not make. The REST API returns the volume's
+`size` (150) but no usage figure, and billing is per-GB-**provisioned**, so it
+cannot be backed into either. Only `du` from a mounted pod gives a real number.
+
+Bounds from measurements already taken (all `du`, i.e. real blocks):
+
+| path | on-disk |
+|---|---|
+| `envs/behavior` | 42 GB |
+| `miniforge3` | 3.8 GB |
+| `BEHAVIOR-1K` | 2.6 GB |
+| `og-data` **at 08:06 UTC, mid-transfer** | **61 GB** |
+
+`og-data` only grew after that reading — ~14 min of `b1k_assets` and all of
+`task_2026` were still to come. So **used ≥ 109.4 GB and free ≤ 40.6 GB**, with
+no estimation involved. If the 2.5× block ratio observed at that instant
+(`du -sb` 24.3 GiB apparent vs 61 GiB on disk) held to completion, free is nearer
+**11 GB**. Either way the volume is not a checkpoint target. Run
+`du -sh /workspace/*` on the next pod to close the range.
+
+Worth one free attempt on any box: `quota -s`. It occasionally reports a real NFS
+quota where `df` will not. If it works, the check becomes a hard preflight
+assertion instead of a `warn`.
