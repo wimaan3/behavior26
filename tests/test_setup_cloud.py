@@ -24,9 +24,20 @@ SETUP = REPO / "scripts" / "setup_cloud.sh"
 
 
 def _run(volume_root: Path | str, *, env_extra: dict | None = None,
-         stub_bin: Path | None = None) -> subprocess.CompletedProcess:
+         stub_bin: Path | None = None, home: Path | None = None) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     env["VOLUME_ROOT"] = str(volume_root)
+    # The script appends `source <vol>/env.sh` to $HOME/.bashrc. Left pointed at
+    # the real HOME that is a side effect outside any temp dir -- and worse, the
+    # next login shell re-exports OMNIGIBSON_DATA_PATH from a tmp path that no
+    # longer exists, which silently redirects the real install. Found on the pod:
+    # nine stale `source` lines had accumulated in /root/.bashrc.
+    env["SKIP_BASHRC"] = "1"
+    if home is not None:
+        env["HOME"] = str(home)
+    # A leaked value from the developer's own shell must not steer the script.
+    for leaked in ("OMNIGIBSON_DATA_PATH", "BEHAVIOR_ROOT", "CONDA_ENVS_PATH"):
+        env.pop(leaked, None)
     if stub_bin:
         env["PATH"] = f"{stub_bin}{os.pathsep}{env['PATH']}"
     env.update(env_extra or {})
@@ -130,3 +141,70 @@ def test_the_non_relocatable_reasoning_is_recorded():
     assert "NOT PATH-RELOCATABLE" in text.upper()
     assert "CONDA_ENVS_PATH" in text
     assert "SAME mount point" in text or "same path" in text.lower()
+
+
+# ------------------------------------------------- inherited paths (found on the pod)
+
+
+def test_inherited_data_path_outside_the_volume_is_refused(tmp_path, stub_bin):
+    """A stale OMNIGIBSON_DATA_PATH must not silently redirect the dataset.
+
+    Regression. `OG_DATA="${OMNIGIBSON_DATA_PATH:-...}"` means an inherited value
+    wins over VOLUME_ROOT. On the pod, setup_cloud.sh's own ~/.bashrc line had
+    left OMNIGIBSON_DATA_PATH pointing at a deleted /tmp/pytest-of-root/... path,
+    so the next real run would have put the 29.3 GB dataset on container disk in
+    a temp dir -- the exact failure the volume guard exists to prevent.
+    """
+    vol = tmp_path / "workspace"
+    vol.mkdir()
+    (vol / "envs" / "behavior").mkdir(parents=True)
+    (vol / "BEHAVIOR-1K").mkdir()
+    res = _run(vol, stub_bin=stub_bin, home=tmp_path / "home",
+               env_extra={"ALLOW_CONTAINER_DISK": "1",
+                          "OMNIGIBSON_DATA_PATH": str(tmp_path / "elsewhere" / "og-data")})
+    assert res.returncode == 1
+    assert "points outside VOLUME_ROOT" in res.stderr
+    assert "unset OMNIGIBSON_DATA_PATH" in res.stderr, "must say how to recover"
+
+
+def test_inherited_behavior_root_outside_the_volume_is_refused(tmp_path, stub_bin):
+    vol = tmp_path / "workspace"
+    vol.mkdir()
+    (vol / "envs" / "behavior").mkdir(parents=True)
+    res = _run(vol, stub_bin=stub_bin, home=tmp_path / "home",
+               env_extra={"ALLOW_CONTAINER_DISK": "1",
+                          "BEHAVIOR_ROOT": str(tmp_path / "elsewhere" / "BEHAVIOR-1K")})
+    assert res.returncode == 1
+    assert "points outside VOLUME_ROOT" in res.stderr
+
+
+def test_a_deliberate_override_inside_the_volume_is_allowed(tmp_path, stub_bin):
+    """The guard rejects off-volume paths, not overrides as such."""
+    vol = tmp_path / "workspace"
+    vol.mkdir()
+    (vol / "envs" / "behavior").mkdir(parents=True)
+    (vol / "BEHAVIOR-1K").mkdir()
+    res = _run(vol, stub_bin=stub_bin, home=tmp_path / "home",
+               env_extra={"ALLOW_CONTAINER_DISK": "1",
+                          "OMNIGIBSON_DATA_PATH": str(vol / "custom-data")})
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert f'OMNIGIBSON_DATA_PATH="{vol}/custom-data"' in (vol / "env.sh").read_text()
+
+
+def test_the_real_bashrc_is_never_touched(tmp_path, stub_bin):
+    """Test hygiene, pinned: the suite must leave $HOME alone.
+
+    Nine `source` lines had accumulated in the pod's /root/.bashrc before this.
+    """
+    vol = tmp_path / "workspace"
+    vol.mkdir()
+    (vol / "envs" / "behavior").mkdir(parents=True)
+    (vol / "BEHAVIOR-1K").mkdir()
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    bashrc = fake_home / ".bashrc"
+    bashrc.write_text("# untouched\n")
+    res = _run(vol, stub_bin=stub_bin, home=fake_home,
+               env_extra={"ALLOW_CONTAINER_DISK": "1"})
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert bashrc.read_text() == "# untouched\n", "SKIP_BASHRC=1 was not honoured"

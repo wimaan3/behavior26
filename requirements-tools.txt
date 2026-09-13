@@ -2,6 +2,10 @@
 # The simulator lives in the separate `behavior` conda env created by BEHAVIOR-1K's setup script.
 # Never pip-install these into that env.
 pandas>=2.0
+# merge_progress_labels.py reads/writes the LeRobot parquet directly, and
+# tests/test_progress_labels.py importorskips on it -- without it that whole
+# module silently fails to collect rather than reporting as skipped.
+pyarrow>=14.0
 pyyaml>=6.0
 tabulate>=0.9
 
