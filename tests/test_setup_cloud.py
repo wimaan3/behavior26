@@ -262,3 +262,25 @@ def test_env_sh_puts_conda_on_path_for_the_next_pod(tmp_path, stub_bin):
     env_sh = (vol / "env.sh").read_text()
     assert f'{vol}/miniforge3/bin' in env_sh
     assert "conda.sh" in env_sh
+
+
+def test_env_sh_puts_the_env_bin_ahead_of_conda_base(tmp_path, stub_bin):
+    """Regression: env.sh had CONDA_ROOT/bin first, so `python` resolved to base.
+
+    Measured on the pod: conda activate set CONDA_DEFAULT_ENV=behavior while
+    `command -v python` still gave the base interpreter, which has no omnigibson.
+    env.sh is the only thing a second pod runs, so this fails silently there.
+    """
+    vol = tmp_path / "workspace"
+    vol.mkdir()
+    (vol / "envs" / "behavior").mkdir(parents=True)
+    (vol / "BEHAVIOR-1K").mkdir()
+    res = _run(vol, stub_bin=stub_bin, home=tmp_path / "home",
+               env_extra={"ALLOW_CONTAINER_DISK": "1"})
+    assert res.returncode == 0, res.stdout + res.stderr
+    env_sh = (vol / "env.sh").read_text()
+    path_line = next(l for l in env_sh.splitlines() if l.startswith("export PATH="))
+    env_bin, base_bin = f"{vol}/envs/behavior/bin", f"{vol}/miniforge3/bin"
+    assert env_bin in path_line and base_bin in path_line
+    assert path_line.index(env_bin) < path_line.index(base_bin), (
+        f"base conda bin precedes the env bin: {path_line}")

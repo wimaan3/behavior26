@@ -176,13 +176,24 @@ cat > "${ENV_SH}" <<EOF
 # Source this in every shell on any pod mounting this volume.
 #   source ${ENV_SH}
 # The conda env here was created at this exact path and cannot be moved.
-export PATH="${CONDA_ROOT}/bin:\$PATH"
+# The ENV's bin goes FIRST, ahead of conda's base bin. `conda activate` is kept
+# for CONDA_DEFAULT_ENV and friends, but it is NOT relied on to fix PATH:
+# measured on the pod, activation set CONDA_DEFAULT_ENV=behavior while `python`
+# still resolved to ${CONDA_ROOT}/bin/python -- i.e. base, without omnigibson.
+# env.sh is the ONLY thing a second pod runs, so a silent fallback to base
+# python there would be very hard to spot.
+export PATH="${ENV_PREFIX}/bin:${CONDA_ROOT}/bin:\$PATH"
 [ -f "${CONDA_ROOT}/etc/profile.d/conda.sh" ] && . "${CONDA_ROOT}/etc/profile.d/conda.sh"
 export CONDA_ENVS_PATH="${ENVS_DIR}"
 export OMNIGIBSON_DATA_PATH="${OG_DATA}"
 export OMNIGIBSON_APPDATA_PATH="${OG_APPDATA}"
 export BEHAVIOR_ROOT="${ROOT}"
-conda activate ${ENV_NAME} 2>/dev/null || echo "run: conda activate ${ENV_NAME}"
+conda activate ${ENV_NAME} 2>/dev/null || true
+# Fail loudly rather than running the wrong interpreter.
+if ! python -c "import omnigibson" >/dev/null 2>&1; then
+  echo "WARNING: \$(command -v python) cannot import omnigibson." >&2
+  echo "         Expected ${ENV_PREFIX}/bin/python. The env may not be built yet." >&2
+fi
 EOF
 echo "==> wrote ${ENV_SH}"
 
