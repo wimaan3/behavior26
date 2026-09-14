@@ -32,7 +32,11 @@ def test_a_missing_process_inside_the_grace_period_is_not_death():
     res = _run({"PORT": "59999", "PATTERN": "definitely-not-running-xyz",
                 "GRACE": 6, "TIMEOUT": 10})
     elapsed = time.monotonic() - t0
-    assert "SERVER_DIED" not in res.stdout or elapsed >= 6, (
+    # 1s tolerance: the script measures with integer `date +%s`, which can report
+    # ELAPSED=6 when only 5.05s of wall time have passed. Without the tolerance
+    # this test fails intermittently under load, which is worse than useless --
+    # a flaky guard gets deleted.
+    assert "SERVER_DIED" not in res.stdout or elapsed >= 5, (
         f"declared death after {elapsed:.1f}s, inside the 6s grace: {res.stdout}"
     )
 
