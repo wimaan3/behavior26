@@ -1,0 +1,27 @@
+Released turning_on_radio baseline, n=27, one evaluator invocation.
+RTX 4090 (16 vCPU), EU-RO-1, driver 580.126.09, image selkies-egl-desktop:26.04.
+behavior26 6c2c5cb | openpi 0cc8e35 + robot-name hunk of
+  training/patches/0001-progress-head-and-low-memory-configs.patch (b1k.py only;
+  the progress-head hunks were NOT applied -- a new head aborts checkpoint loading)
+checkpoint: challenge baselines.html, Google Drive 1KojwNUz0HVwU3Ww2SVh3NKt-4asuI3y2
+            17.3 GB zip -> pi05_turn_on_the_radio/{params,train_state,assets}
+serve: scripts/b1k/serve_b1k.py --robot b1k/R1Pro --task b1k/turning_on_radio
+       --repo-id turning_on_radio --policy.config pi05_b1k --action-horizon 16 (default)
+       XLA_PYTHON_CLIENT_PREALLOCATE=false  XLA_PYTHON_CLIENT_MEM_FRACTION=0.35
+
+EXIT=0  wall_s=1986  rollouts 27/27  distinct ids 0..26  steps_total 13527 (501 each)
+
+  load + first instance : 615 s   (WARM -- the earlier failed run had loaded this scene)
+  rollouts 1 -> 26      : 1321 s over 25 instances
+  MARGINAL per instance : 52.8 s  at 501 steps
+  RSS peak              : 7.0 GB
+  GPU                   : ~19.4 GB (Isaac Sim + policy sharing one 24 GB card)
+
+Against the NULL run (30.8 s/instance at 51 steps):
+  450 extra steps cost 22.0 s -> 0.0490 s/step -> 20.4 FPS END-TO-END
+  (policy inference + physics under motion + full-res RGBD render + video write)
+
+BASELINE Q at a 500-step cap: 0.0000 on all 27 instances, 0/27 successes.
+  NOT the baseline Q. turning_on_radio is D=1 (binary, no partial credit) and
+  500 steps is ~15% of a full episode -- the robot has not reached the radio.
+  This is a floor, and an uninformative one. A full-episode run is required.
