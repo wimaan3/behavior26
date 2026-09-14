@@ -41,6 +41,11 @@ BATCH_SIZE="${BATCH_SIZE:-32}"
 NUM_TRAIN_STEPS="${NUM_TRAIN_STEPS:-30000}"
 CHECKPOINT_DEST="${CHECKPOINT_DEST:-}"
 PROGRESS_KEY="${PROGRESS_KEY:-}"
+REPO_ID="${REPO_ID:-$(basename "$DATASET_ROOT")}"
+BEHAVIOR26_ROOT="${BEHAVIOR26_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+# Absolute on purpose: openpi's "./assets" default is relative to cwd.
+ASSETS_BASE_DIR="${ASSETS_BASE_DIR:-${OPENPI_ROOT}/assets}"
+CHECKPOINT_BASE_DIR="${CHECKPOINT_BASE_DIR:-${OPENPI_ROOT}/checkpoints}"
 ARM="${ARM:-}"                 # A or B marks a PROTOCOL run; see the guard below
 FORCE="${FORCE:-}"
 DRY_RUN=0
@@ -247,10 +252,12 @@ fi
 # Training aborts with a missing-norm-stats error if this is skipped, but only
 # after building the model, so do it first.
 
+# NOT openpi's compute_norm_stats.py: it takes only --config-name, and
+# base_config is tyro.conf.Suppress, so there is no way to pass the root.
 stage norm_stats \
-  uv run scripts/compute_norm_stats.py \
-    --config-name "$CONFIG" \
-    --data.base_config.dataset_root "$DATASET_ROOT"
+  uv run python "${BEHAVIOR26_ROOT}/scripts/compute_norm_stats_b1k.py" \
+    --config-name "$CONFIG" --dataset-root "$DATASET_ROOT" --repo-id "$REPO_ID" \
+    --assets-base-dir "$ASSETS_BASE_DIR"
 
 # ------------------------------------------------------------------ training
 # Not stamped: --resume makes re-running the correct recovery from a crash, and
@@ -284,14 +291,14 @@ export XLA_PYTHON_CLIENT_MEM_FRACTION="${XLA_PYTHON_CLIENT_MEM_FRACTION:-0.9}"
 export XLA_PYTHON_CLIENT_PREALLOCATE
 
 log "training -> $CKPT_DIR (log: $LOG_DIR/train.log)"
-run uv run scripts/b1k/train_b1k.py "$CONFIG" \
-    --exp_name="$EXP_NAME" \
-    --batch_size="$BATCH_SIZE" \
-    --num_train_steps="$NUM_TRAIN_STEPS" \
-    --data.base_config.dataset_root "$DATASET_ROOT" \
-    "${PROGRESS_FLAG[@]}" \
-    "${RESUME_FLAG[@]}" \
-    "${WANDB_FLAG[@]}" \
+# Via train_b1k_rooted.py: base_config is a Suppressed tyro field, so a CLI root
+# flag was rejected at parse. The launcher calls train_b1k.main unchanged.
+run uv run python "${BEHAVIOR26_ROOT}/scripts/train_b1k_rooted.py" \
+    --config "$CONFIG" --exp-name "$EXP_NAME" \
+    --dataset-root "$DATASET_ROOT" --repo-id "$REPO_ID" \
+    --assets-base-dir "$ASSETS_BASE_DIR" --checkpoint-base-dir "$CHECKPOINT_BASE_DIR" \
+    --batch-size "$BATCH_SIZE" --num-train-steps "$NUM_TRAIN_STEPS" \
+    ${PROGRESS_KEY:+--progress-key "$PROGRESS_KEY"} \
     2>&1 | tee -a "$LOG_DIR/train.log"
 
 [ "$DRY_RUN" = 1 ] || [ -d "$CKPT_DIR" ] || die "training finished but $CKPT_DIR does not exist"
