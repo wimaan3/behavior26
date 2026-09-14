@@ -534,3 +534,19 @@ def test_load_config_rejects_a_dev_loop_pointed_at_scored_instances(tmp_path):
     )
     with _pytest.raises(ValueError, match="TEST instances"):
         load_config(path)
+
+
+def test_download_data_uses_the_hf_cli_that_still_has_a_download_subcommand():
+    """huggingface_hub 1.x moved the CLI from `huggingface-cli` to `hf`.
+
+    The old binary is still installed and still on PATH, so this does not fail
+    as "command not found" -- it prints help and exits 1, which reads like a bad
+    argument. Measured 2026-09-14: both chunk downloads died in one second with
+    output pointing at `hf --help`.
+    """
+    from pathlib import Path
+    text = (Path(__file__).resolve().parents[1] / "scripts" / "download_data.sh").read_text()
+    assert "huggingface-cli download" not in text, (
+        "huggingface-cli lost its download subcommand in hub 1.x"
+    )
+    assert "hf download" in text

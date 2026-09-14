@@ -15,7 +15,11 @@ mkdir -p "${DATA_ROOT}"
 echo "==> downloading ${CHUNKS} into ${DATA_ROOT}"
 
 for CHUNK in ${CHUNKS}; do
-  huggingface-cli download behavior-1k/2026-challenge-demos \
+  # `hf`, NOT `huggingface-cli`. huggingface_hub 1.x removed the download
+  # subcommand from the old binary -- it still EXISTS and still runs, but prints
+  # help and exits 1, so the failure looks like a bad argument rather than a
+  # renamed tool. Same flags otherwise.
+  hf download behavior-1k/2026-challenge-demos \
     --repo-type dataset --local-dir "${DATA_ROOT}" \
     --include "data/${CHUNK}/**" \
     --include "meta/episodes/${CHUNK}/**" \
