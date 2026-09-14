@@ -63,12 +63,20 @@ def source(tmp_path: Path) -> Path:
     pq.write_table(pa.Table.from_pandas(df, preserve_index=False),
                    root / "data" / "chunk-000" / "file-000.parquet")
 
+    # Real v3 episode metadata carries GLOBAL frame ranges and video offsets. The
+    # ranges are what the reader clamps delta-timestamp queries into, so they must
+    # be in the fixture or the third index trap is invisible to these tests.
     eps = pd.DataFrame([
         {"episode_index": g, "task_index": t, "length": FRAMES,
+         "dataset_from_index": g * FRAMES, "dataset_to_index": g * FRAMES + FRAMES,
          "videos/observation.images.head/chunk_index": 0,
-         "videos/observation.images.head/file_index": 0}
+         "videos/observation.images.head/file_index": 0,
+         "videos/observation.images.head/from_timestamp": g * FRAMES / 30.0}
         for g, _, t in layout
     ])
+    vdir = root / "videos" / "observation.images.head" / "chunk-000"
+    vdir.mkdir(parents=True)
+    (vdir / "file-000.mp4").write_bytes(b"not-really-an-mp4")
     pq.write_table(pa.Table.from_pandas(eps, preserve_index=False),
                    root / "meta" / "episodes" / "chunk-000" / "file-000.parquet")
 
@@ -79,6 +87,7 @@ def source(tmp_path: Path) -> Path:
     (root / "meta" / "info.json").write_text(json.dumps({
         "codebase_version": "v3.0", "fps": 30,
         "total_episodes": ep, "total_frames": len(rows), "total_tasks": len(TASKS),
+        "video_path": "videos/{video_key}/chunk-{chunk_index:03d}/file-{file_index:03d}.mp4",
         "features": {"observation.state": {"dtype": "float32", "shape": [1], "names": None}},
     }))
     return root
@@ -171,13 +180,55 @@ def test_frame_counter_stays_dense(source, tmp_path):
     assert sorted(df["index"].tolist()) == list(range(len(df)))
 
 
+# ------------------------------------------------ episode frame ranges (trap 3)
+
+def _read_episodes(dest: Path):
+    import pandas as pd
+    import pyarrow.parquet as pq
+    return pd.concat([pq.read_table(p).to_pandas()
+                      for p in sorted((dest / "meta" / "episodes").glob("*/*.parquet"))],
+                     ignore_index=True)
+
+
+def test_episode_frame_ranges_match_the_renumbered_index(source, tmp_path):
+    """The reader clamps every delta-timestamp query into
+    [dataset_from_index, dataset_to_index) and uses the result as a ROW POSITION.
+    Left global after `index` is renumbered, action chunks come from the wrong
+    frames -- loudly for most tasks, SILENTLY for any task whose global offset
+    falls inside the slice. Every episode's range must cover exactly its rows."""
+    dest = tmp_path / "out" / "beta_task"
+    slice_dataset(source, "beta_task", tmp_path / "out")
+    data, eps = _read_slice(dest), _read_episodes(dest)
+    assert sorted(data["index"]) == list(range(len(data))), "index must equal row position"
+    for ep in eps.itertuples():
+        rows = data[data["episode_index"] == ep.episode_index]
+        assert sorted(rows["index"]) == list(range(ep.dataset_from_index, ep.dataset_to_index)), (
+            f"episode {ep.episode_index}: range [{ep.dataset_from_index},{ep.dataset_to_index}) "
+            f"does not match its rows {sorted(rows['index'])}"
+        )
+
+
+def test_referenced_videos_exist_at_their_original_paths(source, tmp_path):
+    dest = tmp_path / "out" / "beta_task"
+    m = slice_dataset(source, "beta_task", tmp_path / "out")
+    assert (dest / "videos" / "observation.images.head" / "chunk-000" / "file-000.mp4").exists()
+    assert m["video_files"] == 1
+
+
+def test_a_missing_referenced_video_is_refused(source, tmp_path):
+    """Otherwise the slice loads and dies on the first sample -- on a GPU box."""
+    (source / "videos" / "observation.images.head" / "chunk-000" / "file-000.mp4").unlink()
+    with pytest.raises(SystemExit, match="referenced video"):
+        slice_dataset(source, "beta_task", tmp_path / "out")
+
+
 # ------------------------------------------------- THE ARM-B POISONING TEST
 
 def test_progress_labels_land_on_the_globally_correct_episodes(source, tmp_path):
     """The test that matters most in this suite.
 
-    The Jetson labels the PRISTINE corpus, so its sidecar is keyed on the global
-    episode index. After slicing, `episode_index` means something else. Joining on
+    The Jetson labels against the PRISTINE corpus, so its sidecars are keyed on the
+    global episode index. After slicing, `episode_index` means something else. Joining on
     the raw column would attach each label to whichever local episode happens to
     share the number -- arm A unaffected, arm B trained against labels belonging
     to DIFFERENT demonstrations, and dQ meaningless with nothing raising.
@@ -189,11 +240,13 @@ def test_progress_labels_land_on_the_globally_correct_episodes(source, tmp_path)
     dest = tmp_path / "out" / "gamma_task"
     slice_dataset(source, "gamma_task", tmp_path / "out")
 
-    # Label EVERY global episode, as the Jetson does -- it labels the pristine
-    # corpus, not one task. This is what makes a wrong join SILENT: for any local
-    # index i there is always a label for global episode i, belonging to whichever
-    # task owns it. If the sidecar only covered this task, a wrong join would
-    # error on missing labels and the test would pass for the wrong reason.
+    # Label EVERY global episode -- the WORST case, deliberately. The real Jetson
+    # sidecars are per task (origin/jetson/labels: labels/<task>/labels.parquet,
+    # global episodes task_index*200+i), so for the current pair a wrong join on
+    # local 0..199 looks up turning_on_radio's range, finds nothing, and fails
+    # loudly. It turns SILENT once arm B concatenates sidecars that cover global
+    # 0..N-1 -- plausible as k grows. A fixture covering only this task would let
+    # a wrong join fail on missing labels and pass this test for the wrong reason.
     all_eps = sorted(g for g, _, _ in _layout_of(source))
     labels = pd.DataFrame([
         {"episode_index": g, "frame_index": fr, "progress": _progress_of(g, fr)}

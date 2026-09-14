@@ -119,6 +119,7 @@ def slice_dataset(source: Path, task: str, out_root: Path, *, overwrite: bool = 
     (dest / "meta").mkdir(parents=True)
     rows_out = 0
     frame_cursor = 0
+    ranges: dict[int, tuple[int, int]] = {}     # new episode_index -> dense [from, to)
     written: list[Path] = []
     for path in data_files:
         tbl = pq.read_table(path)
@@ -135,10 +136,18 @@ def slice_dataset(source: Path, task: str, out_root: Path, *, overwrite: bool = 
         sub = sub.sort_values(["episode_index", "frame_index"], kind="stable")
         sub[GLOBAL_EP_COL] = sub["episode_index"].astype("int64")
         sub["episode_index"] = sub["episode_index"].map(remap).astype("int64")
-        if "index" in sub.columns:
-            # `index` is the dataset-wide frame counter and must stay dense.
-            sub["index"] = range(frame_cursor, frame_cursor + len(sub))
-            frame_cursor += len(sub)
+        if "index" not in sub.columns:
+            raise SystemExit(f"{path} has no 'index' column; not a LeRobot v3 data file")
+        # `index` is the dataset-wide frame counter and must stay dense: the v3
+        # reader uses it AS A ROW POSITION (_absolute_to_relative_idx is None when
+        # every episode is loaded).
+        sub["index"] = range(frame_cursor, frame_cursor + len(sub))
+        frame_cursor += len(sub)
+        for ep_local, grp in sub.groupby("episode_index", sort=False):
+            lo, hi = int(grp["index"].min()), int(grp["index"].max()) + 1
+            if ep_local in ranges:
+                raise SystemExit(f"episode {ep_local} spans more than one data file; unsupported")
+            ranges[int(ep_local)] = (lo, hi)
         rel = path.relative_to(source)          # data/chunk-NNN/file-NNN.parquet
         target = dest / rel
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -150,6 +159,7 @@ def slice_dataset(source: Path, task: str, out_root: Path, *, overwrite: bool = 
     shutil.copy2(source / "meta" / "tasks.parquet", dest / "meta" / "tasks.parquet")
 
     # meta/episodes -- same renumbering, same preservation of chunk/file indices.
+    video_refs: set[tuple[str, int, int]] = set()
     src_eps_dir = source / "meta" / "episodes"
     if src_eps_dir.is_dir():
         for path in sorted(src_eps_dir.glob("*/*.parquet")):
@@ -162,11 +172,65 @@ def slice_dataset(source: Path, task: str, out_root: Path, *, overwrite: bool = 
             sub = edf.loc[keep].copy().sort_values("episode_index", kind="stable")
             sub[GLOBAL_EP_COL] = sub["episode_index"].astype("int64")
             sub["episode_index"] = sub["episode_index"].map(remap).astype("int64")
+            # THE THIRD INDEX TRAP. dataset_from_index / dataset_to_index are in the
+            # same space as `index`, and the reader clamps every delta-timestamp query
+            # into [from, to) and then uses the result as a ROW POSITION:
+            #     query = max(ep_start, min(ep_end - 1, abs_idx + delta))
+            # Left at their global values after `index` is renumbered, every action
+            # chunk would be drawn from the wrong frames -- an IndexError for most
+            # tasks, but SILENTLY wrong action targets for any task whose global
+            # offset happens to fall inside the slice's length.
+            if {"dataset_from_index", "dataset_to_index"} <= set(sub.columns):
+                missing = sorted(set(sub["episode_index"]) - set(ranges))
+                if missing:
+                    raise SystemExit(f"episode metadata for {missing} but no data rows; source is inconsistent")
+                sub["dataset_from_index"] = sub["episode_index"].map(lambda e: ranges[e][0]).astype("int64")
+                sub["dataset_to_index"] = sub["episode_index"].map(lambda e: ranges[e][1]).astype("int64")
+                for col in ("length",):
+                    if col in sub.columns:
+                        bad = sub[(sub["dataset_to_index"] - sub["dataset_from_index"]) != sub[col]]
+                        if len(bad):
+                            raise SystemExit(
+                                f"episode length disagrees with its data rows for episodes "
+                                f"{bad['episode_index'].tolist()[:5]}; refusing to write a slice that lies"
+                            )
+            for vcol in [c for c in sub.columns if c.startswith("videos/") and c.endswith("/chunk_index")]:
+                key = vcol[len("videos/"):-len("/chunk_index")]
+                for ci, fi in set(zip(sub[vcol], sub[f"videos/{key}/file_index"])):
+                    video_refs.add((key, int(ci), int(fi)))
             rel = path.relative_to(source)
             target = dest / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(pa.Table.from_pandas(sub, preserve_index=False), target)
             written.append(target)
+
+    # videos -- every file an episode references, at its ORIGINAL chunk/file path.
+    # Episodes locate their frames inside a shared mp4 by from_timestamp, which is
+    # untouched, so whole files are copied rather than cut. Hard-linked when source
+    # and destination share a filesystem, so a slice costs no extra disk.
+    info_src = json.loads((source / "meta" / "info.json").read_text())
+    vtemplate = info_src.get("video_path") or "videos/{video_key}/chunk-{chunk_index:03d}/file-{file_index:03d}.mp4"
+    videos_linked = videos_copied = 0
+    missing_videos = []
+    for key, ci, fi in sorted(video_refs):
+        rel = vtemplate.format(video_key=key, chunk_index=ci, file_index=fi)
+        src, dst = source / rel, dest / rel
+        if not src.exists():
+            missing_videos.append(rel)
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            import os
+            os.link(src, dst)
+            videos_linked += 1
+        except OSError:
+            shutil.copy2(src, dst)
+            videos_copied += 1
+    if missing_videos:
+        raise SystemExit(
+            f"{len(missing_videos)} referenced video file(s) absent from source, e.g. {missing_videos[:3]}. "
+            "A slice whose episodes point at missing videos loads and then fails on the first sample."
+        )
 
     # meta/info.json -- counts updated, and the new column REGISTERED. An
     # unregistered column makes the dataset unloadable, the same trap `progress`
@@ -199,6 +263,9 @@ def slice_dataset(source: Path, task: str, out_root: Path, *, overwrite: bool = 
         "task_index": task_index,
         "episodes": len(ordered),
         "frames": rows_out,
+        "video_files": len(video_refs),
+        "videos_linked": videos_linked,
+        "videos_copied": videos_copied,
         "episode_map": {str(g): remap[g] for g in ordered},
         "info_sha256": _sha256(dest / "meta" / "info.json"),
         "tasks_sha256": _sha256(dest / "meta" / "tasks.parquet"),
