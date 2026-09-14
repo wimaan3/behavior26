@@ -62,6 +62,23 @@ def main() -> int:
 
     print(f"config={a.config} repo_id={a.repo_id} root={a.dataset_root} "
           f"progress_key={a.progress_key} batch={a.batch_size}")
+
+    # Print what the loader will ACTUALLY use, and refuse a root that is not
+    # there. Every "local path missing" in this stack surfaces as an HF
+    # RepositoryNotFoundError 401 -- the loader falls back to the Hub and the
+    # error names auth rather than the path. Seen three times now: the merged
+    # root, the uncompacted root, and here.
+    import pathlib as _pl
+    effective = cfg.data.create(cfg.assets_dirs, cfg.model)
+    print(f"  effective repo_id      {effective.repo_id}")
+    print(f"  effective dataset_root {getattr(effective, 'dataset_root', None)}")
+    print(f"  effective asset_id     {getattr(effective, 'asset_id', None)}")
+    print(f"  norm_stats loaded      {getattr(effective, 'norm_stats', None) is not None}")
+    _root = getattr(effective, "dataset_root", None)
+    if _root and not _pl.Path(_root).exists():
+        print(f"FAIL: effective dataset_root {_root} does not exist. The loader would "
+              f"fall back to the Hub and report a 401 that has nothing to do with auth.")
+        return 2
     loader = _data_loader.create_data_loader(
         cfg, shuffle=False, num_batches=1, skip_norm_stats=a.skip_norm_stats)
     obs, actions = next(iter(loader))
