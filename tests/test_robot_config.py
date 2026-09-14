@@ -205,3 +205,20 @@ def test_jax_preallocation_is_opposite_for_serving_and_training():
     assert train_set.group(1) == "true", "training keeps preallocation ON, deliberately"
     for text in (serve, train):
         assert "Isaac Sim" in text, "each side must say why the other differs"
+
+
+def test_serve_discovers_the_checkpoint_and_puts_uv_on_path():
+    """Two failures from one launch, 2026-09-14.
+
+    `exec: uv: not found` -- install_openpi.sh exports ~/.local/bin only inside
+    its own shell, so any later shell loses uv.
+
+    And the checkpoint path was hardcoded to a directory that only existed
+    because the first run was unzipped by hand; install_openpi.sh puts it
+    elsewhere. The directory name comes from inside the challenge's zip and is
+    not ours to depend on -- find the dir containing params/ instead.
+    """
+    serve = (REPO / "scripts" / "serve_baseline.sh").read_text()
+    assert ".local/bin" in serve, "uv must be on PATH for a fresh shell"
+    assert "-name params" in serve, "the checkpoint must be discovered, not hardcoded"
+    assert "/opt/baseline/extracted/" not in serve, "hardcoded path was wrong and is gone"
