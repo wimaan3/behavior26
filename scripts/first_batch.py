@@ -39,6 +39,14 @@ def main() -> int:
     ap.add_argument("--progress-key", default=None)
     ap.add_argument("--batch-size", type=int, default=2)
     ap.add_argument("--skip-norm-stats", action="store_true")
+    ap.add_argument("--video-backend", default=None,
+                    help="'pyav' avoids torchcodec, which needs system FFmpeg libs the "
+                         "selkies image does not ship ('Could not load libtorchcodec'). "
+                         "PyAV bundles its own. openpi forwards dataset_kwargs to LeRobot.")
+    ap.add_argument("--num-workers", type=int, default=0,
+                    help="0 keeps decoding in-process. A crashing worker is reported as "
+                         "'DataLoader worker killed by signal: Terminated', which hides "
+                         "whatever actually raised.")
     a = ap.parse_args()
 
     from openpi.training import config as _config
@@ -47,6 +55,10 @@ def main() -> int:
     cfg = _config.get_config(a.config)
     data = cfg.data
     base = dataclasses.replace(data.base_config, dataset_root=a.dataset_root, repo_id=a.repo_id)
+    if a.video_backend:
+        kwargs = dict(getattr(base, "dataset_kwargs", None) or {})
+        kwargs["video_backend"] = a.video_backend
+        base = dataclasses.replace(base, dataset_kwargs=kwargs)
     if a.progress_key:
         # The patch may hang progress_key off either the factory or the base
         # config depending on revision; set whichever exists rather than guess.
@@ -58,7 +70,7 @@ def main() -> int:
             print("!! neither base_config nor data has progress_key -- patch not applied?")
             return 2
     data = dataclasses.replace(data, base_config=base, repo_id=a.repo_id)
-    cfg = dataclasses.replace(cfg, data=data, batch_size=a.batch_size)
+    cfg = dataclasses.replace(cfg, data=data, batch_size=a.batch_size, num_workers=a.num_workers)
 
     print(f"config={a.config} repo_id={a.repo_id} root={a.dataset_root} "
           f"progress_key={a.progress_key} batch={a.batch_size}")
