@@ -1628,3 +1628,35 @@ overrun is the 3,225-step episodes: I priced them at your 3,224 but the run had
 to establish that number, and the first per-instance sample read ~5.5 min, which
 projected past the 3 h cap. I extended the cap to 08:35 rather than truncate at
 ~24/27; the run finished at 07:48 without needing it.
+
+
+---
+
+## Revision 2026-09-14b — arm parity is now a mechanism, not a rule
+
+3.6 said both arms must train on the identical filtered root. Saying it was all we
+had, and the natural mistake is arm A pointed at the pristine slice (200 episodes)
+while arm B trains on the merged one (199): dQ would measure the progress head
+**plus 0.5% more data**, with nothing in the run to show it.
+
+`scripts/train_cloud.sh` now refuses. Declare the arm and it checks the root:
+
+```bash
+ARM=A DATASET_ROOT=<merged-root> CONFIG=pi05_b1k_frozen_vlm            bash scripts/train_cloud.sh
+ARM=B DATASET_ROOT=<merged-root> CONFIG=pi05_b1k_frozen_vlm_progress \
+      PROGRESS_KEY=progress                                             bash scripts/train_cloud.sh
+```
+
+With `ARM=A` or `ARM=B` the run **gates** unless:
+
+* `<root>/meta/progress_filter.json` exists -- i.e. this is the merged, filtered,
+  compacted root and not the pristine slice; and
+* its `episodes_out` equals the root's own `meta/info.json` `total_episodes` --
+  catching a root that was dropped but never compacted, and a manifest sitting
+  next to data it does not describe.
+
+`ARM` unset is still allowed and says so out loud ("not a protocol run") -- rungs
+1-4 measure throughput on a raw slice and must not be blocked.
+
+`tests/test_arm_parity.py` pins all four behaviours, including that both arms
+resolve the SAME root.

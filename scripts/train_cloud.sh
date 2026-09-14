@@ -41,6 +41,7 @@ BATCH_SIZE="${BATCH_SIZE:-32}"
 NUM_TRAIN_STEPS="${NUM_TRAIN_STEPS:-30000}"
 CHECKPOINT_DEST="${CHECKPOINT_DEST:-}"
 PROGRESS_KEY="${PROGRESS_KEY:-}"
+ARM="${ARM:-}"                 # A or B marks a PROTOCOL run; see the guard below
 FORCE="${FORCE:-}"
 DRY_RUN=0
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=1
@@ -132,10 +133,52 @@ else
     nfs*|cifs|fuse*|9p) warn "DATASET_ROOT is on a ${DATASET_FS} mount. Copy it to local disk -- data loading will dominate the run." ;;
   esac
   log "dataset: $DATASET_ROOT ($(du -sh "$DATASET_ROOT" 2>/dev/null | cut -f1), ${DATASET_FS})"
+
+  # -- ARM PARITY (AB_PROTOCOL 3.6), as a mechanism rather than a rule ----------
+  # Both arms train on ONE filtered root; arm A simply does not map the progress
+  # column. The natural mistake is arm A pointed at the pristine slice (200
+  # episodes) while arm B trains on the merged one (199) -- dQ would then measure
+  # the head PLUS 0.5% more data, invisibly. meta/progress_filter.json already
+  # recorded what the filtered root is; this turns that evidence into a refusal.
+  # die(), not gate(): gate() only warns under --dry-run, and a declared arm
+  # pointed at the wrong root is a configuration mistake, not a missing
+  # dependency. It must fail in a dry run too, which is when you look.
+  if [ -n "$ARM" ]; then
+    case "$ARM" in
+      A|B) log "arm root: ARM=$ARM protocol run -> $DATASET_ROOT" ;;
+      *) die "ARM=$ARM is not A or B" ;;
+    esac
+    _manifest="${DATASET_ROOT}/meta/progress_filter.json"
+    if [ ! -f "$_manifest" ]; then
+      die "ARM=$ARM but $DATASET_ROOT has no meta/progress_filter.json.
+    A protocol run trains BOTH arms on the merged, filtered, compacted root.
+    Pointing arm A at the pristine slice makes the arms differ by the dropped
+    episodes as well as by the head. Run scripts/merge_progress_labels.py
+    --drop-unlabelled first and point both arms at its --out-root."
+    fi
+    _m_eps="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('episodes_out'))" "$_manifest" 2>/dev/null)"
+    _i_eps="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('total_episodes'))" "${DATASET_ROOT}/meta/info.json" 2>/dev/null)"
+    if [ "$_m_eps" = "None" ] || [ -z "$_m_eps" ]; then
+      die "$_manifest has no episodes_out. It predates the compaction fix; re-run the merge."
+    fi
+    if [ "$_m_eps" != "$_i_eps" ]; then
+      die "episode count disagrees: manifest says $_m_eps, ${DATASET_ROOT}/meta/info.json says $_i_eps.
+    Either the root was dropped but never compacted, or a manifest is sitting
+    next to data it does not describe. Both make dQ unattributable."
+    fi
+    log "arm parity: $_m_eps episodes, manifest and info.json agree"
+  else
+    warn "ARM unset -- this is not a protocol run, so the arm-parity check is SKIPPED."
+    warn "  Fine for throughput/smoke work on a raw slice. Set ARM=A or ARM=B for the A/B."
+  fi
 fi
 
 # Disk headroom for checkpoints. A 3.4B-param model is ~13GB per fp32 save.
-AVAIL_GB="$(df -PBG "$OPENPI_ROOT" 2>/dev/null | awk 'NR==2 {gsub("G","",$4); print $4}')"
+# `|| true`: df exits nonzero when OPENPI_ROOT does not exist yet, and under
+# `set -e` the bare assignment killed the whole script HERE, after the preflight
+# had printed a clean bill of health and before anything said why. A disk check
+# must not be able to end the run it is checking.
+AVAIL_GB="$(df -PBG "$OPENPI_ROOT" 2>/dev/null | awk 'NR==2 {gsub("G","",$4); print $4}' || true)"
 [ -n "${AVAIL_GB:-}" ] && [ "$AVAIL_GB" -lt 60 ] \
   && warn "only ${AVAIL_GB}GB free under $OPENPI_ROOT; checkpoints are ~13GB each"
 

@@ -412,7 +412,7 @@ def wide_dataset(tmp_path: Path) -> Path:
 
     root = tmp_path / "wide_root"
     (root / "data" / "chunk-000").mkdir(parents=True)
-    (root / "meta").mkdir()
+    (root / "meta" / "episodes" / "chunk-000").mkdir(parents=True)
 
     ep_idx, fr_idx, idx = [], [], []
     for ep in range(WIDE_EPISODES):
@@ -446,6 +446,21 @@ def wide_dataset(tmp_path: Path) -> Path:
             "action": {"dtype": "float32", "shape": [23], "names": None},
         },
     }, indent=4))
+    # v3 episode metadata: video linkage rides in the ROW, which is why
+    # compaction is safe here and would not have been under v2.
+    pq.write_table(
+        pa.table({
+            "episode_index": pa.array(list(range(WIDE_EPISODES)), pa.int64()),
+            "length": pa.array([FRAMES] * WIDE_EPISODES, pa.int64()),
+            "dataset_from_index": pa.array([e * FRAMES for e in range(WIDE_EPISODES)], pa.int64()),
+            "dataset_to_index": pa.array([e * FRAMES + FRAMES for e in range(WIDE_EPISODES)], pa.int64()),
+            "videos/observation.images.head/chunk_index": pa.array([0] * WIDE_EPISODES, pa.int64()),
+            "videos/observation.images.head/file_index": pa.array([0] * WIDE_EPISODES, pa.int64()),
+            "videos/observation.images.head/from_timestamp": pa.array(
+                [e * FRAMES / 30.0 for e in range(WIDE_EPISODES)], pa.float32()),
+        }),
+        root / "meta" / "episodes" / "chunk-000" / "file-000.parquet",
+    )
     return root
 
 
@@ -471,6 +486,8 @@ def partial_labels(tmp_path: Path) -> Path:
 
 
 KEPT = [e for e in range(WIDE_EPISODES) if e != WIDE_DROPPED]
+# After compaction the survivors are renumbered densely; this is what they were.
+KEPT_AFTER_COMPACTION = list(range(len(KEPT)))
 
 
 def test_unlabelled_episodes_refuse_to_merge_silently(wide_dataset, partial_labels, tmp_path):
@@ -491,23 +508,43 @@ def test_drop_unlabelled_removes_the_whole_episode(wide_dataset, partial_labels,
     assert res.returncode == 0, res.stdout + res.stderr
 
     df = _read_merged(out)
-    assert sorted(set(df["episode_index"])) == KEPT
+    # Renumbered densely by compaction (v3 requires it), so the survivors are
+    # 0..n-1 and KEPT[new_index] says which original each one was.
+    assert sorted(set(df["episode_index"])) == KEPT_AFTER_COMPACTION
     assert len(df) == len(KEPT) * FRAMES
     assert not df["progress"].isna().any(), "an unlabelled frame survived the drop"
-    # the surviving episodes keep their own labels, still correctly aligned
+    # The surviving episodes keep THEIR OWN labels -- checked against the episode
+    # each one was before compaction. This is the assertion that would catch a
+    # renumbering that shifted labels onto the wrong demonstrations.
     for _, row in df.iterrows():
+        original = KEPT[int(row["episode_index"])]
         assert row["progress"] == pytest.approx(
-            _progress_of(int(row["episode_index"]), int(row["frame_index"])), abs=1e-6)
+            _progress_of(original, int(row["frame_index"])), abs=1e-6), (
+            f"episode {original} -> {int(row['episode_index'])} has the wrong label"
+        )
 
 
-def test_drop_unlabelled_does_not_renumber_episodes(wide_dataset, partial_labels, tmp_path):
-    """videos/ is symlinked back to the pristine root and keyed by the ORIGINAL
-    episode index. Renumbering here would misalign every frame with its video --
-    silently, because the shapes would still be right."""
+def test_drop_unlabelled_compacts_episodes_for_v3(wide_dataset, partial_labels, tmp_path):
+    """REVERSED 2026-09-14, deliberately. This test used to assert the opposite.
+
+    The old rule -- never renumber, because videos/ is symlinked back to the
+    pristine root and keyed by the ORIGINAL episode index -- is correct for
+    LeRobot **v2**, where each episode has its own mp4 named by episode number.
+
+    Our corpus is **v3.0**, where an episode locates its frames inside a SHARED
+    mp4 through its own metadata row (`videos/<key>/chunk_index`, `file_index`,
+    `from_timestamp`). Those columns ride with the row, so renumbering cannot
+    misalign a video -- and v3 REQUIRES dense episodes, because it looks them up
+    positionally. Leaving the gap is what breaks: measured on the real
+    coffee-station root, a dropped episode 111 left `index` running to 1,253,242
+    over 1,247,890 rows and LeRobot fell through to a Hub lookup that 401'd.
+
+    The companion assertion below is the one that preserves the old test's
+    intent: video linkage must survive the renumbering."""
     out = tmp_path / "merged"
     assert _merge(wide_dataset, partial_labels, "--out-root", str(out), "--drop-unlabelled").returncode == 0
     eps = sorted(set(_read_merged(out)["episode_index"]))
-    assert eps == KEPT, f"episode indices were renumbered: {eps} (expected {KEPT})"
+    assert eps == KEPT_AFTER_COMPACTION, f"episodes must be dense after a drop, got {eps}"
 
 
 def test_drop_unlabelled_corrects_the_info_counts(wide_dataset, partial_labels, tmp_path):
@@ -568,3 +605,25 @@ def test_protocol_states_arm_symmetry_as_void_the_comparison():
     assert "3.6" in text and "identical" in text.lower()
     assert "--drop-unlabelled" in text, (
         "the protocol must name the mechanism that makes arm symmetry achievable")
+
+
+def test_compaction_preserves_video_linkage(wide_dataset, partial_labels, tmp_path):
+    """The old no-renumbering rule existed to protect video alignment. That intent
+    survives the reversal: after compaction each kept episode must still carry the
+    chunk/file/from_timestamp of the ORIGINAL episode it came from."""
+    import pyarrow.parquet as pq
+
+    out = tmp_path / "merged"
+    assert _merge(wide_dataset, partial_labels, "--out-root", str(out), "--drop-unlabelled").returncode == 0
+    before = pq.read_table(
+        wide_dataset / "meta" / "episodes" / "chunk-000" / "file-000.parquet").to_pandas()
+    after = pq.read_table(
+        out / "meta" / "episodes" / "chunk-000" / "file-000.parquet").to_pandas()
+    assert sorted(after["episode_index"]) == KEPT_AFTER_COMPACTION
+    key = "videos/observation.images.head/from_timestamp"
+    for new_idx, original in enumerate(KEPT):
+        want = float(before.loc[before["episode_index"] == original, key].iloc[0])
+        got = float(after.loc[after["episode_index"] == new_idx, key].iloc[0])
+        assert got == want, (
+            f"episode {original} -> {new_idx} lost its video offset: {got} != {want}"
+        )
