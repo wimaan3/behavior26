@@ -132,6 +132,7 @@ def merge_parquet_files(
     out_data_dir: Path,
     labels,
     join_on: tuple[str, ...],
+    labels_join_on: tuple[str, ...],
     column: str,
     *,
     allow_missing: bool,
@@ -164,7 +165,18 @@ def merge_parquet_files(
     if not paths:
         raise SystemExit(f"no parquet files under {data_dir} (expected data/chunk-*/file-*.parquet)")
 
-    lookup = labels.set_index(list(join_on))[column].astype("float32")
+    # The two sides may name the same quantity differently. After slicing, the
+    # data carries `global_episode_index` while the Jetson sidecar -- which was
+    # produced against the PRISTINE corpus -- calls it `episode_index`. Same
+    # numbers, different column name; joining on the raw `episode_index` present
+    # in a slice would silently match the RENUMBERED local index instead.
+    labels_join_on = tuple(labels_join_on or join_on)
+    if len(labels_join_on) != len(join_on):
+        raise SystemExit(
+            f"--join-on has {len(join_on)} keys but --labels-join-on has "
+            f"{len(labels_join_on)}; they are positional and must correspond."
+        )
+    lookup = labels.set_index(list(labels_join_on))[column].astype("float32")
 
     total = unlabelled = rows_out = 0
     dropped: set = set()
@@ -326,6 +338,13 @@ def main() -> int:
     ap.add_argument("--out-root", type=Path, default=None, help="destination root (default: <root>+progress)")
     ap.add_argument("--in-place", action="store_true", help="mutate --dataset-root instead (keeps a backup of info.json)")
     ap.add_argument("--column", default="progress", help="label column name in the sidecar")
+    ap.add_argument("--labels-join-on", nargs="+", default=None,
+                    help="label-side key names, when they differ from --join-on. "
+                         "After slicing the data calls it global_episode_index while the "
+                         "Jetson sidecar calls it episode_index. Positional: must "
+                         "correspond one-to-one with --join-on. REQUIRED rather than "
+                         "auto-detected -- auto-detection is how you silently merge "
+                         "against the wrong root.")
     ap.add_argument("--join-on", nargs="+", default=list(DEFAULT_JOIN),
                     help="dataset columns to join on (default: episode_index frame_index)")
     ap.add_argument("--allow-missing", action="store_true", help="tolerate unlabelled frames")
@@ -350,8 +369,10 @@ def main() -> int:
 
     labels = _load_table(args.labels.expanduser())
     join_on = tuple(args.join_on)
-    lo, hi = validate_labels(labels, join_on, args.column)
-    print(f"==> {len(labels)} labels, {args.column} in [{lo:.4f}, {hi:.4f}], join on {join_on}")
+    labels_join_on = tuple(args.labels_join_on) if args.labels_join_on else join_on
+    lo, hi = validate_labels(labels, labels_join_on, args.column)
+    _j = f"{list(join_on)}" if labels_join_on == join_on else f"data {list(join_on)} <- labels {list(labels_join_on)}"
+    print(f"==> {len(labels)} labels, {args.column} in [{lo:.4f}, {hi:.4f}], join on {_j}")
 
     if args.in_place:
         out_root = root
@@ -364,7 +385,7 @@ def main() -> int:
         if staged.exists():
             shutil.rmtree(staged)
         total, missing, dropped, rows_out = merge_parquet_files(
-            out_data, staged, labels, join_on, args.column,
+            out_data, staged, labels, join_on, labels_join_on, args.column,
             allow_missing=args.allow_missing, drop_unlabelled=args.drop_unlabelled,
         )
         shutil.rmtree(out_data)
@@ -385,7 +406,7 @@ def main() -> int:
             shutil.rmtree(out_root)
         out_root.mkdir(parents=True)
         total, missing, dropped, rows_out = merge_parquet_files(
-            root / "data", out_root / "data", labels, join_on, args.column,
+            root / "data", out_root / "data", labels, join_on, labels_join_on, args.column,
             allow_missing=args.allow_missing, drop_unlabelled=args.drop_unlabelled,
         )
         patch_info(root / "meta", out_root / "meta", dropped, rows_out)
@@ -419,6 +440,7 @@ def main() -> int:
             "unlabelled_rows": missing,
             "label_column": args.column,
             "join_on": list(join_on),
+            "labels_join_on": list(labels_join_on),
         }, indent=2, sort_keys=True))
         print(f"==> dropped {len(dropped)} episode(s) with unlabelled frames: {sorted(dropped)}")
         print(f"==> {rows_out} rows remain; manifest -> {manifest}")
