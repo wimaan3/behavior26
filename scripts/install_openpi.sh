@@ -56,10 +56,11 @@ if [ -z "$(ls -A "${CKPT_ROOT}" 2>/dev/null)" ]; then
   # Google Drive, so gdown rather than curl: large files need the confirm-token
   # handshake that a plain GET does not do (you get an HTML warning page instead,
   # which then fails to untar with a misleading "not in gzip format").
-  # `uv run gdown --fuzzy` fails with "unrecognized arguments: --fuzzy": uv
-  # consumes the flag as its own before gdown ever sees it. `--` ends uv's
-  # argument list. gdown itself is 6.2.0 and supports --fuzzy fine.
-  uv run -- gdown --fuzzy "https://drive.google.com/uc?id=${GDRIVE_ID}" \
+  # NO --fuzzy: gdown 6.2.0 does not have that flag (it is absent from --help,
+  # which is what makes "unrecognized arguments: --fuzzy" confusing -- the flag
+  # exists in older/newer docs). 6.2.0 takes url_or_id positionally and resolves
+  # a bare file id itself. `--` still ends uv's own argument list.
+  uv run -- gdown "${GDRIVE_ID}" \
        -O "${CKPT_ROOT}/baseline.download" 2>&1 | tail -4 \
     || { echo "STAGE4_EXIT=1 gdown failed"; exit 1; }
   say "unpacking $(du -sh "${CKPT_ROOT}/baseline.download" | cut -f1)"
