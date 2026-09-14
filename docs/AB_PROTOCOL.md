@@ -1581,3 +1581,50 @@ fixes it, and the fix was skipped on the reasoning that the baseline should run
 stock. That reasoning was wrong: the robot-name hunk is a **compatibility** fix,
 independent of the progress-head contribution, and must be applied for ANY run
 against this evaluator. Cost: one scene load, ~15 min.
+
+
+---
+
+## Revision 2026-09-14b — baseline Q = 0.111, and the pipeline demonstrably produces non-zero Q
+
+Raw: `docs/sessionA-2026-09-13/baseline-Q-full.txt`. The last session-A
+deliverable, and the one the session existed for.
+
+Released π₀.₅ checkpoint on `turning_on_radio`, **full episodes**, n=27, one
+invocation, exit 0, 27/27 rollouts:
+
+| | |
+|---|---|
+| **mean Q** | **0.1111** |
+| successes | **3/27** (instances 4, 9, 24) |
+| stdev | 0.3203 |
+| steps | mean 3062, min 1321, max 3225 |
+
+**This is the end-to-end proof the pipeline can produce a sensible non-zero Q.**
+It is not a control — arm A is — but if arm A later reads zero everywhere, this
+run is the evidence that the plumbing was not the reason.
+
+### Three things it settled as a side effect
+
+1. **The episode timeout is 3,225 steps.** Every failure ran to exactly 3225;
+   the three successes ended early, on success. `WEEK1_CHARTER`'s estimate of
+   ~15,800 (30 Hz × 1.5 × 351 s mean demo) is **~5× too high** for this task, and
+   every cost figure derived from it was correspondingly pessimistic.
+2. **Q is Bernoulli on this task.** D=1 means Q ∈ {0,1}, so **mean Q *is* the
+   success rate**, and the observed stdev 0.3203 is sqrt(p(1−p)) at p=0.111, as
+   it must be.
+3. **That stdev is ~3× the noise the power model assumes.** `power.py`'s f=0.05
+   column implies σ_w=0.112 for a D=1 task; the observed spread across instances
+   is **0.320**. With one seed per instance this conflates σ_w and σ_b and cannot
+   separate them — but it is a strong hint that the MDE columns are optimistic,
+   and it is the first real evidence we have about either term. **Do not re-run
+   power.py with 0.320 as σ_w** — that would misattribute all the between-instance
+   variance to within-instance noise. Resolving it needs m>1 on a few instances.
+
+### Cost
+
+2 h 13 m of rollout, ~2.8 h of pod, **≈$2.07** against a $1.20 estimate. The
+overrun is the 3,225-step episodes: I priced them at your 3,224 but the run had
+to establish that number, and the first per-instance sample read ~5.5 min, which
+projected past the 3 h cap. I extended the cap to 08:35 rather than truncate at
+~24/27; the run finished at 07:48 without needing it.
