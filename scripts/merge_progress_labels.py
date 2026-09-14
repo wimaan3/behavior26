@@ -188,7 +188,13 @@ def merge_parquet_files(
                 "point --dataset-root at the pristine dataset."
             )
 
-        frame = table.select([c for c in join_on if c in table.column_names]).to_pandas()
+        # episode_index comes along even when it is not a join key: --drop-unlabelled
+        # drops whole EPISODES, and after slicing the join is on
+        # global_episode_index, so selecting only the join columns left the dropper
+        # with no episode column at all. Found on real data 2026-09-14.
+        wanted = list(join_on) + (["episode_index"] if "episode_index" in table.column_names
+                                  and "episode_index" not in join_on else [])
+        frame = table.select([c for c in wanted if c in table.column_names]).to_pandas()
         for key in join_on:
             if key not in frame.columns:
                 raise SystemExit(

@@ -274,3 +274,42 @@ def test_progress_labels_land_on_the_globally_correct_episodes(source, tmp_path)
             f"{getattr(row, GLOBAL_EP_COL)}, frame {row.frame_index} -- "
             f"got {row.progress}, want {want}. This is arm-B poisoning."
         )
+
+
+def test_drop_unlabelled_works_when_joining_on_the_global_column(source, tmp_path):
+    """Protocol mode (AB_PROTOCOL 3.6) is --drop-unlabelled, and arm B joins on
+    global_episode_index. The merge selected ONLY the join columns out of each
+    parquet, so `episode_index` -- which dropping needs, because episodes are the
+    unit -- was not there, and the real run died with
+    "--drop-unlabelled needs an episode_index column". Found on real data
+    2026-09-14 after the synthetic test passed without the flag.
+    """
+    import pandas as pd
+
+    dest = tmp_path / "out" / "gamma_task"
+    slice_dataset(source, "gamma_task", tmp_path / "out")
+    gamma = sorted(g for g, n, _ in _layout_of(source) if n == "gamma_task")
+    # Label everything EXCEPT the last frame of gamma's second episode.
+    rows = [
+        {"episode_index": g, "frame_index": fr, "progress": _progress_of(g, fr)}
+        for g, _, _ in _layout_of(source) for fr in range(FRAMES)
+        if not (g == gamma[1] and fr == FRAMES - 1)
+    ]
+    labels_path = tmp_path / "labels.parquet"
+    pd.DataFrame(rows).to_parquet(labels_path, index=False)
+
+    res = subprocess.run(
+        [sys.executable, str(REPO / "scripts" / "merge_progress_labels.py"),
+         "--dataset-root", str(dest), "--labels", str(labels_path),
+         "--out-root", str(tmp_path / "merged"),
+         "--join-on", GLOBAL_EP_COL, "frame_index",
+         "--labels-join-on", "episode_index", "frame_index",
+         "--drop-unlabelled"],
+        capture_output=True, text=True)
+    assert res.returncode == 0, res.stdout + res.stderr
+
+    out = tmp_path / "merged" / dest.name if (tmp_path / "merged" / dest.name).exists() else tmp_path / "merged"
+    merged = _read_slice(out)
+    # The unlabelled episode is gone WHOLE, and the other survives intact.
+    assert set(merged[GLOBAL_EP_COL].unique()) == {gamma[0]}, "wrong episode dropped"
+    assert len(merged) == FRAMES
