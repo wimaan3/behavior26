@@ -77,7 +77,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 SHORTLIST = REPO / "analysis" / "reward" / "task_shortlist.csv"
 
 # From the challenge's published throughput and the repo's timing notes.
-DEFAULT_FPS = 13.5
+DEFAULT_FPS = 20.4  # MEASURED end-to-end 2026-09-14; see AB_PROTOCOL revision 2026-09-14
 DEFAULT_SCENE_LOAD_S = 225.0     # midpoint of the published 150-300s
 # Spot, not on-demand. The harness is resumable (--resume indexes completed
 # rollouts from JSON contents), so a preemption costs the in-flight rollout and

@@ -1502,3 +1502,82 @@ At m=3: k=6 → MDE 0.023 ($5 / $65), k=8 → 0.020 ($7 / $96).
 Both columns are affordable against $200. **k is no longer gated by evaluation
 cost — it is gated by training cost and by the arm-throughput benchmark that
 fixes which column applies.**
+
+
+---
+
+## Revision 2026-09-14 — 20.4 FPS end-to-end, and the 13.5 figure was never what we thought
+
+Raw: `docs/sessionA-2026-09-13/baseline-n27.txt`.
+
+### What the organizers' ~13.5 FPS actually is
+
+From the challenge evaluation page: **13.52–24.55 FPS depending on sensor
+configuration, measured with RANDOM ACTIONS — simulator only, no policy.**
+
+Our null-policy runs therefore never contradicted it, and our reading of them was
+wrong in a specific way: **a null policy emits zeros, so the robot never moves and
+never generates contacts.** Contact resolution is the expensive part of the
+physics step. "Stepping is free" was a property of a motionless robot, not of the
+simulator.
+
+### The measurement
+
+Released baseline on `turning_on_radio`, n=27 in one invocation, 501 steps each,
+against the null run's 30.8 s/instance at 51 steps:
+
+| | null (static) | baseline (moving) |
+|---|---|---|
+| steps/instance | 51 | 501 |
+| marginal/instance | 30.8 s | **52.8 s** |
+
+450 extra steps cost **22.0 s** → **0.0490 s/step** → **20.4 FPS end-to-end**,
+covering policy inference, physics under motion, full-res RGBD render and video
+write. That sits inside the organizers' 13.52–24.55 simulator-only band, which is
+the reassuring result: inference is not the dominant term, because
+`--action-horizon 16` means one forward pass per 16 executed frames.
+
+### The cost model, final form for session A
+
+```
+job_s = scene_load + n x (reset_s + frames / 20.4)
+        ~615 warm      ~30.8
+        ~1100-1350 cold
+```
+
+A full ~3,224-frame episode: `30.8 + 158 = 189 s` per instance. At n=27 that is
+**~5,100 s + load ≈ 1.6 h per job**, so a k=8 / n=27 / m=1 cycle (16 jobs) is
+**~26 GPU-h ≈ $19**. Between the $2 and $32 brackets of revision 13g, and near
+the upper one. **k=8 remains affordable; the $2 column is dead.**
+
+### Baseline Q is NOT delivered
+
+All 27 instances returned **Q = 0.0000, 0/27 successes** — but at a 500-step cap,
+which is ~15% of a full episode. `turning_on_radio` is D=1, binary, no partial
+credit: Q=0 means the radio is not on, which is what you would expect when the
+robot has not finished approaching it. **This is an uninformative floor, not the
+baseline.** The rate measurement was the point of this run and it succeeded; Q
+needs a full-episode run, now priced at ~1.6 h ≈ **$1.20** for n=27 on one task.
+
+### Two traps for the next person
+
+1. **`policy:checkpoint` in the fork's `docs/b1k.md` is stale.** At commit
+   `0cc8e355` `Args.policy` is a plain dataclass, not a Union, so tyro rejects the
+   subcommand; use `--policy.config` / `--policy.dir` directly. Also `--repo-id`,
+   not `--repo_id`.
+2. **JAX preallocates 75% of the GPU.** Isaac Sim needs ~14 GB of the same 24 GB
+   card. Without `XLA_PYTHON_CLIENT_PREALLOCATE=false` the simulator fails with a
+   renderer error that never mentions JAX. We ran with `MEM_FRACTION=0.35` and
+   peaked at 19.4 GB total.
+
+### The failure preflight predicted, and that we walked into anyway
+
+The first attempt died on the first step of the first rollout with
+`KeyError: 'robot::proprio'` — openpi's `b1k.py` ships `name="robot"` while the
+evaluator's `r1pro.yaml` ships `name: robot_r1`. `preflight.sh` step 3 already
+warned that its live openpi↔evaluator name check was skipped and that **"it is
+the check that actually proves the first step will not KeyError."** Our own patch
+fixes it, and the fix was skipped on the reasoning that the baseline should run
+stock. That reasoning was wrong: the robot-name hunk is a **compatibility** fix,
+independent of the progress-head contribution, and must be applied for ANY run
+against this evaluator. Cost: one scene load, ~15 min.
