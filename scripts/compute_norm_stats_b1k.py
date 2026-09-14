@@ -38,6 +38,9 @@ def main() -> int:
     ap.add_argument("--max-frames", type=int, default=None)
     ap.add_argument("--num-workers", type=int, default=0)
     ap.add_argument("--video-backend", default="pyav")
+    ap.add_argument("--assets-base-dir", required=True,
+                    help="ABSOLUTE. openpi defaults to ./assets relative to cwd, so stats written "
+                         "from one directory are silently skipped by training from another.")
     a = ap.parse_args()
 
     import numpy as np
@@ -57,7 +60,11 @@ def main() -> int:
     if a.video_backend:
         kwargs["video_backend"] = a.video_backend
     base = dataclasses.replace(base, dataset_kwargs=kwargs)
-    cfg = dataclasses.replace(cfg, data=dataclasses.replace(cfg.data, base_config=base, repo_id=a.repo_id))
+    if not pathlib.Path(a.assets_base_dir).is_absolute():
+        print(f"FAIL: --assets-base-dir {a.assets_base_dir!r} is relative")
+        return 2
+    cfg = dataclasses.replace(cfg, data=dataclasses.replace(cfg.data, base_config=base, repo_id=a.repo_id),
+                              assets_base_dir=a.assets_base_dir)
 
     data_config = cfg.data.create(cfg.assets_dirs, cfg.model)
     root = getattr(data_config, "dataset_root", None)
