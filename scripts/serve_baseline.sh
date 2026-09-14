@@ -18,8 +18,19 @@
 export XLA_PYTHON_CLIENT_PREALLOCATE="${XLA_PYTHON_CLIENT_PREALLOCATE:-false}"
 export XLA_PYTHON_CLIENT_MEM_FRACTION="${XLA_PYTHON_CLIENT_MEM_FRACTION:-0.35}"
 
+# uv installs to ~/.local/bin and install_openpi.sh only exported that inside its
+# own shell, so a fresh shell gets "exec: uv: not found".
+export PATH="${HOME}/.local/bin:${PATH}"
+
 OPENPI_ROOT="${OPENPI_ROOT:-/opt/openpi}"
-CKPT="${CKPT:-/opt/baseline/extracted/pi05_turn_on_the_radio}"
+CKPT_ROOT="${CKPT_ROOT:-/opt/baseline}"
+# DISCOVER the checkpoint rather than hardcode it: the directory name comes from
+# inside the challenge's zip (pi05_turn_on_the_radio today) and is not ours to
+# rely on. An orbax checkpoint is the directory CONTAINING params/, so find that.
+CKPT="${CKPT:-$(find "${CKPT_ROOT}" -maxdepth 3 -type d -name params -printf '%h\n' 2>/dev/null | head -1)}"
+[ -n "${CKPT}" ] && [ -d "${CKPT}/params" ] \
+  || { echo "no checkpoint under ${CKPT_ROOT} (looked for a dir containing params/)" >&2; exit 1; }
+echo "checkpoint: ${CKPT}"
 TASK="${TASK:-turning_on_radio}"
 PORT="${PORT:-8000}"
 
