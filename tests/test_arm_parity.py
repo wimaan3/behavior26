@@ -102,3 +102,12 @@ def test_validate_slice_checks_compaction_as_a_first_class_check():
     # structural, not dependent on LeRobot raising a confusing 401
     seg = text.split("5 -- STRUCTURAL")[1][:2000]
     assert "episode_index not dense" in seg and "index not dense" in seg
+
+
+def test_first_batch_never_touches_the_model():
+    """The point of the script is to fail before a ~7 GB checkpoint download, so
+    it must not import or construct the model to do its job."""
+    text = (REPO / "scripts" / "first_batch.py").read_text()
+    assert "create_data_loader" in text
+    for forbidden in ("create_trained_policy", "model.load", "CheckpointWeightLoader", "restore"):
+        assert forbidden not in text, f"first_batch.py must not {forbidden}"
