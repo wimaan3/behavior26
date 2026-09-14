@@ -76,3 +76,68 @@ never inherited: the 100-task statistics describe a distribution the model never
 sees. What matters most is that **both arms use identical stats**, so the
 `sha256` of `norm_stats.json` is recorded in the run fingerprint alongside
 `progress_filter`.
+
+
+---
+
+## episode_index: the rule that could NOT be "don't renumber"
+
+Preserving the global `episode_index` was the obvious counterpart to the
+`task_index` rule. It is not implementable: **LeRobot v3 indexes episodes
+positionally.**
+
+```python
+if ep_index >= len(self.episodes):
+    raise IndexError(f"Episode index {ep_index} out of range. Episodes: {len(self.episodes)}")
+ep = self.episodes[ep_index]          # row lookup into a datasets.Dataset
+chunk_idx = ep[f"videos/{vid_key}/chunk_index"]
+```
+
+`load_episodes` returns a `datasets.Dataset`, and `DatasetReader` separately
+checks `requested_episodes = set(range(self._meta.total_episodes))`. A 50-episode
+slice carrying global indices 4000-4049 therefore fails twice: `IndexError` on
+video-path resolution, and a cache check that asks for 0-49 and finds none.
+
+Dense zero-based episode indexing is structural.
+
+### So the mapping rides as a COLUMN
+
+`slice_task_dataset.py` renumbers `episode_index` densely and writes the original
+as **`global_episode_index`**, registered in `meta/info.json` features (an
+unregistered column makes the dataset unloadable -- the schema is built from that
+dict, the same trap `progress` has).
+
+A column rather than a sidecar file because **the mapping cannot be separated
+from the rows it describes**: a sidecar can be paired with the wrong slice, lost
+in a copy, or go stale after a re-slice. A column cannot, and a missing one fails
+at merge, which is the property the design is buying.
+
+`merge_progress_labels.py` gained `--labels-join-on` for the name asymmetry: the
+data calls it `global_episode_index`, the Jetson sidecar -- produced against the
+pristine corpus -- calls it `episode_index`. Same numbers, different name.
+Required rather than auto-detected: auto-detection is how you silently merge
+against the wrong root.
+
+```bash
+python scripts/slice_task_dataset.py --source <combined> \
+    --task set_up_a_coffee_station_in_your_kitchen --out <tasks-root>
+
+python scripts/merge_progress_labels.py --dataset-root <tasks-root>/<task> \
+    --labels <jetson>/labels.parquet --out-root <arm-b-root> \
+    --join-on global_episode_index frame_index \
+    --labels-join-on episode_index frame_index
+```
+
+### The test that guards it
+
+`tests/test_task_slicing.py::test_progress_labels_land_on_the_globally_correct_episodes`.
+
+It labels **every** global episode, as the Jetson does. That is what makes the bug
+silent: for any local index `i` there is always a label for global episode `i`,
+belonging to whichever task owns it, so a wrong join succeeds completely and
+writes wrong values. A fixture that labelled only this task would make the wrong
+join fail on missing labels and the test would pass for the wrong reason.
+
+Verified by mutation: pointing the join at the renumbered `episode_index` makes
+the merge succeed and the **value** assertion fail. Re-run that mutation if the
+test is ever refactored -- a green test here is only meaningful if it can go red.
