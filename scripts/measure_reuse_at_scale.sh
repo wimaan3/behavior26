@@ -26,7 +26,10 @@ TASK="${TASK:-turning_on_radio}"
 MODE="${MODE:-train}"
 PORT="${PORT:-8000}"
 N="${N:-27}"
-STEPS="${STEPS:-50}"
+# STEPS="" means NO --max-steps: full episodes, the task's own timeout. Needed
+# for a real Q -- a truncated episode on a D=1 binary task reads Q=0 because the
+# robot has not finished, which says nothing about the policy.
+STEPS="${STEPS-50}"
 OUT="${ROLLOUT_SCRATCH:-/tmp}/scale"
 SAMPLES="${SAMPLES:-/tmp/scale_rss.csv}"
 
@@ -63,7 +66,7 @@ python -m omnigibson.eval.eval \
   --num-rollouts 1 \
   --env-wrapper omnigibson.eval.wrappers.RGBDFullResWrapper \
   --output-dir "${OUT}" --write-video --headless \
-  --max-steps "${STEPS}" > "${OUT}/eval.log" 2>&1
+  ${STEPS:+--max-steps "${STEPS}"} > "${OUT}/eval.log" 2>&1
 RC=$?
 WALL=$(( $(date +%s) - T0 ))
 kill "${SAMPLER}" 2>/dev/null; pkill -f rss_sampler.sh 2>/dev/null
