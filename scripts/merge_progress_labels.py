@@ -241,6 +241,99 @@ def merge_parquet_files(
     return total, unlabelled, dropped, rows_out
 
 
+GLOBAL_EP_COL = "global_episode_index"
+
+
+def compact_root(out_root: Path) -> dict:
+    """Make a root LeRobot v3 can actually load after episodes were dropped.
+
+    Dropping an episode and leaving the numbering alone is right for LeRobot v2
+    and FATAL for v3, which indexes episodes POSITIONALLY:
+
+        if ep_index >= len(self.episodes): raise IndexError(...)
+        ep = self.episodes[ep_index]
+
+    and clamps every delta-timestamp query into [dataset_from_index,
+    dataset_to_index) before using the result as a ROW POSITION. Measured on the
+    real coffee-station root 2026-09-14: after dropping episode 111 the data had a
+    gap, `index` ran 0..1,253,242 for 1,247,890 rows, meta/episodes still listed
+    200 while info.json said 199, and LeRobotDataset fell through to a Hub lookup
+    for a repo that does not exist (401). Arm A would have trained and arm B would
+    not -- the asymmetry that makes dQ meaningless.
+
+    So: renumber episodes densely, rewrite `index`, rebuild the episode ranges,
+    prune meta/episodes. `global_episode_index` is carried through untouched, so a
+    label is still traceable to its original demonstration after TWO renumberings
+    (slice, then compaction). Same three rules as the slicer, second writer.
+    """
+    import pandas as pd
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    paths = sorted((out_root / "data").glob("*/*.parquet"))
+    surviving = set()
+    for path in paths:
+        surviving.update(int(e) for e in pq.read_table(path, columns=["episode_index"])
+                         .to_pandas()["episode_index"].unique())
+    ordered = sorted(surviving)
+    remap = {g: i for i, g in enumerate(ordered)}
+
+    cursor = 0
+    ranges: dict[int, tuple[int, int]] = {}
+    for path in paths:
+        df = pq.read_table(path).to_pandas()
+        if df.empty:
+            path.unlink()
+            continue
+        df = df.sort_values(["episode_index", "frame_index"], kind="stable")
+        df["episode_index"] = df["episode_index"].map(remap).astype("int64")
+        if "index" in df.columns:
+            df["index"] = range(cursor, cursor + len(df))
+            cursor += len(df)
+            for ep, grp in df.groupby("episode_index", sort=False):
+                lo, hi = int(grp["index"].min()), int(grp["index"].max()) + 1
+                ranges[int(ep)] = (lo, hi)
+        pq.write_table(pa.Table.from_pandas(df, preserve_index=False), path)
+
+    eps_dir = out_root / "meta" / "episodes"
+    if eps_dir.is_dir():
+        for path in sorted(eps_dir.glob("*/*.parquet")):
+            edf = pq.read_table(path).to_pandas()
+            if "episode_index" not in edf.columns:
+                continue
+            sub = edf[edf["episode_index"].isin(ordered)].copy()
+            if sub.empty:
+                path.unlink()
+                continue
+            sub = sub.sort_values("episode_index", kind="stable")
+            sub["episode_index"] = sub["episode_index"].map(remap).astype("int64")
+            if {"dataset_from_index", "dataset_to_index"} <= set(sub.columns) and ranges:
+                sub["dataset_from_index"] = sub["episode_index"].map(lambda e: ranges[e][0]).astype("int64")
+                sub["dataset_to_index"] = sub["episode_index"].map(lambda e: ranges[e][1]).astype("int64")
+            pq.write_table(pa.Table.from_pandas(sub, preserve_index=False), path)
+
+    info_path = out_root / "meta" / "info.json"
+    info = json.loads(info_path.read_text())
+    info["total_episodes"] = len(ordered)
+    info["total_frames"] = cursor
+    info_path.write_text(json.dumps(info, indent=4))
+    print(f"==> compacted: {len(ordered)} episodes, {cursor} frames, dense episode_index and index")
+    # BOTH mappings, named for what they are. "episode_remap" alone was ambiguous
+    # between the pre-compaction LOCAL index and the pristine GLOBAL one, and an
+    # auditor reading the wrong one silently checks nothing.
+    kept_global: dict[str, int] = {}
+    for path in sorted((out_root / "data").glob("*/*.parquet")):
+        cols = pq.read_schema(path).names
+        if GLOBAL_EP_COL not in cols:
+            break
+        d = pq.read_table(path, columns=["episode_index", GLOBAL_EP_COL]).to_pandas()
+        for new_idx, g in d.drop_duplicates("episode_index").itertuples(index=False):
+            kept_global[str(int(g))] = int(new_idx)
+    return {"episodes_out": len(ordered), "compacted": True,
+            "episode_remap_local": {str(g): remap[g] for g in ordered},
+            "global_episodes_kept": dict(sorted(kept_global.items(), key=lambda kv: kv[1]))}
+
+
 def patch_info(meta_dir: Path, out_meta_dir: Path,
                dropped: set | None = None, rows_out: int | None = None) -> None:
     """Copy meta/ and register `progress` in info.json features.
@@ -404,6 +497,7 @@ def main() -> int:
             if isinstance(info.get("total_frames"), int):
                 info["total_frames"] = rows_out
         (out_meta / "info.json").write_text(json.dumps(info, indent=4))
+        compaction = compact_root(out_root) if dropped else {"episodes_out": None, "compacted": False}
     else:
         out_root = (args.out_root or root.parent / f"{root.name}+progress").expanduser()
         if out_root.exists():
@@ -416,6 +510,7 @@ def main() -> int:
             allow_missing=args.allow_missing, drop_unlabelled=args.drop_unlabelled,
         )
         patch_info(root / "meta", out_root / "meta", dropped, rows_out)
+        compaction = compact_root(out_root) if dropped else {"episodes_out": None, "compacted": False}
 
         videos = root / "videos"
         if videos.is_dir():
@@ -447,6 +542,11 @@ def main() -> int:
             "label_column": args.column,
             "join_on": list(join_on),
             "labels_join_on": list(labels_join_on),
+            # Post-compaction facts. The arm-parity guard reads episodes_out and
+            # compares it with the root's own info.json, so a root that was
+            # dropped-but-not-compacted, or swapped for the pristine one, cannot
+            # pass as the filtered root.
+            **compaction,
         }, indent=2, sort_keys=True))
         print(f"==> dropped {len(dropped)} episode(s) with unlabelled frames: {sorted(dropped)}")
         print(f"==> {rows_out} rows remain; manifest -> {manifest}")

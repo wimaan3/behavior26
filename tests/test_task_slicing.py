@@ -26,7 +26,7 @@ from scripts.slice_task_dataset import GLOBAL_EP_COL, slice_dataset  # noqa: E40
 # A source with THREE tasks whose episode indices interleave, so a slice cannot
 # accidentally look correct by being a contiguous prefix.
 TASKS = {"alpha_task": 3, "beta_task": 7, "gamma_task": 11}
-EPISODES_PER_TASK = 2
+EPISODES_PER_TASK = 3   # >=3 so a dropped MIDDLE episode leaves a gap
 FRAMES = 4
 
 
@@ -311,5 +311,89 @@ def test_drop_unlabelled_works_when_joining_on_the_global_column(source, tmp_pat
     out = tmp_path / "merged" / dest.name if (tmp_path / "merged" / dest.name).exists() else tmp_path / "merged"
     merged = _read_slice(out)
     # The unlabelled episode is gone WHOLE, and the other survives intact.
-    assert set(merged[GLOBAL_EP_COL].unique()) == {gamma[0]}, "wrong episode dropped"
-    assert len(merged) == FRAMES
+    assert gamma[1] not in set(merged[GLOBAL_EP_COL].unique()), "wrong episode dropped"
+    assert len(merged) == FRAMES * (EPISODES_PER_TASK - 1)
+
+
+# ------------------------------------------- compaction after --drop-unlabelled
+
+def _merge(dest: Path, labels_path: Path, out: Path, *, drop=True):
+    cmd = [sys.executable, str(REPO / "scripts" / "merge_progress_labels.py"),
+           "--dataset-root", str(dest), "--labels", str(labels_path), "--out-root", str(out),
+           "--join-on", GLOBAL_EP_COL, "frame_index",
+           "--labels-join-on", "episode_index", "frame_index"]
+    if drop:
+        cmd.append("--drop-unlabelled")
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    assert res.returncode == 0, res.stdout + res.stderr
+    return out if (out / "data").exists() else out / dest.name
+
+
+@pytest.fixture
+def sliced_with_a_hole(source, tmp_path):
+    """A gamma slice plus labels missing one frame of its MIDDLE episode."""
+    import pandas as pd
+    dest = tmp_path / "out" / "gamma_task"
+    slice_dataset(source, "gamma_task", tmp_path / "out")
+    gamma = sorted(g for g, n, _ in _layout_of(source) if n == "gamma_task")
+    hole = gamma[1]
+    rows = [{"episode_index": g, "frame_index": fr, "progress": _progress_of(g, fr)}
+            for g, _, _ in _layout_of(source) for fr in range(FRAMES)
+            if not (g == hole and fr == FRAMES - 1)]
+    lp = tmp_path / "labels.parquet"
+    pd.DataFrame(rows).to_parquet(lp, index=False)
+    return dest, lp, gamma, hole
+
+
+def test_dropping_an_episode_leaves_a_dense_root(sliced_with_a_hole, tmp_path):
+    """LeRobot v3 indexes episodes POSITIONALLY. Dropping the middle episode and
+    leaving the numbering alone -- correct for v2 -- puts every later episode off
+    by one, breaks the frame ranges, and sends LeRobot to the Hub for a repo that
+    does not exist. Measured on the real coffee-station root 2026-09-14."""
+    dest, lp, gamma, hole = sliced_with_a_hole
+    out = _merge(dest, lp, tmp_path / "merged")
+    data, eps = _read_slice(out), _read_episodes(out)
+    assert sorted(data["episode_index"].unique()) == [0, 1], "episode_index must be dense after a drop"
+    assert sorted(data["index"]) == list(range(len(data))), "index must be dense after a drop"
+    assert len(eps) == 2, "meta/episodes must be pruned, not left listing the dropped episode"
+    assert sorted(eps["episode_index"]) == [0, 1]
+    for ep in eps.itertuples():
+        rows = data[data["episode_index"] == ep.episode_index]
+        assert sorted(rows["index"]) == list(range(ep.dataset_from_index, ep.dataset_to_index))
+
+
+def test_compaction_preserves_the_global_mapping(sliced_with_a_hole, tmp_path):
+    """The whole point of the column: after TWO renumberings (slice, then
+    compaction) a label must still be traceable to its original demonstration."""
+    import numpy as np, pandas as pd
+    dest, lp, gamma, hole = sliced_with_a_hole
+    out = _merge(dest, lp, tmp_path / "merged")
+    data = _read_slice(out)
+    assert sorted(data[GLOBAL_EP_COL].unique()) == [gamma[0], gamma[2]], "the dropped episode is the hole"
+    side = pd.read_parquet(lp).set_index(["episode_index", "frame_index"])["progress"]
+    want = side.reindex(pd.MultiIndex.from_arrays([data[GLOBAL_EP_COL], data["frame_index"]])).to_numpy()
+    assert np.allclose(data["progress"].to_numpy(dtype="float32"), want.astype("float32"), atol=1e-6)
+
+
+def test_info_totals_match_the_compacted_rows(sliced_with_a_hole, tmp_path):
+    dest, lp, gamma, hole = sliced_with_a_hole
+    out = _merge(dest, lp, tmp_path / "merged")
+    info = json.loads((out / "meta" / "info.json").read_text())
+    data = _read_slice(out)
+    assert info["total_episodes"] == data["episode_index"].nunique() == 2
+    assert info["total_frames"] == len(data)
+
+
+def test_the_filter_manifest_records_what_a_reader_must_check(sliced_with_a_hole, tmp_path):
+    """meta/progress_filter.json is the artifact the arm-parity guard reads, so it
+    has to carry the post-compaction episode count, not just what was dropped."""
+    dest, lp, gamma, hole = sliced_with_a_hole
+    out = _merge(dest, lp, tmp_path / "merged")
+    m = json.loads((out / "meta" / "progress_filter.json").read_text())
+    assert m["episodes_out"] == 2
+    assert m["compacted"] is True
+    # local (pre-compaction) -> new, and pristine global -> new. Both, because
+    # "episode_remap" alone is ambiguous and an auditor reading the wrong one
+    # checks nothing.
+    assert m["episode_remap_local"] == {"0": 0, "2": 1}
+    assert m["global_episodes_kept"] == {str(gamma[0]): 0, str(gamma[2]): 1}

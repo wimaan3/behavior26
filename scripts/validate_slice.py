@@ -153,12 +153,47 @@ def check4(root: Path, task: str, labels: Path, work: Path, horizon: int) -> Non
     record("4 labels on globally correct episodes", val_bad == 0 and task_bad == 0 and len(m) > 0,
            f"rows={len(m)} value_mismatch={val_bad} sidecar_task_mismatch={task_bad} "
            f"episodes kept={m.episode_index.nunique()}")
+    # 5 -- STRUCTURAL, checked without LeRobot so the failure is unambiguous.
+    # A dropped-but-uncompacted root puts every later episode off by one
+    # positionally, breaks the frame ranges, and sends LeRobot to the Hub for a
+    # repo that does not exist -- a 401 that looks like an auth problem and is
+    # really an off-by-N. Found exactly that way on 2026-09-14, so it is a
+    # first-class check rather than a bonus.
+    import pyarrow.parquet as pq
+    eps_files = sorted((merged_root / "meta" / "episodes").glob("*/*.parquet"))
+    eps = pd.concat([pq.read_table(f).to_pandas() for f in eps_files], ignore_index=True) if eps_files else None
+    info = json.loads((merged_root / "meta" / "info.json").read_text())
+    local = sorted(int(e) for e in m["episode_index"].unique())
+    idx = m["index"].to_numpy()
+    problems = []
+    if local != list(range(len(local))):
+        problems.append(f"episode_index not dense: gaps at {sorted(set(range(max(local) + 1)) - set(local))[:5]}")
+    if sorted(idx.tolist()) != list(range(len(idx))):
+        problems.append(f"index not dense: {idx.min()}..{idx.max()} for {len(idx)} rows")
+    if eps is not None and len(eps) != len(local):
+        problems.append(f"meta/episodes lists {len(eps)} episodes but data has {len(local)}")
+    if info.get("total_episodes") != len(local):
+        problems.append(f"info.json says {info.get('total_episodes')} episodes, data has {len(local)}")
+    if eps is not None and {"dataset_from_index", "dataset_to_index"} <= set(eps.columns):
+        for ep in eps.itertuples():
+            rows = m[m["episode_index"] == ep.episode_index]["index"]
+            if sorted(rows.tolist()) != list(range(ep.dataset_from_index, ep.dataset_to_index)):
+                problems.append(f"episode {ep.episode_index} range does not match its rows")
+                break
+    record("5 merged root is compacted", not problems, "; ".join(problems) or "dense, pruned, ranges match")
+
+    man = merged_root / "meta" / "progress_filter.json"
+    mf = json.loads(man.read_text()) if man.exists() else {}
+    record("5b filter manifest agrees with the root",
+           bool(mf) and mf.get("episodes_out") == len(local) and mf.get("compacted") is True,
+           f"manifest episodes_out={mf.get('episodes_out')} compacted={mf.get('compacted')} data={len(local)}")
+
     try:
         ds = open_dataset(merged_root, task, horizon, None)
         _ = ds[0]
-        record("4b merged root opens in LeRobot", True, f"len={len(ds)} episodes={ds.meta.total_episodes}")
+        record("5c merged root opens in LeRobot", True, f"len={len(ds)} episodes={ds.meta.total_episodes}")
     except Exception as e:                           # noqa: BLE001
-        record("4b merged root opens in LeRobot", False, f"{type(e).__name__}: {str(e)[:300]}")
+        record("5c merged root opens in LeRobot", False, f"{type(e).__name__}: {str(e)[:300]}")
 
 
 def main() -> int:
