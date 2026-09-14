@@ -17,6 +17,8 @@
 #   scripts/apply_openpi_patches.sh                  # apply
 #   scripts/apply_openpi_patches.sh --check          # report, change nothing
 #   scripts/apply_openpi_patches.sh --reverse        # undo
+#   scripts/apply_openpi_patches.sh --compat-only    # robot-name fix ONLY --
+#                                                    # stock model, working plumbing
 #   OPENPI_ROOT=/path/to/openpi scripts/apply_openpi_patches.sh
 set -euo pipefail
 
@@ -29,10 +31,12 @@ OPENPI_ROOT="${OPENPI_ROOT:-$(cd "${REPO_ROOT}/.." && pwd)/openpi}"
 EXPECTED_BASE="0cc8e355f7bac0976db1cc3139b1ff0379feea60"
 
 MODE="apply"
+COMPAT_ONLY=0
 case "${1:-}" in
-  --check)   MODE="check" ;;
-  --reverse) MODE="reverse" ;;
-  "")        ;;
+  --check)        MODE="check" ;;
+  --reverse)      MODE="reverse" ;;
+  --compat-only)  COMPAT_ONLY=1 ;;
+  "")             ;;
   *) echo "unknown argument: $1" >&2; exit 2 ;;
 esac
 
@@ -43,7 +47,34 @@ log()  { printf '\033[1m==> %s\033[0m\n' "$*"; }
 [ -d "${OPENPI_ROOT}/.git" ] || die "OPENPI_ROOT=${OPENPI_ROOT} is not a git checkout.
     git clone -b behavior https://github.com/wensi-ai/openpi.git ${OPENPI_ROOT}"
 
-mapfile -t PATCHES < <(find "$PATCH_DIR" -name '*.patch' | sort)
+# TWO CLASSES OF PATCH, and the distinction is load-bearing.
+#
+# COMPAT is the robot-name fix. openpi ships `name="robot"`, the evaluator ships
+# `name: robot_r1`, and every observation key is prefixed with the scene name --
+# so without it the FIRST STEP of the FIRST rollout dies with
+# `KeyError: 'robot::proprio'`, after the scene load, on rented hardware.
+# It is required for ANY run against this evaluator, ours or stock.
+#
+# CONTRIB is the progress head and the low-memory configs -- what we are actually
+# testing, and the thing a baseline run legitimately wants to leave out.
+#
+# They used to be one patch, named for the head. On 2026-09-14 a released-baseline
+# run skipped it to keep the model stock, and took the compatibility fix with it;
+# it died on step 1 exactly as preflight step 3 predicts in writing. There was no
+# way to say "stock model, working plumbing". Now there is: --compat-only.
+#
+# COMPAT is applied in EVERY writing mode. CONTRIB is never applied on its own.
+mapfile -t COMPAT_PATCHES  < <(find "$PATCH_DIR" -name '0001-*.patch' | sort)
+mapfile -t CONTRIB_PATCHES < <(find "$PATCH_DIR" -name '0002-*.patch' | sort)
+[ "${#COMPAT_PATCHES[@]}" -gt 0 ] || die "no compatibility patch in ${PATCH_DIR}"
+
+if [ "$COMPAT_ONLY" = "1" ]; then
+  PATCHES=( "${COMPAT_PATCHES[@]}" )
+  warn "--compat-only: applying the robot-name fix WITHOUT the progress head."
+  warn "  Correct for running a stock/released checkpoint. The model is unchanged."
+else
+  PATCHES=( "${COMPAT_PATCHES[@]}" "${CONTRIB_PATCHES[@]}" )
+fi
 [ "${#PATCHES[@]}" -gt 0 ] || die "no patches found in ${PATCH_DIR}"
 
 cd "$OPENPI_ROOT"
