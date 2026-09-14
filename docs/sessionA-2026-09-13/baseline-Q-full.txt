@@ -1,0 +1,28 @@
+BASELINE Q -- turning_on_radio, FULL episodes, n=27, released pi05 checkpoint.
+RTX 4090 (16 vCPU), EU-RO-1, driver 580.126.09, selkies-egl-desktop:26.04.
+behavior26 947bce8 | openpi 0cc8e35 + 0001-robot-name-compatibility.patch only.
+serve: scripts/serve_baseline.sh (action-horizon 16, PREALLOCATE=false, FRACTION 0.35)
+EXIT=0  wall_s=7977  27/27 rollouts  distinct ids 0..26  steps_total 82687
+
+  mean Q     : 0.1111        <- the headline
+  median     : 0.0000
+  stdev      : 0.3203
+  min / max  : 0.000 / 1.000
+  successes  : 3/27  (instances 4, 9, 24)
+  non-zero Q : 3/27
+  steps      : mean 3062, min 1321, max 3225
+
+instance : Q      steps  success
+       4 : 1.000   1321  True
+       9 : 1.000   1600  True
+      24 : 1.000   2366  True
+  all others : 0.000  3225  False
+
+EPISODE TIMEOUT IS 3,225 STEPS. Every failure ran to exactly 3225; the three
+successes terminated early, on success. That settles the open question -- the
+WEEK1_CHARTER estimate of ~15,800 steps (30 Hz x 1.5 x 351 s mean demo) is ~5x
+too high for this task.
+
+Q IS BERNOULLI HERE. turning_on_radio is D=1, so Q in {0,1} and mean Q IS the
+success rate. The observed stdev 0.3203 is close to sqrt(p(1-p)) = 0.314 at
+p=0.111, as it must be.
