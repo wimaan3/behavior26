@@ -250,7 +250,6 @@ def slice_dataset(source: Path, task: str, out_root: Path, *, overwrite: bool = 
             "this column is what progress labels join on."
         ),
     }
-    info["_sliced_from"] = {"task": task, "task_index": task_index, "source": str(source)}
     (dest / "meta" / "info.json").write_text(json.dumps(info, indent=2))
 
     for extra in ("stats.json", "tasks.jsonl"):
@@ -261,6 +260,7 @@ def slice_dataset(source: Path, task: str, out_root: Path, *, overwrite: bool = 
     manifest = {
         "task": task,
         "task_index": task_index,
+        "source": str(source),
         "episodes": len(ordered),
         "frames": rows_out,
         "video_files": len(video_refs),
