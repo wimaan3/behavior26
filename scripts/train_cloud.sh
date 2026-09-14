@@ -220,7 +220,25 @@ if [ -d "$CKPT_DIR" ] && [ -n "$(ls -A "$CKPT_DIR" 2>/dev/null)" ]; then
 fi
 
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-$(seq -s, 0 $((NUM_GPUS - 1)))}"
+
+# JAX MEMORY -- session B (training) wants the OPPOSITE of session A (evaluation).
+#
+# HERE, TRAINING: JAX owns the card. Leave preallocation ON (the default) and
+# take 90% of it. Preallocating up front is faster and avoids the fragmentation
+# you get from growing the arena during a long run.
+#
+# THERE, EVALUATION: the policy server shares one card with Isaac Sim, which needs
+# ~14 GB of a 24 GB 4090. Preallocation at the 75% default starves the simulator,
+# and the failure surfaces as a renderer error that never mentions JAX. Serving
+# therefore needs XLA_PYTHON_CLIENT_PREALLOCATE=false plus a small MEM_FRACTION
+# (0.35 measured working, 19.4 GB total with both resident).
+#
+# So this is NOT a blanket export to copy between the two. Setting PREALLOCATE
+# =false here would cost throughput for no reason; leaving it true there breaks
+# the run. See AB_PROTOCOL revision 2026-09-14.
 export XLA_PYTHON_CLIENT_MEM_FRACTION="${XLA_PYTHON_CLIENT_MEM_FRACTION:-0.9}"
+: "${XLA_PYTHON_CLIENT_PREALLOCATE:=true}"   # deliberate: training, not serving
+export XLA_PYTHON_CLIENT_PREALLOCATE
 
 log "training -> $CKPT_DIR (log: $LOG_DIR/train.log)"
 run uv run scripts/b1k/train_b1k.py "$CONFIG" \

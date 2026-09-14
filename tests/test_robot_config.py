@@ -127,3 +127,81 @@ def test_our_vendored_yaml_still_matches_the_evaluators():
         f"{OUR_ROBOT_YAML} has drifted from {EVAL_ROBOT_YAML}. If upstream changed "
         "it, re-copy it and re-check the robot name; do not hand-edit our copy."
     )
+
+
+# ----------------------------------- the compatibility patch must not be optional
+#
+# 2026-09-14: the first real-baseline run died on the first step of the first
+# rollout with exactly the KeyError this module exists to prevent. Not because
+# the check was missing -- preflight step 3 says out loud that its live
+# openpi<->evaluator name check was skipped and that "it is the check that
+# actually proves the first step will not KeyError" -- but because the fix lived
+# inside a patch named for the progress head, and the run deliberately skipped
+# that patch to keep the baseline model stock. There was no way to express
+# "stock model, compatible plumbing", so nothing got applied.
+
+from pathlib import Path as _Path  # noqa: E402
+
+PATCH_DIR = REPO / "training" / "patches"
+COMPAT = PATCH_DIR / "0001-robot-name-compatibility.patch"
+CONTRIB = PATCH_DIR / "0002-progress-head-and-low-memory-configs.patch"
+APPLY = REPO / "scripts" / "apply_openpi_patches.sh"
+
+
+def test_the_compatibility_fix_is_its_own_patch():
+    """Separable from the contribution, because they answer to different
+    questions: one makes ANY run work against this evaluator, the other is what
+    we are testing."""
+    assert COMPAT.exists(), "the robot-name fix must be its own patch"
+    files = [l for l in COMPAT.read_text().splitlines() if l.startswith("diff --git")]
+    assert len(files) == 1, f"compat patch must touch exactly one file, touches {len(files)}"
+    assert "configs/robots/b1k.py" in files[0]
+    assert 'ROBOT_NAME = "robot_r1"' in COMPAT.read_text()
+
+
+def test_the_progress_head_does_not_carry_the_robot_name_fix():
+    """If it did, skipping the head would silently take the compatibility fix
+    with it -- which is precisely what happened."""
+    assert CONTRIB.exists()
+    assert "configs/robots/b1k.py" not in CONTRIB.read_text()
+
+
+def test_compat_only_is_a_first_class_mode():
+    """The mode whose absence caused the failure. Running the released baseline
+    wants the stock model AND working plumbing."""
+    text = APPLY.read_text()
+    assert "--compat-only" in text, "there must be a way to ask for stock model + compat"
+
+
+def test_the_contribution_can_never_be_applied_without_the_compatibility_fix():
+    """The guarantee that makes this unreasonable-out-of. Applying the progress
+    head alone would reintroduce the KeyError on any evaluator run."""
+    text = APPLY.read_text()
+    assert "COMPAT_PATCHES" in text and "CONTRIB_PATCHES" in text, (
+        "the two classes must be distinguishable in the script"
+    )
+    # compat must be listed before contribution wherever the apply order is built
+    assert text.index("COMPAT_PATCHES") < text.index("CONTRIB_PATCHES")
+
+
+def test_jax_preallocation_is_opposite_for_serving_and_training():
+    """Measured 2026-09-14, and the two must not be copied to each other.
+
+    Serving shares a 24 GB card with Isaac Sim (~14 GB), so JAX's default 75%
+    preallocation starves the simulator and reports a renderer error that never
+    mentions JAX. Training owns the card, where preallocation is faster and
+    avoids fragmentation.
+    """
+    serve = (REPO / "scripts" / "serve_baseline.sh").read_text()
+    train = (REPO / "scripts" / "train_cloud.sh").read_text()
+    # Match the ASSIGNMENT, not the first mention -- both files discuss the flag
+    # in comments before setting it.
+    serve_set = re.search(r'^export XLA_PYTHON_CLIENT_PREALLOCATE=.*$', serve, re.M)
+    assert serve_set and "false" in serve_set.group(0), (
+        f"serving must disable preallocation; got {serve_set and serve_set.group(0)}"
+    )
+    train_set = re.search(r'^:\s*"\$\{XLA_PYTHON_CLIENT_PREALLOCATE:=(\w+)\}"', train, re.M)
+    assert train_set, "training must state its choice rather than inherit a copied default"
+    assert train_set.group(1) == "true", "training keeps preallocation ON, deliberately"
+    for text in (serve, train):
+        assert "Isaac Sim" in text, "each side must say why the other differs"
