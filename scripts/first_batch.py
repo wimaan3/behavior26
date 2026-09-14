@@ -79,7 +79,13 @@ def main() -> int:
         print(f"FAIL: effective dataset_root {_root} does not exist. The loader would "
               f"fall back to the Hub and report a 401 that has nothing to do with auth.")
         return 2
-    loader = _data_loader.create_data_loader(
+    # create_b1k_data_loader, NOT create_data_loader. `scripts/b1k/train_b1k.py:432`
+    # uses the b1k loader; the generic one routes to create_torch_dataset, which
+    # calls LeRobotDatasetMetadata(repo_id) with NO root -- it ignores
+    # dataset_root entirely and goes to the Hub, producing a 401 that looks like
+    # an auth failure and is really "you called the wrong entry point". A probe
+    # that does not mirror the trainer proves nothing about the trainer.
+    loader = _data_loader.create_b1k_data_loader(
         cfg, shuffle=False, num_batches=1, skip_norm_stats=a.skip_norm_stats)
     obs, actions = next(iter(loader))
 

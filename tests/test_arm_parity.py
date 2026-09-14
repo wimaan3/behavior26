@@ -111,3 +111,13 @@ def test_first_batch_never_touches_the_model():
     assert "create_data_loader" in text
     for forbidden in ("create_trained_policy", "model.load", "CheckpointWeightLoader", "restore"):
         assert forbidden not in text, f"first_batch.py must not {forbidden}"
+
+
+def test_first_batch_uses_the_same_loader_as_the_trainer():
+    """scripts/b1k/train_b1k.py uses create_b1k_data_loader. The generic
+    create_data_loader routes to create_torch_dataset, which ignores
+    dataset_root, hits the Hub and 401s. A probe that does not mirror the
+    trainer proves nothing about the trainer."""
+    text = (REPO / "scripts" / "first_batch.py").read_text()
+    assert "create_b1k_data_loader" in text
+    assert "_data_loader.create_data_loader(" not in text
