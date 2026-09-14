@@ -132,12 +132,41 @@ python scripts/merge_progress_labels.py --dataset-root <tasks-root>/<task> \
 
 `tests/test_task_slicing.py::test_progress_labels_land_on_the_globally_correct_episodes`.
 
-It labels **every** global episode, as the Jetson does. That is what makes the bug
-silent: for any local index `i` there is always a label for global episode `i`,
-belonging to whichever task owns it, so a wrong join succeeds completely and
-writes wrong values. A fixture that labelled only this task would make the wrong
-join fail on missing labels and the test would pass for the wrong reason.
+It labels **every** global episode -- a deliberate worst case. **Correction
+(2026-09-14):** an earlier version of this section said the Jetson labels the
+whole corpus. It does not: the sidecars are per task
+(`origin/jetson/labels:labels/<task>/labels.parquet`), with global episodes
+`task_index x 200 + i` -- coffee station 2000-2199 (199 labelled), shoe rack
+4400-4599 (195 labelled).
+
+That changes WHEN the bug is silent, not whether it matters. For the current pair a
+wrong join on local 0..199 looks up turning_on_radio's range, finds nothing, and
+fails loudly. It becomes silent once arm B concatenates sidecars covering global
+0..N-1 -- plausible as k grows. The fixture covers that case so the test cannot pass
+for the wrong reason.
 
 Verified by mutation: pointing the join at the renumbered `episode_index` makes
 the merge succeed and the **value** assertion fail. Re-run that mutation if the
 test is ever refactored -- a green test here is only meaningful if it can go red.
+
+
+## The third index trap: episode frame ranges
+
+`meta/episodes` carries `dataset_from_index` / `dataset_to_index`, in the same space
+as the data's `index` column. The reader clamps every delta-timestamp query into that
+range and uses the result as a **row position** (`_absolute_to_relative_idx` is None
+when all episodes load):
+
+```python
+query = max(ep_start, min(ep_end - 1, abs_idx + delta))
+```
+
+The first slicer renumbered `index` and copied the ranges unchanged -- so action
+chunks would be drawn from the wrong frames: an IndexError for most tasks, but
+**silently wrong action targets** for any task whose global offset lands inside the
+slice. The synthetic fixture never exercised it because it had no range columns; it
+does now, and the test was mutation-checked. `scripts/validate_slice.py` check 1c
+verifies the same property on real data, frame by frame, at episode boundaries.
+
+The slicer also now hard-links (or copies) every video file an episode references,
+at its original path, and refuses to write a slice with a missing one.
