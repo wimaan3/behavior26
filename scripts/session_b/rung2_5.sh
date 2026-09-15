@@ -42,12 +42,20 @@ export OPENPI_ROOT=/opt/openpi
 PY=/opt/openpi/.venv/bin/python
 B26=/opt/behavior26
 mkdir -p "$OUT"
+# Paths used by several stages live HERE, not inside a stage: START_AT skips stages,
+# and a variable defined inside a skipped one is unbound under `set -u`. A resumed
+# run died on exactly that ("C0: unbound variable").
+C0=/opt/merged/${TASKS[0]}
+R1=$B26/docs/sessionB-2026-09-15-rung1
 # START_AT=4 resumes at the training stages, reusing the artifacts stages 0-3 left
 # on this box. Only valid on a box that already ran them -- each resumed stage
 # re-checks what it depends on rather than assuming.
 START_AT="${START_AT:-0}"
 stage () { echo; echo "=== STAGE $1 $(date -u +%H:%M:%S)"; CUR="$1"; }
-skip_before () { [ "${START_AT}" -gt "$1" ] && { echo "=== SKIP stage $1 (START_AT=$START_AT)"; return 0; } || return 1; }
+# START_AT=N skips every stage numbered BELOW N; the training stages always run.
+# (">" rather than ">=" here re-ran the stats stage on a resume, before its
+# variables existed.)
+skip_before () { [ "${START_AT}" -ge "$1" ] && { echo "=== SKIP stage $1 (START_AT=$START_AT)"; return 0; } || return 1; }
 fail  () { echo "RUNG25_FAILED_AT=${CUR}: $*"; exit 1; }
 TSTAMP='while IFS= read -r l; do printf "%s %s\n" "$(date +%s.%N)" "$l"; done'
 
@@ -99,7 +107,6 @@ du -sh /opt/behavior-data /opt/merged | tee -a $OUT/roots.log
 fi
 stage 2_batch
 if ! skip_before 3; then
-C0=/opt/merged/${TASKS[0]}
 for spec in "A|pi05_b1k_frozen_vlm|$C0|${TASKS[0]}|" \
             "B|pi05_b1k_frozen_vlm_progress|$C0|${TASKS[0]}|--progress-key progress" \
             "B2|pi05_b1k_frozen_vlm_progress|/opt/merged|${TASKS[0]} ${TASKS[1]}|--progress-key progress"; do
@@ -112,7 +119,6 @@ done
 fi
 stage 3_stats
 if ! skip_before 4; then
-R1=$B26/docs/sessionB-2026-09-15-rung1
 # Same data as rung 1? Compare the fields that describe WHAT was kept -- identical
 # on both sides -- rather than whole files, whose bookkeeping keys have grown.
 SAME_KEYS='dropped_episodes rows_in rows_out unlabelled_rows label_column join_on labels_join_on episodes_out'
@@ -122,8 +128,12 @@ a, b = json.load(open(sys.argv[1])), json.load(open(sys.argv[2]))
 diff = {k: (a.get(k), b.get(k)) for k in sys.argv[3].split() if a.get(k) != b.get(k)}
 print("MANIFEST_SAME_AS_RUNG1" if not diff else f"MANIFEST_DIFFERS {diff}")
 PY2
-grep -q MANIFEST_SAME_AS_RUNG1 $OUT/manifest_vs_rung1.log \
-  || fail "coffee merge differs from rung 1 -- committed norm stats may not describe this data"
+if grep -q MANIFEST_SAME_AS_RUNG1 $OUT/manifest_vs_rung1.log; then :
+elif grep -q MANIFEST_DIFFERS $OUT/manifest_vs_rung1.log; then
+  fail "coffee merge differs from rung 1 -- committed norm stats may not describe this data"
+else
+  fail "manifest comparison produced NO verdict (see $OUT/manifest_vs_rung1.log) -- do not read this as 'differs'"
+fi
 echo "coffee merge identical to rung 1 on kept-data fields -> reusing committed norm stats"
 for cfg in pi05_b1k_frozen_vlm pi05_b1k_frozen_vlm_progress; do
   mkdir -p /opt/assets/$cfg/${TASKS[0]}
@@ -141,7 +151,6 @@ grep -q NORM_STATS_OK $OUT/norm_2task.log || fail "two-task norm stats"
 
 fi
 # Resumed runs still verify what they depend on.
-C0=/opt/merged/${TASKS[0]}
 for need in $C0/meta/progress_filter.json /opt/assets/pi05_b1k_frozen_vlm/${TASKS[0]}/norm_stats.json /opt/assets/pi05_b1k_frozen_vlm_progress/${TASKS[0]}/norm_stats.json /opt/assets_2task/pi05_b1k_frozen_vlm/${TASKS[0]}/norm_stats.json; do
   [ -f "$need" ] || fail "resume: missing $need -- rerun from stage 0"
 done
