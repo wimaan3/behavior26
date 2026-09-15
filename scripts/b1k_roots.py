@@ -84,6 +84,22 @@ def validate_roots(dataset_root, repo_ids, *, progress_key: str | None = None,
     return RootPlan(multi=multi, dataset_root=root, repo_ids=ids, dataset_dirs=dirs)
 
 
+def translate_dataset_kwargs(kwargs: dict, repo_ids: list[str], *, multi: bool) -> dict:
+    """LeRobotDataset and MultiLeRobotDataset do not take the same kwargs.
+
+    pi05_b1k sets `dataset_kwargs={"tolerance_s": 5e-4}` for the single-dataset
+    class, and openpi's create_b1k_dataset forwards dataset_kwargs unchanged down
+    BOTH paths -- so a list repo_id reaches MultiLeRobotDataset, whose parameter is
+    `tolerances_s`, a dict keyed by repo_id. The two-task batch died on exactly
+    that: "unexpected keyword argument 'tolerance_s'".
+    """
+    out = dict(kwargs)
+    if multi and "tolerance_s" in out:
+        tol = out.pop("tolerance_s")
+        out.setdefault("tolerances_s", dict.fromkeys(repo_ids, tol))
+    return out
+
+
 def apply_to_config(cfg, plan: RootPlan, *, video_backend: str | None = None,
                     progress_key: str | None = None):
     """Return a copy of an openpi TrainConfig pointed at `plan`. Requires openpi."""
@@ -95,7 +111,8 @@ def apply_to_config(cfg, plan: RootPlan, *, video_backend: str | None = None,
     if plan.multi:
         from openpi.training import lerobot_compat
         changes["data_cls"] = lerobot_compat.MultiLeRobotDataset
-    kw = dict(getattr(base, "dataset_kwargs", None) or {})
+    kw = translate_dataset_kwargs(dict(getattr(base, "dataset_kwargs", None) or {}),
+                                  plan.repo_ids, multi=plan.multi)
     if video_backend:
         kw["video_backend"] = video_backend
     changes["dataset_kwargs"] = kw
