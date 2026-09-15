@@ -74,3 +74,15 @@ def test_the_root_aware_computer_refuses_a_stale_path():
     assert "does not exist -- refusing to compute stats over a stale path" in text
     assert "config resolved to" in text, "must also catch a root that silently did not take"
     assert "create_b1k_dataset" in text, "must use the root-aware loader"
+
+
+def test_remove_strings_survives_pickling_for_spawned_workers():
+    """num_workers > 0 means spawn, and spawn pickles every transform. A class
+    defined inside main() cannot be pickled; the real run died on exactly that."""
+    import pickle
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("cns", REPO / "scripts" / "compute_norm_stats_b1k.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    restored = pickle.loads(pickle.dumps(mod.RemoveStrings()))
+    assert restored({"a": 1.0, "prompt": "turn on"}) == {"a": 1.0}
