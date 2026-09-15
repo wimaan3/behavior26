@@ -59,3 +59,22 @@ def test_training_lines_are_timestamped():
 def test_every_training_run_is_time_boxed_and_a_protocol_run():
     text = R25.read_text()
     assert "timeout $RUN_TIMEOUT" in text and "--protocol" in text
+
+
+def test_shared_paths_are_defined_outside_any_skippable_stage():
+    """START_AT skips stages; a variable defined inside a skipped one is unbound
+    under `set -u`. A resumed run died on 'C0: unbound variable'."""
+    text = R25.read_text()
+    c0 = text.index("\nC0=/opt/merged/")
+    assert c0 < text.index("stage 0b_openpi_tests"), "C0 must be defined before the skippable stages"
+    assert text.index("\nR1=$B26/docs/") < text.index("stage 0b_openpi_tests")
+
+
+def test_resume_skips_stages_below_start_at_inclusive():
+    """'>' instead of '>=' re-ran the stats stage on START_AT=4."""
+    assert '"${START_AT}" -ge "$1"' in R25.read_text()
+
+
+def test_a_missing_verdict_is_not_reported_as_a_difference():
+    text = R25.read_text()
+    assert "produced NO verdict" in text
