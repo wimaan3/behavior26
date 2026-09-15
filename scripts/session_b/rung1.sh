@@ -11,16 +11,15 @@
 # Stops at the first failure and prints RUNG1_FAILED_AT=<stage>. Every stage
 # before 4 is cheap; the ~7 GB pi05_base download happens only in stage 4.
 #
-# NORM STATS ARE SAMPLED (MAX_FRAMES, default 32000). Every frame goes through
-# LeRobot __getitem__, which decodes video for all cameras even though stats use
-# only state and actions. The sampler is seeded (TorchDataLoader:
-# generator.manual_seed(seed=0)), so both arms at the same batch size draw the
-# IDENTICAL frames and the bit-identical comparison stays meaningful.
+# NORM STATS ARE A FULL PASS, DECODE-FREE. Decoding six camera streams per frame
+# measured ~2 frames/s (hours per arm) for pixels the stats never read. Stage 3
+# first PROVES decode-free == decoded on PROOF_FRAMES seeded frames (the sampler
+# is seeded, so both runs see identical frames) and aborts on any difference.
 #
 set -uo pipefail
 TASK="${TASK:-set_up_a_coffee_station_in_your_kitchen}"
 CHUNK="${CHUNK:-chunk-010}"
-MAX_FRAMES="${MAX_FRAMES:-32000}"
+PROOF_FRAMES="${PROOF_FRAMES:-640}"   # seeded frames used to prove decode-free == decoded
 STEPS="${STEPS:-10}"
 BATCHES="${BATCHES:-32 16 8}"          # tried in order; first that fits is recorded
 OUT=/opt/sessionb
@@ -73,12 +72,30 @@ for arm in A B; do
 done
 
 stage 3_norm_stats
+# 3a. Prove decode-free stats equal decoded stats on the SAME seeded frames.
+#     Decoding all six camera streams measured ~2 frames/s; stats never read pixels.
+NS="$PY $B26/scripts/compute_norm_stats_b1k.py --dataset-root $MERGED --repo-id $TASK"
+rm -rf /opt/ns_ref /opt/ns_nodecode /opt/assets
+(cd $B26 && $NS --config-name pi05_b1k_frozen_vlm --assets-base-dir /opt/ns_ref \
+   --max-frames $PROOF_FRAMES --num-workers 16 2>&1 | grep -E "config=|frames=|NORM_STATS_OK|Error" ) | tee $OUT/ns_ref.log
+grep -q NORM_STATS_OK $OUT/ns_ref.log || fail "decoded reference stats"
+(cd $B26 && NORM_STATS_NO_DECODE=1 $NS --config-name pi05_b1k_frozen_vlm --assets-base-dir /opt/ns_nodecode \
+   --max-frames $PROOF_FRAMES --num-workers 16 2>&1 | grep -E "config=|frames=|NORM_STATS_OK|Error" ) | tee $OUT/ns_nodecode.log
+grep -q NORM_STATS_OK $OUT/ns_nodecode.log || fail "decode-free stats"
+$PY $B26/scripts/compare_norm_stats.py \
+  --arm-a /opt/ns_ref/pi05_b1k_frozen_vlm/$TASK/norm_stats.json \
+  --arm-b /opt/ns_nodecode/pi05_b1k_frozen_vlm/$TASK/norm_stats.json | tee $OUT/ns_equivalence.log
+grep -q NORM_STATS_MATCH $OUT/ns_equivalence.log || fail "decode-free stats differ from decoded stats -- cannot skip decoding"
+echo "DECODE_FREE_EQUIVALENT on $PROOF_FRAMES seeded frames"
+
+# 3b. The real pass: ALL frames, no sampling, decode-free, both arms.
 for arm in A B; do
   if [ $arm = A ]; then CFG=pi05_b1k_frozen_vlm; else CFG=pi05_b1k_frozen_vlm_progress; fi
-  (cd $B26 && $PY scripts/compute_norm_stats_b1k.py --config-name $CFG --dataset-root $MERGED --repo-id $TASK \
-     --assets-base-dir /opt/assets --max-frames $MAX_FRAMES --num-workers 8 2>&1 | grep -vE "it/s\]|s/it\]" | tail -8) \
-     | tee $OUT/norm_$arm.log
+  T0=$(date +%s)
+  (cd $B26 && NORM_STATS_NO_DECODE=1 $NS --config-name $CFG --assets-base-dir /opt/assets \
+     --num-workers 16 2>&1 | grep -E "config=|frames=|NORM_STATS_OK|Error" ) | tee $OUT/norm_$arm.log
   grep -q NORM_STATS_OK $OUT/norm_$arm.log || fail "arm $arm norm stats"
+  echo "arm $arm full-pass wall $(( $(date +%s) - T0 ))s"
 done
 $PY $B26/scripts/compare_norm_stats.py \
   --arm-a /opt/assets/pi05_b1k_frozen_vlm/$TASK/norm_stats.json \

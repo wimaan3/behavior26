@@ -30,6 +30,40 @@ import pathlib
 import sys
 
 
+import os
+
+# ---------------------------------------------------------------- decode-free
+# NORM_STATS_NO_DECODE=1 replaces LeRobot's video decode with zero frames of the
+# right shape. Norm stats read only `state` and `actions`; decoding six camera
+# streams per frame just to throw the pixels away measured at ~2 frames/s with 16
+# workers (640 frames in 293 s on a 28-vCPU box), i.e. hours per arm.
+#
+# APPLIED AT MODULE IMPORT, not in main(): the DataLoader uses `spawn`, which
+# re-imports this file in every worker as __mp_main__ but does NOT carry a
+# monkeypatch made at runtime in the parent. An env var is inherited by spawned
+# workers, so the patch lands everywhere or nowhere.
+#
+# NEVER TRUSTED ON FAITH: scripts/session_b/rung1.sh first computes the same
+# seeded frames both ways and requires compare_norm_stats.py to report a
+# bit-identical match before using this mode for the real pass.
+if os.environ.get("NORM_STATS_NO_DECODE") == "1":
+    try:
+        import torch
+        from lerobot.datasets import dataset_reader as _dr
+
+        def _zero_frames(self, query_timestamps, ep_idx):
+            out = {}
+            for key, ts in query_timestamps.items():
+                h, w, c = self._meta.features[key]["shape"]
+                frame = torch.zeros((c, h, w), dtype=torch.float32)
+                out[key] = frame if len(ts) == 1 else frame.unsqueeze(0).repeat(len(ts), 1, 1, 1)
+            return out
+
+        _dr.DatasetReader._query_videos = _zero_frames
+    except Exception as e:  # noqa: BLE001 -- surface loudly, never silently decode
+        raise SystemExit(f"NORM_STATS_NO_DECODE=1 but the decode patch failed to apply: {e}")
+
+
 class RemoveStrings:
     """Drop string fields; JAX cannot hold them and stats do not need them.
 
@@ -79,7 +113,8 @@ def main() -> int:
 
     data_config = cfg.data.create(cfg.assets_dirs, cfg.model)
     root = getattr(data_config, "dataset_root", None)
-    print(f"config={a.config_name} root={root} repo_id={data_config.repo_id}")
+    print(f"config={a.config_name} root={root} repo_id={data_config.repo_id} "
+          f"video_decode={'OFF (zero frames)' if os.environ.get('NORM_STATS_NO_DECODE') == '1' else 'on'}")
     if not root or not pathlib.Path(root).exists():
         print(f"FAIL: dataset_root {root!r} does not exist -- refusing to compute stats over a stale path")
         return 2
