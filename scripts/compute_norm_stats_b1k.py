@@ -30,6 +30,21 @@ import pathlib
 import sys
 
 
+class RemoveStrings:
+    """Drop string fields; JAX cannot hold them and stats do not need them.
+
+    MODULE LEVEL, deliberately. With num_workers > 0 the DataLoader uses the
+    `spawn` start method and must PICKLE every transform. A class defined inside
+    main() is a local object and cannot be pickled -- the first run died with
+    "Can't pickle local object 'main.<locals>.RemoveStrings'" the moment the
+    workers started. Mirrors upstream, which also defines it at module level.
+    """
+
+    def __call__(self, x: dict) -> dict:
+        import numpy as np
+        return {k: v for k, v in x.items() if not np.issubdtype(np.asarray(v).dtype, np.str_)}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config-name", required=True)
@@ -49,10 +64,6 @@ def main() -> int:
     import openpi.training.config as _config
     import openpi.training.data_loader as _data_loader
     import openpi.transforms as transforms
-
-    class RemoveStrings(transforms.DataTransformFn):
-        def __call__(self, x: dict) -> dict:
-            return {k: v for k, v in x.items() if not np.issubdtype(np.asarray(v).dtype, np.str_)}
 
     cfg = _config.get_config(a.config_name)
     base = dataclasses.replace(cfg.data.base_config, dataset_root=a.dataset_root, repo_id=a.repo_id)
