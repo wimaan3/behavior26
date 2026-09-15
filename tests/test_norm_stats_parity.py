@@ -91,3 +91,22 @@ def test_remove_strings_survives_pickling_for_spawned_workers():
         sys.path.pop(0)
     restored = pickle.loads(pickle.dumps(mod.RemoveStrings()))
     assert restored({"a": 1.0, "prompt": "turn on"}) == {"a": 1.0}
+
+
+def test_decode_free_mode_is_proven_before_it_is_used():
+    """Skipping video decode is only safe if it changes nothing. The rung must
+    prove bit-identical stats on seeded frames before the real pass uses it."""
+    rung = (REPO / "scripts" / "session_b" / "rung1.sh").read_text()
+    proof = rung.index("ns_equivalence.log")
+    real = rung.index("3b. The real pass")
+    assert proof < real, "the equivalence proof must run before the decode-free full pass"
+    assert "cannot skip decoding" in rung
+
+
+def test_decode_patch_is_applied_at_import_so_spawned_workers_get_it():
+    """spawn re-imports the module in each worker but does not carry a runtime
+    monkeypatch from the parent. The patch must live at module level behind an
+    inherited env var."""
+    text = (REPO / "scripts" / "compute_norm_stats_b1k.py").read_text()
+    patch = text.index('os.environ.get("NORM_STATS_NO_DECODE") == "1"')
+    assert patch < text.index("def main()"), "patch must be at module level, not inside main()"
