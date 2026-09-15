@@ -1,0 +1,203 @@
+"""Turn session-B rung logs into a results report. Pure Python.
+
+Reads the timestamped logs written by scripts/session_b/rung2_5.sh
+(`<unix-time> Step N: k=v, ...`) and applies the rules FIXED in AB_PROTOCOL
+revision 2026-09-15 before the run -- not chosen after looking at the data.
+
+BRANCH 0 (manipulation check), operationalised
+    absent  arm B logged no progress_loss                          -> BROKEN
+    NaN     any logged progress_loss is not finite                 -> BROKEN
+    flat    mean(last W) is NOT below mean(first W) by more than
+            2 standard errors (Welch), W = FLAT_WINDOW steps        -> BROKEN
+    else    LEARNING
+A fresh BCE head starts at ln 2 = 0.693; "learning" means it has left that level
+by more than its own step-to-step noise, not that it has reached anything useful.
+
+ACTION LOSS NOT DEGRADED (rung 2)
+    Arm A and arm B see the same seed and the same batches, so their action_loss is
+    compared PAIRED, step by step. Reported: mean paired difference B - A over the
+    last W steps and its 95% interval. Degraded = interval entirely above 0.
+
+THROUGHPUT (rung 4) from arm A only -- arm B pays two extra backward passes.
+    steps/s = 1 / median step interval over steps >= STEADY_FROM (excludes compile).
+    GPU utilisation median at steady state; low utilisation => data-bound.
+
+TASK-COUNT DEPENDENCE (rung 5)
+    two-task steps/s vs arm A's, same config and batch. Ratio reported.
+"""
+from __future__ import annotations
+
+import csv
+import math
+import re
+import statistics
+from dataclasses import dataclass, field
+from pathlib import Path
+
+FLAT_WINDOW = 100
+STEADY_FROM = 50
+_LINE = re.compile(r"^(\d+(?:\.\d+)?)\s+.*?Step (\d+): (.*)$")
+
+
+@dataclass
+class Run:
+    steps: list[int] = field(default_factory=list)
+    times: list[float] = field(default_factory=list)
+    metrics: list[dict[str, float]] = field(default_factory=list)
+
+    def series(self, key: str) -> list[float]:
+        return [m[key] for m in self.metrics if key in m]
+
+
+def parse(text: str) -> Run:
+    run = Run()
+    for line in text.splitlines():
+        m = _LINE.match(line.strip())
+        if not m:
+            continue
+        vals = {}
+        for part in m.group(3).split(","):
+            if "=" in part:
+                k, v = part.strip().split("=", 1)
+                try:
+                    vals[k] = float(v)
+                except ValueError:
+                    vals[k] = float("nan")
+        run.times.append(float(m.group(1)))
+        run.steps.append(int(m.group(2)))
+        run.metrics.append(vals)
+    return run
+
+
+def _mean_se(xs):
+    if len(xs) < 2:
+        return (xs[0] if xs else float("nan")), float("inf")
+    return statistics.fmean(xs), statistics.stdev(xs) / math.sqrt(len(xs))
+
+
+def branch0(run_b: Run, window: int = FLAT_WINDOW) -> dict:
+    p = run_b.series("progress_loss")
+    if not p:
+        return {"verdict": "BROKEN", "reason": "absent: arm B logged no progress_loss"}
+    if any(not math.isfinite(x) for x in p):
+        return {"verdict": "BROKEN", "reason": "NaN/inf in progress_loss"}
+    if len(p) < 2 * window:
+        return {"verdict": "INCONCLUSIVE", "reason": f"only {len(p)} steps; need {2 * window} for the flat test"}
+    m0, s0 = _mean_se(p[:window])
+    m1, s1 = _mean_se(p[-window:])
+    drop = m0 - m1
+    se = math.sqrt(s0 ** 2 + s1 ** 2)
+    z = drop / se if se > 0 else float("inf")
+    verdict = "LEARNING" if z > 2 else "BROKEN"
+    return {"verdict": verdict, "first_mean": m0, "last_mean": m1, "drop": drop, "z": z,
+            "reason": "flat: not below the first window by >2 SE" if verdict == "BROKEN" else "decreasing by >2 SE"}
+
+
+def paired_action(run_a: Run, run_b: Run, window: int = FLAT_WINDOW) -> dict:
+    a = dict(zip(run_a.steps, run_a.series("action_loss")))
+    b = dict(zip(run_b.steps, run_b.series("action_loss")))
+    common = sorted(set(a) & set(b))[-window:]
+    if len(common) < 2:
+        return {"verdict": "INCONCLUSIVE", "n": len(common)}
+    d = [b[s] - a[s] for s in common]
+    m, se = _mean_se(d)
+    lo, hi = m - 1.96 * se, m + 1.96 * se
+    return {"n": len(d), "mean_diff_B_minus_A": m, "ci95": (lo, hi),
+            "verdict": "DEGRADED" if lo > 0 else "NOT_DEGRADED"}
+
+
+def throughput(run: Run, steady_from: int = STEADY_FROM) -> dict:
+    pts = [(s, t) for s, t in zip(run.steps, run.times) if s >= steady_from]
+    if len(pts) < 3:
+        return {"steps_per_s": None, "n": len(pts)}
+    dts = [(t2 - t1) / (s2 - s1) for (s1, t1), (s2, t2) in zip(pts, pts[1:]) if s2 > s1]
+    med = statistics.median(dts)
+    return {"steps_per_s": 1 / med if med > 0 else None, "s_per_step": med, "n": len(dts)}
+
+
+def gpu_util(csv_path: Path, t_from: float | None = None) -> float | None:
+    if not csv_path.exists():
+        return None
+    vals = []
+    for row in csv.reader(csv_path.open()):
+        if len(row) >= 2:
+            try:
+                t, u = float(row[0]), float(row[1])
+            except ValueError:
+                continue
+            if t_from is None or t >= t_from:
+                vals.append(u)
+    return statistics.median(vals) if vals else None
+
+
+def report(log_dir: Path) -> str:
+    """Markdown report for a rung2_5.sh output directory."""
+    from analysis.lambda_calibration import calibrate, parse_log
+
+    def load(name):
+        p = log_dir / f"train_{name}.log"
+        return (parse(p.read_text()), p.read_text()) if p.exists() else (Run(), "")
+
+    a, _ = load("rung4_armA")
+    b, b_text = load("rung23_armB")
+    m, _ = load("rung5_2task")
+    out = ["# Session B rungs 2-5 -- results", "",
+           f"Rules fixed in AB_PROTOCOL revision 2026-09-15 before the run (window {FLAT_WINDOW}, "
+           f"steady state from step {STEADY_FROM}).", ""]
+
+    b0 = branch0(b)
+    out += ["## Rung 2 -- Branch 0 manipulation check", "", f"**{b0['verdict']}** -- {b0['reason']}"]
+    if "z" in b0:
+        out.append(f"progress_loss first {FLAT_WINDOW}: {b0['first_mean']:.4f}, last {FLAT_WINDOW}: "
+                   f"{b0['last_mean']:.4f}, drop {b0['drop']:+.4f}, z = {b0['z']:.1f}")
+    pa = paired_action(a, b)
+    out += ["", "## Rung 2 -- action loss with the head present (paired, same batches)", ""]
+    if "ci95" in pa:
+        lo, hi = pa["ci95"]
+        out.append(f"**{pa['verdict']}** -- mean B - A over last {pa['n']} steps "
+                   f"{pa['mean_diff_B_minus_A']:+.4f}, 95% CI [{lo:+.4f}, {hi:+.4f}]")
+    else:
+        out.append(f"**{pa['verdict']}** ({pa.get('n', 0)} common steps)")
+
+    out += ["", "## Rung 3 -- lambda calibration (gradient share)", ""]
+    try:
+        rows = parse_log(b_text)
+        for first in (0, STEADY_FROM, max(0, len(rows) - FLAT_WINDOW)):
+            c = calibrate(rows, target_share=0.2, current_lambda=0.1, first_step=first)
+            out.append(f"- steps >= {first:>4} (n={c.steps_used}): median |g_a|/|g_p| {c.ratio_median:.3f}; "
+                       f"share at lambda=0.1 {c.share_at_current:.1%}; lambda for 10/20/30% = "
+                       f"{0.1/0.9*c.ratio_median:.3f} / {0.25*c.ratio_median:.3f} / {0.3/0.7*c.ratio_median:.3f}"
+                       + (f"; median cos {c.cosine_median:+.3f}" if c.cosine_median is not None else ""))
+        out.append("")
+        out.append("If these three windows disagree sharply, lambda is still drifting -- report that rather "
+                   "than pin lambda to an early transient (AB_PROTOCOL session-B note).")
+    except ValueError as e:
+        out.append(f"not computable: {e}")
+
+    ta, tm = throughput(a), throughput(m)
+    t_from = a.times[a.steps.index(STEADY_FROM)] if STEADY_FROM in a.steps else None
+    ua = gpu_util(log_dir / "gpu_rung4_armA.csv", t_from)
+    out += ["", "## Rung 4 -- throughput (arm A)", ""]
+    if ta["steps_per_s"]:
+        out.append(f"{ta['steps_per_s']:.3f} steps/s ({ta['s_per_step']:.2f} s/step) over {ta['n']} intervals; "
+                   f"median GPU utilisation {ua if ua is not None else 'n/a'}%")
+        for n_steps in (10_000, 30_000):
+            out.append(f"- {n_steps:,} steps ~ {n_steps * ta['s_per_step'] / 3600:.1f} h ~ "
+                       f"${n_steps * ta['s_per_step'] / 3600 * 0.72:.2f} at $0.72/h")
+    else:
+        out.append("not enough steady-state steps logged")
+
+    out += ["", "## Rung 5 -- does steps/s depend on task count?", ""]
+    if ta["steps_per_s"] and tm["steps_per_s"]:
+        ratio = tm["steps_per_s"] / ta["steps_per_s"]
+        out.append(f"one task {ta['steps_per_s']:.3f} steps/s, two tasks {tm['steps_per_s']:.3f} steps/s, "
+                   f"ratio {ratio:.2f}. Within ~10% means batch-bound as expected, so k is a CONVERGENCE "
+                   f"question that throughput cannot settle.")
+    else:
+        out.append("not computable from the logs")
+    return "\n".join(out) + "\n"
+
+
+if __name__ == "__main__":
+    import sys
+    print(report(Path(sys.argv[1])))

@@ -1660,3 +1660,55 @@ With `ARM=A` or `ARM=B` the run **gates** unless:
 
 `tests/test_arm_parity.py` pins all four behaviours, including that both arms
 resolve the SAME root.
+
+
+---
+
+## Revision 2026-09-15 — PRE-REGISTERED before rungs 2-5 run: what "flat" means, and the rung plan
+
+Written and committed **before** any rung-2 data exists, so the bar is not chosen
+with the answer in hand. `analysis/rung_report.py` implements exactly these rules;
+`tests/test_rung_report.py` pins them.
+
+### Branch 0, made operational
+
+Branch 0 says a run is broken if arm B's `progress_loss` is "flat, NaN, or absent".
+"Flat" had no number. It now has one:
+
+* **absent** — no `progress_loss` in arm B's log → BROKEN
+* **NaN** — any non-finite value → BROKEN
+* **flat** — the mean of the last 100 logged steps is **not below** the mean of the
+  first 100 by **more than 2 standard errors** (Welch) → BROKEN
+* otherwise → LEARNING
+* fewer than 200 steps → INCONCLUSIVE, never a verdict
+
+A fresh BCE head starts at ln 2 = 0.693. "Learning" means leaving that level by more
+than its own step-to-step noise — a manipulation check, not a quality bar.
+
+### Why the rung runs 1,000 steps, not 100
+
+Rung 1 found the frozen-VLM configs inherit openpi's default schedule:
+**1,000 warmup steps to 2.5e-5**. At step 100 the learning rate is ~10% of peak, and
+the first 100 steps sum to about five peak-rate steps. A 100-step flat-test would
+risk calling a healthy head broken. 1,000 steps ends warmup.
+
+### "Action loss not degraded"
+
+Arms A and B share seed, batches and initialisation (rung 1: action_loss identical to
+four decimals), so action_loss is compared **paired, step by step**. Degraded = the
+95% interval of mean(B − A) over the last 100 steps lies entirely above zero.
+
+### λ calibration
+
+Target: the progress term carries **10–30% of the combined gradient magnitude**,
+measured from `grad_norm_action` and `grad_norm_progress_raw`
+(`log_loss_term_grad_norms=True`, arm B only). λ* = s/(1−s) · median(|g_a|/|g_p|).
+Reported over three windows (all steps, steps ≥ 50, last 100); if they disagree
+sharply, λ is still drifting and that is reported rather than pinned.
+
+### Throughput and task count
+
+Steps/s from **arm A only** (arm B pays two extra backward passes), as 1 / median step
+interval from step 50, with median GPU utilisation — low utilisation means data-bound.
+Rung 5: two-task steps/s against arm A's. Within ~10% → batch-bound, and k is a
+convergence question that throughput cannot settle before shot one.
