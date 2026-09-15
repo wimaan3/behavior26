@@ -93,3 +93,30 @@ def test_every_entry_point_uses_the_shared_root_logic(script):
     text = (REPO / "scripts" / script).read_text()
     assert "validate_roots(" in text and "apply_to_config(" in text
     assert "replace(cfg.data.base_config, dataset_root" not in text, f"{script} sets the root inline"
+
+
+# ------------------------------------------- dataset_kwargs differ between the classes
+
+from b1k_roots import translate_dataset_kwargs  # noqa: E402
+
+
+def test_single_task_kwargs_pass_through():
+    kw = {"tolerance_s": 5e-4, "video_backend": "pyav"}
+    assert translate_dataset_kwargs(kw, ["coffee"], multi=False) == kw
+
+
+def test_multi_task_translates_tolerance_to_per_task():
+    """pi05_b1k sets dataset_kwargs={'tolerance_s': 5e-4} for LeRobotDataset, and
+    openpi forwards dataset_kwargs unchanged to MultiLeRobotDataset, which takes
+    `tolerances_s` (a dict per repo_id) instead. The real run died with
+    'MultiLeRobotDataset.__init__() got an unexpected keyword argument tolerance_s'."""
+    out = translate_dataset_kwargs({"tolerance_s": 5e-4, "video_backend": "pyav"},
+                                   ["coffee", "shoes"], multi=True)
+    assert "tolerance_s" not in out
+    assert out["tolerances_s"] == {"coffee": 5e-4, "shoes": 5e-4}
+    assert out["video_backend"] == "pyav"
+
+
+def test_multi_task_leaves_an_explicit_per_task_mapping_alone():
+    kw = {"tolerances_s": {"coffee": 1e-3, "shoes": 2e-3}}
+    assert translate_dataset_kwargs(kw, ["coffee", "shoes"], multi=True) == kw
