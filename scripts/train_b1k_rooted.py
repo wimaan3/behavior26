@@ -47,6 +47,8 @@ def main() -> int:
     ap.add_argument("--progress-loss-weight", type=float, default=None)
     ap.add_argument("--video-backend", default="pyav")
     ap.add_argument("--wandb", action="store_true")
+    ap.add_argument("--log-term-grads", action="store_true",
+                    help="log per-term gradient norms for lambda calibration (2 extra backward passes/step)")
     ap.add_argument("--overwrite", action="store_true")
     ap.add_argument("--openpi-root", default=os.environ.get("OPENPI_ROOT", "/opt/openpi"))
     a = ap.parse_args()
@@ -89,6 +91,11 @@ def main() -> int:
         log_interval=a.log_interval, save_interval=a.save_interval,
         num_workers=a.num_workers, wandb_enabled=a.wandb, overwrite=a.overwrite,
     )
+    if a.log_term_grads:
+        if not hasattr(cfg, "log_loss_term_grad_norms"):
+            print("FAIL: --log-term-grads but TrainConfig has no log_loss_term_grad_norms (patch 0002 out of date?)")
+            return 2
+        cfg = dataclasses.replace(cfg, log_loss_term_grad_norms=True)
 
     effective = cfg.data.create(cfg.assets_dirs, cfg.model)
     root = getattr(effective, "dataset_root", None)
@@ -102,6 +109,7 @@ def main() -> int:
     print(f"progress_key      {getattr(cfg.data, 'progress_key', None)}")
     print(f"progress_weight   {getattr(cfg.model, 'progress_loss_weight', None)}")
     print(f"weight_loader     {cfg.weight_loader}")
+    print(f"term_grad_norms   {getattr(cfg, 'log_loss_term_grad_norms', None)}")
     if not root or not pathlib.Path(root).exists():
         print(f"FAIL: dataset_root {root!r} does not exist")
         return 2
