@@ -79,10 +79,15 @@ def test_the_root_aware_computer_refuses_a_stale_path():
 def test_remove_strings_survives_pickling_for_spawned_workers():
     """num_workers > 0 means spawn, and spawn pickles every transform. A class
     defined inside main() cannot be pickled; the real run died on exactly that."""
+    import importlib
     import pickle
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("cns", REPO / "scripts" / "compute_norm_stats_b1k.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    # Import it by a real module name that pickle can resolve again, as a
+    # spawned worker would. (Loading it under an unregistered ad-hoc name made
+    # this test fail for a reason that has nothing to do with the script.)
+    sys.path.insert(0, str(REPO / "scripts"))
+    try:
+        mod = importlib.import_module("compute_norm_stats_b1k")
+    finally:
+        sys.path.pop(0)
     restored = pickle.loads(pickle.dumps(mod.RemoveStrings()))
     assert restored({"a": 1.0, "prompt": "turn on"}) == {"a": 1.0}
