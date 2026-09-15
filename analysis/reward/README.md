@@ -262,6 +262,43 @@ of its episodes reach progress 1.0 and the rest stop one unit short: nothing is 
 its reward, its demos truncate. It is `ENDS_SHORT`, and there is a test pinning the
 reversal.
 
+### Dropped episodes must be dropped from BOTH arms
+
+Task-level refusal is not the only thing that removes data. `labels.py` also drops
+individual **episodes** it cannot label soundly, and those drops do not announce
+themselves at training time. Each task manifest records them under `drop_reasons`:
+
+| task | episodes | unlabelled frames | reasons |
+|---|---|---|---|
+| `putting_shoes_on_rack` | 195/200 | 41,696 (2.7%) | 4 `over_credited`, 1 `not_terminated` |
+| `set_up_a_coffee_station_in_your_kitchen` | 199/200 | 5,353 (0.4%) | 1 `not_terminated` |
+| `outfit_a_basic_toolbox` | 200/200 | 0 | -- |
+
+`scripts/merge_progress_labels.py` refuses a partial join, so on the first two tasks the
+merge stops rather than proceeding. That refusal is correct and should not be worked
+around with `--allow-missing --missing-fill`: it would put an invented target on exactly
+the frames where labelling was least certain. **Filter the episode set instead.** Losing 5
+of 200 episodes costs ~2.5% of training data; fabricating costs correctness.
+
+**The filtered episode set must then be used by BOTH arms.** This is the part that bites
+later. Arm A (baseline, no progress head) needs no labels and will happily train on all
+200 episodes, because nothing in its path ever consults the sidecar. If it does, the two
+arms differ by the training set as well as by the head, and the experiment no longer
+isolates what it was built to isolate -- a 2.5% data difference is small, but it is
+confounded with the only variable under test, and it is invisible in both configs.
+
+Take the episode list from the sidecar itself, which is the set that survived labelling,
+and apply it to both arms:
+
+```python
+import pandas as pd
+eps = sorted(pd.read_parquet("labels/<task>/labels.parquet")["episode_index"].unique())
+# -> the same list feeds arm A and arm B; neither reads the full 200
+```
+
+Whoever wires training should assert the two arms agree on episode count before the run
+starts, not diagnose it afterwards from a reward curve.
+
 ### The recommended slate, end to end
 
 ```
@@ -683,7 +720,7 @@ label from**, against 13 before.
 | `og_state_decoder.py` | Decodes OmniGibson flat state vectors into named object poses/joints via the `scene_file` attr in each HDF5. Handles the assisted-grasp sentinel block and carry-forward of absent objects. |
 | `behavior1k_reward_map.json` | Per task: `D`, `phi0_mean`, counts, validity, `reward_instrumentation`, `usable_for_labels`. The file `labels.py` loads. **Sample-scope.** |
 | `behavior1k_task_table.csv` | 100 rows, per-task measurement detail. **Sample-scope.** |
-| `behavior1k_episode_stats.csv` | 5,677 rows, one per episode. **Sample-scope.** The regression test pins against this. |
+| `behavior1k_episode_stats.csv` | 5,677 rows, one per episode. **Sample-scope, and terminal-anchored.** Its `phi0` is not progress at reset and disagrees with `progress_offset_at_reset` in `task_shortlist.csv`; the file carries a `#` preamble saying so. Kept because the regression test pins against it under `anchor="terminal"`. Readers must skip `#` lines. |
 | `full_corpus_lengths.csv` | All 100 tasks, mean/median/p90 length over all 20,000 episodes, plus eval timeout and relative cost. |
 | `full_corpus_remeasure.csv` | All 100 tasks re-measured over all 200 episodes, under **both** anchors: `phi0_mean` is terminal-anchored (what the shortlist used to be built on), `phi0_init_mean` / `never_credited_mean` / `lost_at_end_mean` / `demo_completion_rate` are init-anchored, plus the `progress_structure` columns. |
 | `task_shortlist.csv` | Training-candidate ranking (task 2), with the audit columns, the reset-offset columns and `gradient_score`. Tiers: `primary` (every `CONSISTENT` task, by cost), `graded` (by gradient), `excluded_collapsed_denominator`. |
