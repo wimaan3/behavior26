@@ -35,7 +35,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
     ap.add_argument("--dataset-root", required=True)
-    ap.add_argument("--repo-id", required=True)
+    ap.add_argument("--repo-id", required=True, nargs="+")
     ap.add_argument("--progress-key", default=None)
     ap.add_argument("--batch-size", type=int, default=2)
     ap.add_argument("--skip-norm-stats", action="store_true")
@@ -52,25 +52,17 @@ def main() -> int:
     from openpi.training import config as _config
     from openpi.training import data_loader as _data_loader
 
-    cfg = _config.get_config(a.config)
-    data = cfg.data
-    base = dataclasses.replace(data.base_config, dataset_root=a.dataset_root, repo_id=a.repo_id)
-    if a.video_backend:
-        kwargs = dict(getattr(base, "dataset_kwargs", None) or {})
-        kwargs["video_backend"] = a.video_backend
-        base = dataclasses.replace(base, dataset_kwargs=kwargs)
-    if a.progress_key:
-        # The patch may hang progress_key off either the factory or the base
-        # config depending on revision; set whichever exists rather than guess.
-        if hasattr(base, "progress_key"):
-            base = dataclasses.replace(base, progress_key=a.progress_key)
-        elif hasattr(data, "progress_key"):
-            data = dataclasses.replace(data, progress_key=a.progress_key)
-        else:
-            print("!! neither base_config nor data has progress_key -- patch not applied?")
-            return 2
-    data = dataclasses.replace(data, base_config=base, repo_id=a.repo_id)
-    cfg = dataclasses.replace(cfg, data=data, batch_size=a.batch_size, num_workers=a.num_workers)
+    import pathlib as _pl0
+    sys.path.insert(0, str(_pl0.Path(__file__).resolve().parent))
+    from b1k_roots import RootError, apply_to_config, validate_roots
+    try:
+        plan = validate_roots(a.dataset_root, a.repo_id, progress_key=a.progress_key)
+        cfg = apply_to_config(_config.get_config(a.config), plan,
+                              video_backend=a.video_backend, progress_key=a.progress_key)
+    except RootError as err:
+        print(f"FAIL: {err}")
+        return 2
+    cfg = dataclasses.replace(cfg, batch_size=a.batch_size, num_workers=a.num_workers)
 
     print(f"config={a.config} repo_id={a.repo_id} root={a.dataset_root} "
           f"progress_key={a.progress_key} batch={a.batch_size}")

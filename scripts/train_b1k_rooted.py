@@ -34,7 +34,11 @@ def main() -> int:
     ap.add_argument("--config", required=True)
     ap.add_argument("--exp-name", required=True)
     ap.add_argument("--dataset-root", required=True)
-    ap.add_argument("--repo-id", required=True)
+    ap.add_argument("--repo-id", required=True, nargs="+",
+                    help="one task (dataset_root IS the dataset) or several (dataset_root is their "
+                         "PARENT; MultiLeRobotDataset). See scripts/b1k_roots.py.")
+    ap.add_argument("--protocol", action="store_true",
+                    help="an A/B arm: every task root must be merged, filtered and compacted")
     ap.add_argument("--assets-base-dir", required=True, help="ABSOLUTE; see module docstring")
     ap.add_argument("--checkpoint-base-dir", required=True)
     ap.add_argument("--num-train-steps", type=int, required=True)
@@ -61,21 +65,17 @@ def main() -> int:
 
     from openpi.training import config as _config
 
-    cfg = _config.get_config(a.config)
-    base = dataclasses.replace(cfg.data.base_config, dataset_root=a.dataset_root, repo_id=a.repo_id)
-    kw = dict(getattr(base, "dataset_kwargs", None) or {})
-    if a.video_backend:
-        kw["video_backend"] = a.video_backend
-    base = dataclasses.replace(base, dataset_kwargs=kw)
-    data = dataclasses.replace(cfg.data, base_config=base, repo_id=a.repo_id)
-    if a.progress_key:
-        if hasattr(data, "progress_key"):
-            data = dataclasses.replace(data, progress_key=a.progress_key)
-        elif hasattr(base, "progress_key"):
-            data = dataclasses.replace(data, base_config=dataclasses.replace(base, progress_key=a.progress_key))
-        else:
-            print("FAIL: --progress-key given but the config has no progress_key field (patch 0002 not applied?)")
-            return 2
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    from b1k_roots import RootError, apply_to_config, validate_roots
+
+    try:
+        plan = validate_roots(a.dataset_root, a.repo_id, progress_key=a.progress_key, protocol=a.protocol)
+        cfg = apply_to_config(_config.get_config(a.config), plan,
+                              video_backend=a.video_backend, progress_key=a.progress_key)
+    except RootError as e:
+        print(f"FAIL: {e}")
+        return 2
+    print(f"tasks             {plan.repo_ids} ({'MultiLeRobotDataset' if plan.multi else 'LeRobotDataset'})")
 
     model = cfg.model
     if a.progress_loss_weight is not None:
@@ -85,7 +85,7 @@ def main() -> int:
         model = dataclasses.replace(model, progress_loss_weight=a.progress_loss_weight)
 
     cfg = dataclasses.replace(
-        cfg, data=data, model=model, exp_name=a.exp_name,
+        cfg, model=model, exp_name=a.exp_name,
         assets_base_dir=a.assets_base_dir, checkpoint_base_dir=a.checkpoint_base_dir,
         num_train_steps=a.num_train_steps, batch_size=a.batch_size,
         log_interval=a.log_interval, save_interval=a.save_interval,
@@ -113,8 +113,8 @@ def main() -> int:
     if not root or not pathlib.Path(root).exists():
         print(f"FAIL: dataset_root {root!r} does not exist")
         return 2
-    if str(root) != str(a.dataset_root):
-        print(f"FAIL: config resolved to {root!r}, not the requested {a.dataset_root!r}")
+    if str(root) != str(plan.dataset_root):
+        print(f"FAIL: config resolved to {root!r}, not the requested {str(plan.dataset_root)!r}")
         return 2
     if effective.norm_stats is None:
         print(f"FAIL: no norm stats under {cfg.assets_dirs}. openpi would log 'skipping' and "

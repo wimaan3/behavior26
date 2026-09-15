@@ -83,7 +83,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config-name", required=True)
     ap.add_argument("--dataset-root", required=True)
-    ap.add_argument("--repo-id", required=True)
+    ap.add_argument("--repo-id", required=True, nargs="+",
+                    help="one task, or several (dataset_root is then their PARENT). Stats are "
+                         "written under the FIRST repo_id, which is where openpi reads them.")
     ap.add_argument("--max-frames", type=int, default=None)
     ap.add_argument("--num-workers", type=int, default=0)
     ap.add_argument("--video-backend", default="pyav")
@@ -99,17 +101,18 @@ def main() -> int:
     import openpi.training.data_loader as _data_loader
     import openpi.transforms as transforms
 
-    cfg = _config.get_config(a.config_name)
-    base = dataclasses.replace(cfg.data.base_config, dataset_root=a.dataset_root, repo_id=a.repo_id)
-    kwargs = dict(getattr(base, "dataset_kwargs", None) or {})
-    if a.video_backend:
-        kwargs["video_backend"] = a.video_backend
-    base = dataclasses.replace(base, dataset_kwargs=kwargs)
     if not pathlib.Path(a.assets_base_dir).is_absolute():
         print(f"FAIL: --assets-base-dir {a.assets_base_dir!r} is relative")
         return 2
-    cfg = dataclasses.replace(cfg, data=dataclasses.replace(cfg.data, base_config=base, repo_id=a.repo_id),
-                              assets_base_dir=a.assets_base_dir)
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    from b1k_roots import RootError, apply_to_config, validate_roots
+    try:
+        plan = validate_roots(a.dataset_root, a.repo_id)
+        cfg = apply_to_config(_config.get_config(a.config_name), plan, video_backend=a.video_backend)
+    except RootError as e:
+        print(f"FAIL: {e} -- refusing to compute stats over a stale path (does not exist or wrong layout)")
+        return 2
+    cfg = dataclasses.replace(cfg, assets_base_dir=a.assets_base_dir)
 
     data_config = cfg.data.create(cfg.assets_dirs, cfg.model)
     root = getattr(data_config, "dataset_root", None)
@@ -118,8 +121,8 @@ def main() -> int:
     if not root or not pathlib.Path(root).exists():
         print(f"FAIL: dataset_root {root!r} does not exist -- refusing to compute stats over a stale path")
         return 2
-    if str(root) != str(a.dataset_root):
-        print(f"FAIL: config resolved to {root!r}, not the requested {a.dataset_root!r}")
+    if str(root) != str(plan.dataset_root):
+        print(f"FAIL: config resolved to {root!r}, not the requested {str(plan.dataset_root)!r}")
         return 2
 
     dataset = _data_loader.create_b1k_dataset(data_config=data_config,
