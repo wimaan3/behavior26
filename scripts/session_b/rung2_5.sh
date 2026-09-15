@@ -28,7 +28,11 @@ TASKS=(set_up_a_coffee_station_in_your_kitchen putting_shoes_on_rack)
 CHUNKS=(chunk-010 chunk-022)
 TRAIN_STEPS="${TRAIN_STEPS:-1000}"
 MULTI_STEPS="${MULTI_STEPS:-200}"
-RUN_TIMEOUT="${RUN_TIMEOUT:-4800}"          # per training run, seconds
+# Per training run. Measured 2026-09-15 on the PRO 4500: ~3.9 s/step best case,
+# ~10.4 s/step mean (loader stalls up to 68 s), so 1000 steps is 1.7-2.9 h. The old
+# 4800 s cap would have truncated arm A near step 460 -- inside LR warmup, which is
+# precisely the ambiguity the 1000-step length exists to remove.
+RUN_TIMEOUT="${RUN_TIMEOUT:-14400}"         # per training run, seconds
 MULTI_STATS_FRAMES="${MULTI_STATS_FRAMES:-32000}"
 BATCH="${BATCH:-32}"
 WORKERS="${WORKERS:-8}"                     # TrainConfig's own default, so throughput is representative
@@ -38,7 +42,12 @@ export OPENPI_ROOT=/opt/openpi
 PY=/opt/openpi/.venv/bin/python
 B26=/opt/behavior26
 mkdir -p "$OUT"
+# START_AT=4 resumes at the training stages, reusing the artifacts stages 0-3 left
+# on this box. Only valid on a box that already ran them -- each resumed stage
+# re-checks what it depends on rather than assuming.
+START_AT="${START_AT:-0}"
 stage () { echo; echo "=== STAGE $1 $(date -u +%H:%M:%S)"; CUR="$1"; }
+skip_before () { [ "${START_AT}" -gt "$1" ] && { echo "=== SKIP stage $1 (START_AT=$START_AT)"; return 0; } || return 1; }
 fail  () { echo "RUNG25_FAILED_AT=${CUR}: $*"; exit 1; }
 TSTAMP='while IFS= read -r l; do printf "%s %s\n" "$(date +%s.%N)" "$l"; done'
 
@@ -58,12 +67,15 @@ $PY -c "import jax,openpi,av,msgpack_numpy;print('jax',jax.__version__,jax.devic
 nvidia-smi --query-gpu=name,driver_version,memory.total,compute_cap --format=csv,noheader | tee $OUT/gpu.txt
 
 stage 0b_openpi_tests
+if ! skip_before 1; then
 # The JAX tests cannot run on the laptop. Run them here before spending training
 # time -- includes the per-term gradient decomposition the lambda calibration reads.
 (cd $B26 && OPENPI_ROOT=$OPENPI_ROOT $PY -m pytest tests/test_progress_head.py -q -p no:cacheprovider 2>&1 | tail -3) | tee $OUT/openpi_tests.log
 grep -qE "[0-9]+ passed" $OUT/openpi_tests.log && ! grep -qE "[0-9]+ failed|error" $OUT/openpi_tests.log || fail "progress-head tests failed on real JAX"
 
+fi
 stage 1_data
+if ! skip_before 2; then
 for i in 0 1; do
   T=${TASKS[$i]}; C=${CHUNKS[$i]}
   /opt/openpi/.venv/bin/hf download behavior-1k/2026-challenge-demos --repo-type dataset --local-dir /opt/behavior-data \
@@ -84,7 +96,9 @@ print('ROOTS_OK', [d.name for d in p.dataset_dirs])
 grep -q ROOTS_OK $OUT/roots.log || fail "merged roots failed validation"
 du -sh /opt/behavior-data /opt/merged | tee -a $OUT/roots.log
 
+fi
 stage 2_batch
+if ! skip_before 3; then
 C0=/opt/merged/${TASKS[0]}
 for spec in "A|pi05_b1k_frozen_vlm|$C0|${TASKS[0]}|" \
             "B|pi05_b1k_frozen_vlm_progress|$C0|${TASKS[0]}|--progress-key progress" \
@@ -95,7 +109,9 @@ for spec in "A|pi05_b1k_frozen_vlm|$C0|${TASKS[0]}|" \
   grep -q FIRST_BATCH_OK $OUT/batch_$arm.log || fail "batch $arm"
 done
 
+fi
 stage 3_stats
+if ! skip_before 4; then
 R1=$B26/docs/sessionB-2026-09-15-rung1
 # Same data as rung 1? Compare the fields that describe WHAT was kept -- identical
 # on both sides -- rather than whole files, whose bookkeeping keys have grown.
@@ -122,6 +138,13 @@ grep -q 9a3dcf3f7d5643913e581722133a7b878495ac19202d54e5d45ccfcd93e99d74 $OUT/no
    --dataset-root /opt/merged --repo-id ${TASKS[0]} ${TASKS[1]} --assets-base-dir /opt/assets_2task \
    --max-frames $MULTI_STATS_FRAMES --num-workers 8 2>&1 | grep -E "config=|frames=|NORM_STATS_OK|FAIL|Error") | tee $OUT/norm_2task.log
 grep -q NORM_STATS_OK $OUT/norm_2task.log || fail "two-task norm stats"
+
+fi
+# Resumed runs still verify what they depend on.
+C0=/opt/merged/${TASKS[0]}
+for need in $C0/meta/progress_filter.json /opt/assets/pi05_b1k_frozen_vlm/${TASKS[0]}/norm_stats.json /opt/assets/pi05_b1k_frozen_vlm_progress/${TASKS[0]}/norm_stats.json /opt/assets_2task/pi05_b1k_frozen_vlm/${TASKS[0]}/norm_stats.json; do
+  [ -f "$need" ] || fail "resume: missing $need -- rerun from stage 0"
+done
 
 train () {   # name config root "ids" assets steps extra...
   local name=$1 cfg=$2 root=$3 ids=$4 assets=$5 steps=$6; shift 6
