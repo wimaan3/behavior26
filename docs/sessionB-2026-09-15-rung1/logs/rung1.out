@@ -1,0 +1,124 @@
+
+=== STAGE 0_setup 01:14:49
+behavior26 e748f28
+ - msgpack-numpy==0.4.8
+ - py-spy==0.4.2
+[1m==> already applied -- nothing to do[0m
+patches:  8 files changed, 413 insertions(+), 10 deletions(-)
+jax 0.5.3 [CudaDevice(id=0)]
+NVIDIA RTX PRO 4500 Blackwell, 580.178.04, 32623 MiB, 12.0
+
+=== STAGE 1_data 01:14:51
+corpus 15G
+  "tasks_sha256": "2477455ef214e2348123379c6895549a5a5b5c76dee7b817de174e0d4b226a94"
+}
+episodes 200, frames 1253243 -> /opt/tasks/set_up_a_coffee_station_in_your_kitchen
+==> 1247890 labels, progress in [0.0000, 1.0000], join on data ['global_episode_index', 'frame_index'] <- labels ['episode_index', 'frame_index']
+==> compacted: 199 episodes, 1247890 frames, dense episode_index and index
+==> symlinked videos/ -> /opt/tasks/set_up_a_coffee_station_in_your_kitchen/videos
+==> merged 1253243 frames (5353 unlabelled)
+==> dropped 1 episode(s) with unlabelled frames: [111]
+==> 1247890 rows remain; manifest -> /opt/merged/meta/progress_filter.json
+==> verifying by reloading through LeRobot's schema path
+MERGED=/opt/merged  manifest 199 info 199
+
+=== STAGE 2_batch 01:15:28
+  norm_stats loaded      False
+BATCH OK
+  actions       (2, 32, 32):float32
+  state                        (2, 32):float32
+  tokenized_prompt             (2, 200):int32
+  tokenized_prompt_mask        (2, 200):bool
+  token_ar_mask                ():NoneType
+  token_loss_mask              ():NoneType
+  progress                     ():NoneType
+  image.base_0_rgb                 (2, 224, 224, 3):float32
+  image.left_wrist_0_rgb           (2, 224, 224, 3):float32
+  image.right_wrist_0_rgb          (2, 224, 224, 3):float32
+  image_mask.base_0_rgb                 (2,):bool
+  image_mask.left_wrist_0_rgb           (2,):bool
+  image_mask.right_wrist_0_rgb          (2,):bool
+FIRST_BATCH_OK
+BATCH OK
+  actions       (2, 32, 32):float32
+  state                        (2, 32):float32
+  tokenized_prompt             (2, 200):int32
+  tokenized_prompt_mask        (2, 200):bool
+  token_ar_mask                ():NoneType
+  token_loss_mask              ():NoneType
+  progress                     (2, 1):float32
+  image.base_0_rgb                 (2, 224, 224, 3):float32
+  image.left_wrist_0_rgb           (2, 224, 224, 3):float32
+  image.right_wrist_0_rgb          (2, 224, 224, 3):float32
+  image_mask.base_0_rgb                 (2,):bool
+  image_mask.left_wrist_0_rgb           (2,):bool
+  image_mask.right_wrist_0_rgb          (2,):bool
+  progress range  [0.1667, 0.1667]
+FIRST_BATCH_OK
+
+=== STAGE 3_norm_stats 01:16:01
+DECODE_FREE_EQUIVALENT (reusing proof already logged on this box: /opt/sessionb/ns_equivalence.log)
+config=pi05_b1k_frozen_vlm root=/opt/merged repo_id=set_up_a_coffee_station_in_your_kitchen video_decode=OFF (zero frames)
+frames=1247890 batches=4000 -> /opt/assets/pi05_b1k_frozen_vlm/set_up_a_coffee_station_in_your_kitchen
+NORM_STATS_OK /opt/assets/pi05_b1k_frozen_vlm/set_up_a_coffee_station_in_your_kitchen/norm_stats.json
+arm A full-pass wall 748s
+config=pi05_b1k_frozen_vlm_progress root=/opt/merged repo_id=set_up_a_coffee_station_in_your_kitchen video_decode=OFF (zero frames)
+frames=1247890 batches=4000 -> /opt/assets/pi05_b1k_frozen_vlm_progress/set_up_a_coffee_station_in_your_kitchen
+NORM_STATS_OK /opt/assets/pi05_b1k_frozen_vlm_progress/set_up_a_coffee_station_in_your_kitchen/norm_stats.json
+arm B full-pass wall 752s
+arm A sha256 9a3dcf3f7d5643913e581722133a7b878495ac19202d54e5d45ccfcd93e99d74
+      /opt/assets/pi05_b1k_frozen_vlm/set_up_a_coffee_station_in_your_kitchen/norm_stats.json
+arm B sha256 9a3dcf3f7d5643913e581722133a7b878495ac19202d54e5d45ccfcd93e99d74
+      /opt/assets/pi05_b1k_frozen_vlm_progress/set_up_a_coffee_station_in_your_kitchen/norm_stats.json
+identical file: True
+shared keys: 8  mismatched: 0
+NORM_STATS_MATCH
+
+=== STAGE 4_ten_steps 01:41:02
+--- arm A  config pi05_b1k_frozen_vlm  batch 32  01:41:02
+rc=0 wall=449s peak_vram_mib=31218
+config            pi05_b1k_frozen_vlm
+dataset_root      /opt/merged
+norm_stats loaded True
+progress_key      None
+progress_weight   0.0
+weight_loader     CheckpointWeightLoader(params_path='gs://openpi-assets/checkpoints/pi05_base/params', missing_regex='.*lora.*')
+01:44:55.406 [I] Restoring checkpoint from /home/ubuntu/.cache/openpi/openpi-assets/checkpoints/pi05_base/params. (651360:checkpointer.py:298)
+Step 0: action_loss=0.8116, grad_norm=2.2401, loss=0.8116, param_norm=1801.9884
+Step 1: action_loss=1.0469, grad_norm=2.3060, loss=1.0469, param_norm=1801.9884
+Step 2: action_loss=0.6927, grad_norm=1.5445, loss=0.6927, param_norm=1801.9884
+Step 3: action_loss=0.6409, grad_norm=1.9288, loss=0.6409, param_norm=1801.9884
+Step 4: action_loss=1.1798, grad_norm=1.9839, loss=1.1798, param_norm=1801.9884
+Step 5: action_loss=0.8012, grad_norm=2.2482, loss=0.8012, param_norm=1801.9884
+Step 6: action_loss=0.5892, grad_norm=1.5389, loss=0.5892, param_norm=1801.9884
+Step 7: action_loss=0.6242, grad_norm=1.4021, loss=0.6242, param_norm=1801.9884
+Step 8: action_loss=0.8395, grad_norm=2.0544, loss=0.8395, param_norm=1801.9884
+Step 9: action_loss=1.1992, grad_norm=2.3200, loss=1.1992, param_norm=1801.9884
+TRAIN_DONE
+ARM_A_FITS_AT_BATCH=32 PEAK_VRAM_MIB=31218
+--- arm B  config pi05_b1k_frozen_vlm_progress  batch 32  01:48:31
+rc=0 wall=345s peak_vram_mib=31206
+config            pi05_b1k_frozen_vlm_progress
+dataset_root      /opt/merged
+norm_stats loaded True
+progress_key      progress
+progress_weight   0.1
+weight_loader     CheckpointWeightLoader(params_path='gs://openpi-assets/checkpoints/pi05_base/params', missing_regex='.*(lora|progress).*')
+01:50:36.658 [I] Restoring checkpoint from /home/ubuntu/.cache/openpi/openpi-assets/checkpoints/pi05_base/params. (700324:checkpointer.py:298)
+Step 0: action_loss=0.8116, grad_norm=2.2390, loss=0.8825, param_norm=1801.9888, progress_loss=0.7084
+Step 1: action_loss=1.0469, grad_norm=2.3051, loss=1.1158, param_norm=1801.9888, progress_loss=0.6886
+Step 2: action_loss=0.6927, grad_norm=1.5414, loss=0.7618, param_norm=1801.9888, progress_loss=0.6914
+Step 3: action_loss=0.6409, grad_norm=1.9244, loss=0.7117, param_norm=1801.9888, progress_loss=0.7082
+Step 4: action_loss=1.1797, grad_norm=1.9824, loss=1.2491, param_norm=1801.9888, progress_loss=0.6944
+Step 5: action_loss=0.8013, grad_norm=2.2526, loss=0.8706, param_norm=1801.9888, progress_loss=0.6927
+Step 6: action_loss=0.5892, grad_norm=1.5432, loss=0.6589, param_norm=1801.9888, progress_loss=0.6971
+Step 7: action_loss=0.6243, grad_norm=1.4028, loss=0.6937, param_norm=1801.9888, progress_loss=0.6948
+Step 8: action_loss=0.8397, grad_norm=2.0652, loss=0.9088, param_norm=1801.9888, progress_loss=0.6904
+Step 9: action_loss=1.1994, grad_norm=2.3243, loss=1.2705, param_norm=1801.9886, progress_loss=0.7104
+TRAIN_DONE
+ARM_B_FITS_AT_BATCH=32 PEAK_VRAM_MIB=31206
+
+RUNG1_OK
+18G	/opt/checkpoints
+12G	/home/ubuntu/.cache/openpi
+overlay         200G   56G  145G  28% /
