@@ -1,0 +1,47 @@
+{
+  "task": "set_up_a_coffee_station_in_your_kitchen",
+  "task_index": 10,
+  "D": 6,
+  "D_source": "measured from the reward trace (1/min|reward|); cross-checked against behavior1k_reward_map.json",
+  "reward_magnitudes": [
+    0.166667
+  ],
+  "episodes_considered": 200,
+  "episodes_used": 199,
+  "episodes_dropped": 1,
+  "drop_reasons": {
+    "not_terminated": 1
+  },
+  "anchor": "init",
+  "mean_phi0": 0.16499162479061982,
+  "max_phi0": 0.16666666666666666,
+  "mean_phi0_units": 0.989949748743719,
+  "initially_true_literals": 1,
+  "initially_true_unknown": 5,
+  "census_alignment": "aligned",
+  "progress_offset_at_reset": 0.16499162479061982,
+  "mean_never_credited_units": 1.1206029466348677,
+  "mean_lost_at_end_units": 0.030150754667406705,
+  "max_dip_units": 1.000000029802323,
+  "episodes_ended_short": 136,
+  "demo_completion_rate": 0.31658291457286436,
+  "progress_structure": {
+    "frac_intermediate": 0.8048132774245982,
+    "max_step_frac": 0.1666666716337204,
+    "n_credit_events": 6.728643216080402,
+    "n_levels": 5.386934673366834,
+    "t_first_credit": 0.3229346020759995,
+    "mean_progress": 0.40099686615142704
+  },
+  "frames": 1247890,
+  "rollback_rewards_zeroed": 28,
+  "episodes_nonmonotonic": 189,
+  "denominator_status": "ENDS_SHORT",
+  "must_flip_predicates": 5,
+  "measurement_scope": "full-200ep",
+  "reward_instrumentation": "ok",
+  "corpus_valid_rate": 0.995,
+  "dataset_root": "/home/aharonijetson1/behavior-rewards",
+  "codebase_version": "v3.0",
+  "generated_utc": "2026-09-12T02:51:57+00:00"
+}

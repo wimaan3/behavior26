@@ -1,0 +1,49 @@
+{
+  "task": "putting_shoes_on_rack",
+  "task_index": 22,
+  "D": 10,
+  "D_source": "measured from the reward trace (1/min|reward|); cross-checked against behavior1k_reward_map.json",
+  "reward_magnitudes": [
+    0.1,
+    0.2
+  ],
+  "episodes_considered": 200,
+  "episodes_used": 195,
+  "episodes_dropped": 5,
+  "drop_reasons": {
+    "over_credited": 4,
+    "not_terminated": 1
+  },
+  "anchor": "init",
+  "mean_phi0": 0.0,
+  "max_phi0": 0.0,
+  "mean_phi0_units": 0.0,
+  "initially_true_literals": 0,
+  "initially_true_unknown": 10,
+  "census_alignment": "aligned",
+  "progress_offset_at_reset": 0.0,
+  "mean_never_credited_units": 1.1846153029264548,
+  "mean_lost_at_end_units": 0.035897436432349376,
+  "max_dip_units": 2.0000000298023224,
+  "episodes_ended_short": 130,
+  "demo_completion_rate": 0.33333333333333337,
+  "progress_structure": {
+    "frac_intermediate": 0.802977866364118,
+    "max_step_frac": 0.10205128357196465,
+    "n_credit_events": 11.502564102564103,
+    "n_levels": 9.810256410256411,
+    "t_first_credit": 0.15135681195104422,
+    "mean_progress": 0.3494056666992556
+  },
+  "frames": 1503533,
+  "rollback_rewards_zeroed": 6,
+  "episodes_nonmonotonic": 167,
+  "denominator_status": "ENDS_SHORT",
+  "must_flip_predicates": 10,
+  "measurement_scope": "full-200ep",
+  "reward_instrumentation": "ok",
+  "corpus_valid_rate": 0.975,
+  "dataset_root": "/home/aharonijetson1/behavior-rewards",
+  "codebase_version": "v3.0",
+  "generated_utc": "2026-09-12T02:51:55+00:00"
+}
