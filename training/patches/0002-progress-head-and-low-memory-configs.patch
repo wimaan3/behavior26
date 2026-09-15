@@ -1,5 +1,5 @@
 diff --git a/scripts/b1k/train_b1k.py b/scripts/b1k/train_b1k.py
-index b53dc5c..e88c223 100644
+index b53dc5c..d8470ba 100644
 --- a/scripts/b1k/train_b1k.py
 +++ b/scripts/b1k/train_b1k.py
 @@ -348,15 +348,24 @@ def train_step(
@@ -29,14 +29,49 @@ index b53dc5c..e88c223 100644
  
      params = state.params.filter(config.trainable_filter)
      updates, new_opt_state = state.tx.update(grads, state.opt_state, params)
-@@ -388,6 +397,8 @@ def train_step(
+@@ -388,7 +397,43 @@ def train_step(
          "loss": loss,
          "grad_norm": optax.global_norm(grads),
          "param_norm": optax.global_norm(kernel_params),
 +        # behavior26: action_loss / progress_loss, when the model reports them.
 +        **{k: v for k, v in loss_terms.items() if k != "loss"},
      }
++
++    # behavior26: per-term GRADIENT norms, for calibrating progress_loss_weight.
++    #
++    # The calibration target is the progress term's share of the GRADIENT, and a
++    # loss share is not that: the two terms can have very different gradient
++    # magnitudes per unit loss. Opt-in because it costs two extra backward passes.
++    # The parameter update above is untouched -- these gradients are measured and
++    # then discarded, and they reuse `train_rng`, so they see the same noise draw.
++    if config.log_loss_term_grad_norms and "progress_loss" in loss_terms:
++
++        def term_fn(term):
++            def fn(model, rng, observation, actions):
++                return jnp.mean(model.compute_losses(rng, observation, actions, train=True)[term])
++
++            return fn
++
++        g_action = nnx.grad(term_fn("action_loss"), argnums=diff_state)(model, train_rng, observation, actions)
++        g_progress = nnx.grad(term_fn("progress_loss"), argnums=diff_state)(model, train_rng, observation, actions)
++        weight = getattr(model, "progress_loss_weight", 0.0)
++        n_action = optax.global_norm(g_action)
++        n_progress_raw = optax.global_norm(g_progress)  # d(progress_loss), UNweighted
++        n_progress = weight * n_progress_raw  # what the weighted term actually contributes
++        dot = sum(jnp.vdot(a, b) for a, b in zip(jax.tree.leaves(g_action), jax.tree.leaves(g_progress), strict=True))
++        info.update(
++            {
++                "grad_norm_action": n_action,
++                "grad_norm_progress_raw": n_progress_raw,
++                "grad_norm_progress": n_progress,
++                # share of the combined gradient magnitude carried by lambda * progress
++                "progress_grad_share": n_progress / (n_action + n_progress + 1e-12),
++                # < 0 means the head pulls shared weights against the action loss
++                "grad_cosine_action_progress": dot / (n_action * n_progress_raw + 1e-12),
++            }
++        )
      return new_state, info
+ 
  
 diff --git a/src/openpi/models/model.py b/src/openpi/models/model.py
 index 29618b4..fe8e9c5 100644
@@ -362,7 +397,7 @@ index 2939988..2be518c 100644
  
  
 diff --git a/src/openpi/training/config.py b/src/openpi/training/config.py
-index ec6cd0f..6bb237a 100644
+index ec6cd0f..0a619ab 100644
 --- a/src/openpi/training/config.py
 +++ b/src/openpi/training/config.py
 @@ -377,6 +377,10 @@ class LeRobotB1KDataConfig(DataConfigFactory):
@@ -385,7 +420,18 @@ index ec6cd0f..6bb237a 100644
  
          repack_transform = _transforms.Group(inputs=[_transforms.RepackTransform(repack_mapping)])
  
-@@ -668,6 +674,31 @@ class TrainConfig:
+@@ -613,6 +619,10 @@ class TrainConfig:
+ 
+     # How often (in steps) to log training metrics.
+     log_interval: int = 100
++    # behavior26: log per-term gradient norms (action vs progress) for calibrating
++    # progress_loss_weight. Costs two extra backward passes per step; off for
++    # production runs, on for the lambda calibration rung.
++    log_loss_term_grad_norms: bool = False
+     # How often (in steps) to save checkpoints.
+     save_interval: int = 1000
+     # If set, any existing checkpoints matching step % keep_period == 0 will not be deleted.
+@@ -668,6 +678,31 @@ class TrainConfig:
              raise ValueError("Cannot resume and overwrite at the same time.")
  
  
@@ -417,7 +463,7 @@ index ec6cd0f..6bb237a 100644
  # Use `get_config` if you need to get a config by name in your code.
  _CONFIGS = [
      #
-@@ -772,6 +803,99 @@ _CONFIGS = [
+@@ -772,6 +807,99 @@ _CONFIGS = [
          assets_base_dir="./outputs/assets",
          checkpoint_base_dir="./outputs/checkpoints",
      ),

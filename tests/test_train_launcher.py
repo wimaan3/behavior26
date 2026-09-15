@@ -59,3 +59,9 @@ def test_train_cloud_does_not_let_tee_hide_a_training_failure():
     previous run may have left behind."""
     text = TRAIN.read_text()
     assert re.search(r"set -[a-z]*o pipefail|set -o pipefail", text), "train_cloud.sh needs pipefail"
+
+
+def test_launcher_can_turn_on_term_gradient_logging_and_refuses_a_stale_patch():
+    text = LAUNCH.read_text()
+    assert "--log-term-grads" in text and "log_loss_term_grad_norms" in text
+    assert "patch 0002 out of date" in text

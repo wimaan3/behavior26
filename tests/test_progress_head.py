@@ -15,6 +15,8 @@ Models are built once per module: a tiny Pi0 still takes ~7s to construct and
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -24,6 +26,7 @@ pytestmark = pytest.mark.openpi
 
 BATCH = 2
 PROGRESS_DIM = 3
+REPO = Path(__file__).resolve().parents[1]
 LOSS_WEIGHT = 0.5
 
 
@@ -385,3 +388,48 @@ def test_lora_freeze_filter_covers_the_vision_tower(openpi):
     assert any("lora" in p for p in fixed), sorted(fixed)[:10]
     # And the action decoder, or the model cannot adapt its output at all.
     assert "action_out_proj/kernel" in fixed
+
+
+# ------------------------------------------- per-term gradients (lambda calibration)
+
+def _term_grads(model, obs, actions, term):
+    import flax.nnx as nnx
+    import flax.traverse_util as tu
+    import jax
+    import jax.numpy as jnp
+
+    def fn(m):
+        return jnp.mean(m.compute_losses(jax.random.key(2), obs, actions, train=False)[term])
+
+    flat = tu.flatten_dict(nnx.grad(fn)(model).to_pure_dict())
+    return {"/".join(map(str, k)): np.asarray(v) for k, v in flat.items()}
+
+
+def test_per_term_gradients_decompose_the_total(openpi, head_model, grads_low):
+    """The lambda calibration reads grad_norm_action and lambda * grad_norm_progress_raw
+    as the two parts of the update. That is only meaningful if they really are the
+    parts: grad(action) + lambda * grad(progress) must equal grad(loss) exactly,
+    parameter by parameter. If the model ever added a term to `loss` that is not in
+    `action_loss + weight * progress_loss`, the logged shares would silently
+    describe a different update than the one applied."""
+    cfg, model = head_model
+    obs, actions = _batch(openpi, cfg, progress=np.zeros((BATCH, PROGRESS_DIM)))
+    g_a = _term_grads(model, obs, actions, "action_loss")
+    g_p = _term_grads(model, obs, actions, "progress_loss")
+    assert set(g_a) == set(g_p) == set(grads_low)
+    worst = max(float(np.max(np.abs(g_a[k] + LOSS_WEIGHT * g_p[k] - grads_low[k]))) for k in grads_low)
+    assert worst < 1e-5, f"per-term gradients do not sum to the applied gradient (max |diff| {worst})"
+
+
+def test_train_step_logs_term_gradients_only_when_asked():
+    """Opt-in: two extra backward passes are fine for calibration, not for
+    production. And the update must still use the original `grads`."""
+    root = Path(__import__("os").environ.get("OPENPI_ROOT", REPO.parent / "openpi"))
+    text = (root / "scripts" / "b1k" / "train_b1k.py").read_text()
+    step = text[text.index("def train_step("):]
+    assert "config.log_loss_term_grad_norms" in step
+    guarded = step[step.index("config.log_loss_term_grad_norms"):]
+    for key in ("grad_norm_action", "grad_norm_progress_raw", "progress_grad_share", "grad_cosine_action_progress"):
+        assert key in guarded, key
+    before = step[: step.index("config.log_loss_term_grad_norms")]
+    assert "state.tx.update(grads" in before, "the update must be computed from the original grads"
