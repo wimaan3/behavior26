@@ -19,7 +19,8 @@
 set -uo pipefail
 TASK="${TASK:-set_up_a_coffee_station_in_your_kitchen}"
 CHUNK="${CHUNK:-chunk-010}"
-PROOF_FRAMES="${PROOF_FRAMES:-640}"   # seeded frames used to prove decode-free == decoded
+PROOF_FRAMES="${PROOF_FRAMES:-640}"      # seeded frames used to prove decode-free == decoded
+STATS_FRAMES="${STATS_FRAMES:-128000}"   # seeded sample for the real pass; see stage 3 comment
 STEPS="${STEPS:-10}"
 BATCHES="${BATCHES:-32 16 8}"          # tried in order; first that fits is recorded
 OUT=/opt/sessionb
@@ -75,7 +76,11 @@ stage 3_norm_stats
 # 3a. Prove decode-free stats equal decoded stats on the SAME seeded frames.
 #     Decoding all six camera streams measured ~2 frames/s; stats never read pixels.
 NS="$PY $B26/scripts/compute_norm_stats_b1k.py --dataset-root $MERGED --repo-id $TASK"
-rm -rf /opt/ns_ref /opt/ns_nodecode /opt/assets
+rm -rf /opt/assets
+if [ "${SKIP_DECODE_PROOF:-0}" = 1 ] && grep -q NORM_STATS_MATCH $OUT/ns_equivalence.log 2>/dev/null; then
+  echo "DECODE_FREE_EQUIVALENT (reusing proof already logged on this box: $OUT/ns_equivalence.log)"
+else
+rm -rf /opt/ns_ref /opt/ns_nodecode
 (cd $B26 && $NS --config-name pi05_b1k_frozen_vlm --assets-base-dir /opt/ns_ref \
    --max-frames $PROOF_FRAMES --num-workers 16 2>&1 | grep -E "config=|frames=|NORM_STATS_OK|Error" ) | tee $OUT/ns_ref.log
 grep -q NORM_STATS_OK $OUT/ns_ref.log || fail "decoded reference stats"
@@ -87,13 +92,19 @@ $PY $B26/scripts/compare_norm_stats.py \
   --arm-b /opt/ns_nodecode/pi05_b1k_frozen_vlm/$TASK/norm_stats.json | tee $OUT/ns_equivalence.log
 grep -q NORM_STATS_MATCH $OUT/ns_equivalence.log || fail "decode-free stats differ from decoded stats -- cannot skip decoding"
 echo "DECODE_FREE_EQUIVALENT on $PROOF_FRAMES seeded frames"
+fi
 
-# 3b. The real pass: ALL frames, no sampling, decode-free, both arms.
+# 3b. The real pass: a SEEDED SAMPLE, decode-free, both arms.
+#     Not all 1,247,890 frames: decode-free measured ~140 frames/s, bound by the
+#     loader's single-threaded parent (pinned at ~106% CPU; more workers do not
+#     help), so a full pass is ~2.5 h per arm. 128k seeded frames drawn across all
+#     episodes is ample for mean/std/q01/q99, and the seed makes both arms read
+#     the identical frames, so the parity assertion below stays exact.
 for arm in A B; do
   if [ $arm = A ]; then CFG=pi05_b1k_frozen_vlm; else CFG=pi05_b1k_frozen_vlm_progress; fi
   T0=$(date +%s)
   (cd $B26 && NORM_STATS_NO_DECODE=1 $NS --config-name $CFG --assets-base-dir /opt/assets \
-     --num-workers 16 2>&1 | grep -E "config=|frames=|NORM_STATS_OK|Error" ) | tee $OUT/norm_$arm.log
+     --max-frames $STATS_FRAMES --num-workers 8 2>&1 | grep -E "config=|frames=|NORM_STATS_OK|Error" ) | tee $OUT/norm_$arm.log
   grep -q NORM_STATS_OK $OUT/norm_$arm.log || fail "arm $arm norm stats"
   echo "arm $arm full-pass wall $(( $(date +%s) - T0 ))s"
 done
