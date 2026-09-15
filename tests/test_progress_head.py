@@ -417,8 +417,23 @@ def test_per_term_gradients_decompose_the_total(openpi, head_model, grads_low):
     g_a = _term_grads(model, obs, actions, "action_loss")
     g_p = _term_grads(model, obs, actions, "progress_loss")
     assert set(g_a) == set(g_p) == set(grads_low)
-    worst = max(float(np.max(np.abs(g_a[k] + LOSS_WEIGHT * g_p[k] - grads_low[k]))) for k in grads_low)
-    assert worst < 1e-5, f"per-term gradients do not sum to the applied gradient (max |diff| {worst})"
+
+    def gnorm(tree):
+        return float(np.sqrt(sum(float((np.asarray(v, dtype=np.float64) ** 2).sum()) for v in tree.values())))
+
+    residual = gnorm({k: g_a[k] + LOSS_WEIGHT * g_p[k] - grads_low[k] for k in grads_low})
+    total, weighted_progress = gnorm(grads_low), gnorm({k: LOSS_WEIGHT * g_p[k] for k in g_p})
+    # RELATIVE, not absolute. The first version asserted max |diff| < 1e-5 and failed
+    # on the pod at 1.07e-4: three separately compiled backward passes through a
+    # model computing in mixed precision do not agree to 1e-5. Measured global
+    # relative residual was 1.4e-4, spread over shared layers, not the head.
+    assert residual / total < 1e-3, f"relative residual {residual / total:.2e}"
+    # And the check that catches a REAL defect: a term missing from
+    # `action_loss + weight * progress_loss` would leave a residual of the order of
+    # the progress contribution itself. Require it to be a small fraction of that.
+    assert residual < 0.05 * weighted_progress, (
+        f"residual {residual:.3e} is not small next to lambda*|g_progress| {weighted_progress:.3e} -- "
+        f"the logged shares would describe a different update than the one applied")
 
 
 def test_train_step_logs_term_gradients_only_when_asked():
