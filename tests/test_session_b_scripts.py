@@ -93,10 +93,21 @@ def test_loader_bench_measures_the_data_path_without_the_model():
 
 
 def test_loader_bench_discards_warmup_batches():
+    """Superseded by the queue-drain test below: discarding one warm-up batch was
+    never enough, because the prefetch queue outlives it."""
     text = LB.read_text()
-    assert "discard" in text and "times[1:]" in text
+    assert "discard" in text and "queue_depth" in text
 
 
 def test_loader_bench_states_the_rate_training_needs():
     """A raw items/s number is not actionable without the bar it must clear."""
     assert "step-seconds" in LB.read_text() and "KEEPS UP" in LB.read_text()
+
+
+def test_loader_bench_drains_the_prefetch_queue_before_measuring():
+    """torch prefetches workers*2 batches while the first is produced. Measuring a
+    few batches after that times the queue emptying at memory speed: the first
+    attempt reported 777 items/s and 'KEEPS UP' for a loader that sustains ~5."""
+    text = LB.read_text()
+    assert "queue_depth" in text and "workers) * 2" in text
+    assert "sustained" in text

@@ -32,16 +32,28 @@ def bench_loader(cfg, workers: int, batches: int, batch_size: int) -> dict:
     t0 = time.time()
     next(it)                      # discard: worker spin-up + first-batch transforms
     warm = time.time() - t0
+
+    # THE PREFETCH QUEUE MUST BE DRAINED FIRST.
+    # torch's DataLoader prefetches workers * prefetch_factor (2) batches, filled
+    # WHILE the first batch was being produced. Reading only a few batches then
+    # measures the queue emptying at memory speed -- the first attempt reported
+    # 777 items/s and "KEEPS UP" for a loader that cannot sustain 8.3. Sustained
+    # rate is the total time over batches beyond the queue depth.
+    queue_depth = max(1, workers) * 2
     times = []
     for _ in range(batches - 1):
         t = time.time()
         next(it)
         times.append(time.time() - t)
-    times = times[1:] or times
-    med = statistics.median(times)
-    return {"workers": workers, "first_batch_s": warm, "median_batch_s": med,
-            "p90_batch_s": sorted(times)[int(len(times) * 0.9)] if times else float("nan"),
-            "items_per_s": batch_size / med if med else float("nan")}
+    sustained = times[queue_depth:] or times[len(times) // 2:] or times
+    burst = times[:queue_depth] or times
+    med = statistics.median(sustained)
+    mean = statistics.fmean(sustained)
+    return {"workers": workers, "first_batch_s": warm,
+            "burst_batch_s": statistics.median(burst), "median_batch_s": med,
+            "mean_batch_s": mean, "n_sustained": len(sustained),
+            "p90_batch_s": sorted(sustained)[int(len(sustained) * 0.9)],
+            "items_per_s": batch_size / mean if mean else float("nan")}
 
 
 def main() -> int:
@@ -50,7 +62,8 @@ def main() -> int:
     ap.add_argument("--repo-id", required=True, nargs="+")
     ap.add_argument("--config", default="pi05_b1k_frozen_vlm")
     ap.add_argument("--batch-size", type=int, default=32)
-    ap.add_argument("--batches", type=int, default=12)
+    ap.add_argument("--batches", type=int, default=80,
+                    help="must exceed workers*2 (the prefetch queue) or you measure the queue draining")
     ap.add_argument("--workers", type=int, nargs="+", default=[0, 8, 24])
     ap.add_argument("--step-seconds", type=float, default=3.85,
                     help="GPU step time, to say what the loader must sustain")
@@ -75,9 +88,10 @@ def main() -> int:
             try:
                 r = bench_loader(cfg, w, a.batches, a.batch_size)
                 verdict = "KEEPS UP" if r["items_per_s"] >= need else f"short by {need - r['items_per_s']:.1f}/s"
-                print(f"  workers {r['workers']:>2}: median {r['median_batch_s']:.2f}s/batch  "
-                      f"p90 {r['p90_batch_s']:.2f}s  first {r['first_batch_s']:.1f}s  "
-                      f"{r['items_per_s']:.1f} items/s  {verdict}")
+                print(f"  workers {r['workers']:>2}: sustained mean {r['mean_batch_s']:.2f}s/batch "
+                      f"(median {r['median_batch_s']:.2f}, n={r['n_sustained']}), "
+                      f"burst {r['burst_batch_s']:.2f}s, first {r['first_batch_s']:.0f}s "
+                      f"-> {r['items_per_s']:.1f} items/s  {verdict}")
             except Exception as e:  # noqa: BLE001
                 print(f"  workers {w:>2}: FAILED {type(e).__name__}: {str(e)[:120]}")
     return 0
