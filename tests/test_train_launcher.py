@@ -65,3 +65,29 @@ def test_launcher_can_turn_on_term_gradient_logging_and_refuses_a_stale_patch():
     text = LAUNCH.read_text()
     assert "--log-term-grads" in text and "log_loss_term_grad_norms" in text
     assert "patch 0002 out of date" in text
+
+
+# --- shot one is a 20-70 hour run, so it must survive the pod ----------------
+
+def test_launcher_can_resume_from_the_last_checkpoint():
+    """Rung 4 prices shot one at 22-68 h per arm. A run that cannot resume loses
+    everything to one interruption."""
+    text = LAUNCH.read_text()
+    assert "--resume" in text
+    assert re.search(r"resume\s*=\s*a\.resume", text), "must reach TrainConfig, not just be parsed"
+
+
+def test_launcher_refuses_resume_and_overwrite_together():
+    """openpi raises for this, but deep inside config validation after the model has
+    started loading. Fail at the flags instead."""
+    text = LAUNCH.read_text()
+    assert "resume and overwrite" in text.lower()
+
+
+def test_save_interval_default_is_not_never_for_long_runs():
+    """The default was 10**9 -- deliberate for 10-step rungs, fatal for a 30k-step
+    run, where it means one checkpoint at the very end and nothing to resume from."""
+    text = LAUNCH.read_text()
+    assert "--save-interval" in text
+    assert "10**9" not in text or "keep_period" in text or "SAVE_INTERVAL_WARN" in text, (
+        "a never-save default must at least warn when the run is long")
