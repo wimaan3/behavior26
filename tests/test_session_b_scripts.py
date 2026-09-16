@@ -78,3 +78,25 @@ def test_resume_skips_stages_below_start_at_inclusive():
 def test_a_missing_verdict_is_not_reported_as_a_difference():
     text = R25.read_text()
     assert "produced NO verdict" in text
+
+
+LB = REPO / "scripts" / "loader_bench.py"
+
+
+def test_loader_bench_measures_the_data_path_without_the_model():
+    """The point is attribution: if it built a model, a slow result could be the
+    model's fault."""
+    text = LB.read_text()
+    assert "create_b1k_data_loader" in text
+    for forbidden in ("init_train_state", "train_step", "CheckpointWeightLoader", "create_trained_policy"):
+        assert forbidden not in text, f"loader_bench must not use {forbidden}"
+
+
+def test_loader_bench_discards_warmup_batches():
+    text = LB.read_text()
+    assert "discard" in text and "times[1:]" in text
+
+
+def test_loader_bench_states_the_rate_training_needs():
+    """A raw items/s number is not actionable without the bar it must clear."""
+    assert "step-seconds" in LB.read_text() and "KEEPS UP" in LB.read_text()
