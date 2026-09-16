@@ -222,3 +222,30 @@ def test_serve_discovers_the_checkpoint_and_puts_uv_on_path():
     assert ".local/bin" in serve, "uv must be on PATH for a fresh shell"
     assert "-name params" in serve, "the checkpoint must be discovered, not hardcoded"
     assert "/opt/baseline/extracted/" not in serve, "hardcoded path was wrong and is gone"
+
+
+def test_serve_can_serve_our_own_arms_not_only_the_released_baseline():
+    """Deliverable 11 evaluates arm A and arm B, which train under
+    pi05_b1k_frozen_vlm -- and arm B's checkpoint carries a progress head that only
+    the patched config declares. A hardcoded --policy.config pi05_b1k cannot load
+    either, and the failure lands after Isaac Sim has already paid its scene load.
+    """
+    serve = (REPO / "scripts" / "serve_baseline.sh").read_text()
+    assert re.search(r'^CONFIG="\$\{CONFIG:-', serve, re.M), "the policy config must be overridable"
+    assert "--policy.config \"${CONFIG}\"" in serve
+    assert "pi05_b1k_frozen_vlm" in serve, "say which config our own arms need"
+
+
+def test_serve_refuses_a_checkpoint_with_no_norm_stats_in_it():
+    """openpi loads norm stats from checkpoint_dir/assets/<asset_id>, NOT from the
+    config's assets dir -- deliberately, so a served policy uses the statistics it
+    trained with. There is no flag to point elsewhere (Checkpoint has only config
+    and dir).
+
+    The failure mode that matters: when they are absent openpi logs "not found ...
+    skipping" and serves an UNNORMALISED policy, which scores near zero. On an arm,
+    that reads as the treatment failing rather than as a missing file -- and it is
+    discovered only after Isaac Sim has paid a 12-minute scene load."""
+    serve = (REPO / "scripts" / "serve_baseline.sh").read_text()
+    assert "assets" in serve and "norm_stats" in serve, "check the stats are there before serving"
+    assert "--policy.assets_base_dir" not in serve, "no such flag exists on Checkpoint"
