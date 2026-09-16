@@ -71,3 +71,35 @@ def test_the_runner_uses_the_baseline_not_the_null_policy():
     assert "serve_baseline.sh" in text and "null_server" not in text
     assert "--num-rollouts \"$REPEATS\"" in text, "repeats must reach the evaluator"
     assert "--instance-indices $(seq" in text, "instances must be spread, not one instance repeated"
+
+
+def _runner_text():
+    from pathlib import Path
+    return (Path(__file__).resolve().parents[1] / "scripts" / "session_a" / "noise_floor.sh").read_text()
+
+
+def test_the_runner_does_not_write_video_it_never_reads():
+    """sigma_w is estimated from the JSON alone. 72 full-res RGBD rollouts of video is
+    tens of GB of container disk for nothing, and first_rollout.sh already lost a run
+    to exactly this (full-res video into 8 GB of volume)."""
+    text = _runner_text()
+    assert "--write-video" not in text, "the noise floor reads JSON; video is pure disk risk"
+
+
+def test_the_runner_evaluates_training_instances():
+    """The evaluator's --mode defaults to public_test. sigma_w must be measured on the
+    same instance pool the A/B will use."""
+    assert "--mode train" in _runner_text()
+
+
+def test_the_runner_leaves_scene_reuse_on():
+    """Scene load is per evaluator invocation. --instances-per-job defaults to 0 (one
+    job for everything), which is what makes 72 rollouts cost ~4 h instead of ~24."""
+    assert "--instances-per-job" not in _runner_text()
+
+
+def test_the_runner_checks_it_got_every_rollout():
+    """A partial run silently biases sigma_w toward whichever instances finished."""
+    text = _runner_text()
+    assert "INSTANCES * REPEATS" in text
+    assert "-eq \"$((INSTANCES * REPEATS))\"" in text, "must require ALL rollouts, not merely some"
