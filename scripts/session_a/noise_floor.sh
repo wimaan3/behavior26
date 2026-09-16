@@ -34,16 +34,22 @@ stage 1_rollouts
 # shellcheck disable=SC1091
 source /workspace/env.sh || fail "no /workspace/env.sh -- mount the volume with the omnigibson env"
 rm -rf "$OUT"; mkdir -p "$OUT"
+# Video writing is deliberately OFF: sigma_w comes from the JSON, and 72 full-res
+# RGBD rollouts of video is tens of GB of container disk that nothing ever reads.
+# first_rollout.sh already lost a run to exactly this default.
 python -m omnigibson.eval.eval \
   --task-name "$TASK" --host 127.0.0.1 --port 8000 --mode train \
   --instance-indices $(seq 0 $((INSTANCES - 1))) \
   --num-rollouts "$REPEATS" \
   --env-wrapper omnigibson.eval.wrappers.RGBDFullResWrapper \
-  --output-dir "$OUT" --write-video --headless > "$OUT/eval.log" 2>&1
+  --output-dir "$OUT" --headless > "$OUT/eval.log" 2>&1
 RC=$?
 N=$(find "$OUT/json" -name '*.json' 2>/dev/null | wc -l)
 echo "eval rc=$RC rollouts=$N (expected $((INSTANCES * REPEATS)))"
-[ "$N" -gt 0 ] || { tail -30 "$OUT/eval.log"; fail "no rollouts written"; }
+# ALL of them, not merely some: a partial run biases sigma_w toward whichever
+# instances happened to finish, and it would read as a real (low) noise floor.
+[ "$N" -eq "$((INSTANCES * REPEATS))" ] || { tail -30 "$OUT/eval.log"; \
+  fail "got $N of $((INSTANCES * REPEATS)) rollouts -- a partial run biases sigma_w"; }
 
 stage 2_estimate
 python $B26/analysis/noise_floor.py "$OUT/json" | tee "$OUT/sigma_w.txt"
