@@ -29,6 +29,11 @@ import pathlib
 import sys
 
 
+# Longer than this and a never-save interval is a mistake, not a choice: it means one
+# checkpoint at the very end and nothing to resume from if the pod goes away.
+SAVE_INTERVAL_WARN = 2_000
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
@@ -59,8 +64,23 @@ def main() -> int:
     ap.add_argument("--log-term-grads", action="store_true",
                     help="log per-term gradient norms for lambda calibration (2 extra backward passes/step)")
     ap.add_argument("--overwrite", action="store_true")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue from the last checkpoint in checkpoint-base-dir/config/exp-name. "
+                         "Shot one is 20-70 h per arm (rung 4); without this, one interruption "
+                         "costs the whole run.")
     ap.add_argument("--openpi-root", default=os.environ.get("OPENPI_ROOT", "/opt/openpi"))
     a = ap.parse_args()
+
+    if a.resume and a.overwrite:
+        # openpi raises for resume and overwrite together, but only after the model
+        # has begun loading. Fail at the flags, where the message is about the flags.
+        print("FAIL: --resume and --overwrite are mutually exclusive. --overwrite discards the "
+              "checkpoints --resume exists to continue from.")
+        return 2
+    if a.save_interval >= a.num_train_steps > SAVE_INTERVAL_WARN:
+        print(f"WARNING: --save-interval {a.save_interval} never fires inside a "
+              f"{a.num_train_steps}-step run, so there is nothing to --resume from. "
+              f"A run this long should checkpoint periodically.")
 
     for flag, p in (("--assets-base-dir", a.assets_base_dir), ("--checkpoint-base-dir", a.checkpoint_base_dir)):
         if not pathlib.Path(p).is_absolute():
@@ -95,6 +115,7 @@ def main() -> int:
         num_train_steps=a.num_train_steps, batch_size=a.batch_size,
         log_interval=a.log_interval, save_interval=a.save_interval,
         num_workers=a.num_workers, wandb_enabled=a.wandb, overwrite=a.overwrite,
+        resume=a.resume,
     )
     if a.log_term_grads:
         if not hasattr(cfg, "log_loss_term_grad_norms"):
