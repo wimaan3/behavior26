@@ -63,6 +63,9 @@ def main() -> int:
                          "RATIO of norms, which a sub-batch estimates fine")
     ap.add_argument("--log-term-grads", action="store_true",
                     help="log per-term gradient norms for lambda calibration (2 extra backward passes/step)")
+    ap.add_argument("--seed", type=int, default=42,
+                    help="TrainConfig's own default. Exposed so a run manifest can record the "
+                         "seed that was actually used rather than one it assumed.")
     ap.add_argument("--overwrite", action="store_true")
     ap.add_argument("--resume", action="store_true",
                     help="continue from the last checkpoint in checkpoint-base-dir/config/exp-name. "
@@ -115,7 +118,7 @@ def main() -> int:
         num_train_steps=a.num_train_steps, batch_size=a.batch_size,
         log_interval=a.log_interval, save_interval=a.save_interval,
         num_workers=a.num_workers, wandb_enabled=a.wandb, overwrite=a.overwrite,
-        resume=a.resume,
+        resume=a.resume, seed=a.seed,
     )
     if a.log_term_grads:
         if not hasattr(cfg, "log_loss_term_grad_norms"):

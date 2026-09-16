@@ -91,3 +91,12 @@ def test_save_interval_default_is_not_never_for_long_runs():
     assert "--save-interval" in text
     assert "10**9" not in text or "keep_period" in text or "SAVE_INTERVAL_WARN" in text, (
         "a never-save default must at least warn when the run is long")
+
+
+def test_launcher_exposes_the_seed_it_trains_with():
+    """TrainConfig.seed defaults to 42. shot_one.sh records a seed in its manifest,
+    and a manifest that records a seed the run never applied is worse than one that
+    records none -- it is a reproduction instruction that does not reproduce."""
+    text = LAUNCH.read_text()
+    assert "--seed" in text
+    assert re.search(r"seed\s*=\s*a\.seed", text), "must reach TrainConfig"
