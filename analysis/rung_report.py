@@ -76,7 +76,7 @@ def _mean_se(xs):
 
 
 def branch0(run_b: Run, window: int = FLAT_WINDOW) -> dict:
-    p = run_b.series("progress_loss")
+    p = list(by_step(run_b, "progress_loss").values())
     if not p:
         return {"verdict": "BROKEN", "reason": "absent: arm B logged no progress_loss"}
     if any(not math.isfinite(x) for x in p):
@@ -93,9 +93,19 @@ def branch0(run_b: Run, window: int = FLAT_WINDOW) -> dict:
             "reason": "flat: not below the first window by >2 SE" if verdict == "BROKEN" else "decreasing by >2 SE"}
 
 
+def by_step(run: Run, key: str) -> dict[int, float]:
+    """step -> value, for rows that carry `key`.
+
+    NOT zip(run.steps, run.series(key)): the calibration writes a SECOND line for
+    the same step with different keys, so those two lists have different lengths
+    and zipping them silently misaligns every later step.
+    """
+    return {s: m[key] for s, m in zip(run.steps, run.metrics) if key in m}
+
+
 def paired_action(run_a: Run, run_b: Run, window: int = FLAT_WINDOW) -> dict:
-    a = dict(zip(run_a.steps, run_a.series("action_loss")))
-    b = dict(zip(run_b.steps, run_b.series("action_loss")))
+    a = by_step(run_a, "action_loss")
+    b = by_step(run_b, "action_loss")
     common = sorted(set(a) & set(b))[-window:]
     if len(common) < 2:
         return {"verdict": "INCONCLUSIVE", "n": len(common)}
