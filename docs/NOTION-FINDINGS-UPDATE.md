@@ -8,10 +8,10 @@ Page: https://app.notion.com/p/Findings-3d280ea5df6a81b49ce4db9e7fa38605
 
 ---
 
-## Findings — 13–15 Sep 2026 (sessions A and B)
+## Findings — 13–16 Sep 2026 (sessions A and B)
 
 **Where we are:** the whole pipeline runs end to end on rented GPUs, the baseline is
-measured, and both A/B arms train. Spend to date **$12.27 of $200**; deadline 16 Oct.
+measured, and both A/B arms train. Spend to date **$18.00 of $200**; deadline 16 Oct.
 Everything below is reproducible from the repo — evidence links are files, not claims.
 
 ### The headline numbers
@@ -24,7 +24,10 @@ Everything below is reproducible from the repo — evidence links are files, not
 | Per-instance cost after reuse | **30.8 s** | Instances are cheap; jobs are not |
 | End-to-end eval throughput | **20.4 FPS** | Inside the organizers' 13.5–24.6 band |
 | Evaluation for k=8, n=27 | **≈ $19** | k is no longer gated by evaluation cost |
-| Training speed (RTX PRO 4500, batch 32) | **~3.9 s/step best, ~10.4 s/step mean** | Sets the price of shot one |
+| Training speed (RTX PRO 4500, batch 32) | **3.90 s/step median, 8.11 s/step mean** | Sets the price of shot one; the gap is the finding, see below |
+| Does the progress head learn? | **Yes** — loss 0.6971 → 0.6559, z = 18.7 | The A/B is measuring something real |
+| Does the head damage the policy? | **No** — paired B−A = +0.0007, CI [−0.0002, +0.0016] | The treatment is additive, not a trade |
+| λ for a 20% gradient share | **≈ 0.14–0.15** (0.1 gives ≈14–15%) | Calibrated from measured gradients, not guessed |
 
 ### The five things that would have silently corrupted the experiment
 
@@ -51,21 +54,47 @@ at every step, diverging only in the fourth decimal after step 4 — same seed, 
 batches, same initialisation. The control really is the treatment minus the head.
 Both arms' normalisation statistics are **byte-identical** (sha256 `9a3dcf3f…`).
 
+### The rung-4 finding: half the run is one repeating stall
+
+Arm A trains at a **median of 3.90 s/step** but a **mean of 8.11 s/step**, with the GPU
+at **0% utilisation**. Quoting the median would have underpriced shot one by ~40%.
+
+The step numbers say what to fix. 39 intervals exceeded 20 s, and they land on steps
+72, 96, 120, … — **exactly every 24 steps**, ~103 s each, together **52.8% of the entire
+wall clock**. 24 is the dataloader pipeline depth (8 workers × prefetch 3), not anything
+about the data: the trainer drains a full queue at the GPU-bound rate, then blocks while
+the workers refill it. Sustained loader rate is **4.0 samples/s** against the **8.2** a
+3.90 s step consumes.
+
+So this is a worker-count problem, and it is worth real money:
+
+| | 10k steps | 30k steps |
+|---|---|---|
+| at the measured mean (8 workers) | $16.23/arm | $48.68/arm |
+| if the sawtooth is removed | $7.80/arm | $23.40/arm |
+
+The measurement nearly went wrong twice, both times in the direction of a *comfortable*
+answer. The report first quoted only the median, which is blind to a stall landing on 4%
+of steps. The loader microbenchmark first reported **777 items/s, "KEEPS UP"** — it was
+timing the prefetch queue draining at memory speed rather than the loader producing.
+Both are now fixed and pinned by tests, and the rule learned is that **the training log
+is the instrument**: a 1000-step run contains 39 independent refill cycles, while a
+70-batch microbenchmark cannot outrun a 72-deep queue.
+
 ### What is still open
 
-- **Does the progress head actually learn?** Running now (1,000 steps per arm). The
-  criterion was written down *before* the run: the last 100 steps must be below the
-  first 100 by more than 2 standard errors.
-- **λ (how much the progress term counts).** Will be calibrated from measured
-  gradient shares, not guessed. The current 0.1 was set before anyone had seen a loss.
-- **k (how many tasks).** Throughput cannot settle it; it is a convergence question.
-  A practical limit: progress labels exist for **three** tasks, so k > 3 needs more
-  labelling first.
-- **Noise floor (σ_w).** Planned, not yet run; the protocol requires it before the
-  first A/B.
+- **The loader fix.** A corrected sweep (8/16/24 workers × pyav/torchcodec) is running
+  now. It sets the step budget for shot one.
+- **k (how many tasks).** Throughput cannot settle it — one-task and two-task steps/s
+  came out at a ratio of **1.00**. It is a convergence question, and a labelling one:
+  progress labels exist for **three** tasks, so k > 3 needs more labelling first.
+- **Noise floor (σ_w).** Built and tested, not yet run; the protocol requires it before
+  the first A/B.
+- **Step budget.** The live decision. A null result from an undertrained arm answers
+  nothing, so the preference is 30k-if-the-loader-is-fixed over 10k-anyway.
 
 ### Cost discipline
 
-Fourteen pods so far, every one terminated after use; the largest single spend was
-$2.07. Cheap checks run before expensive ones — a $0.09 CPU box caught two data
+Twenty-one pods so far, every one terminated after use; the largest single spend was
+$5.86 (the session-B training box). Cheap checks run before expensive ones — a $0.09 CPU box caught two data
 defects that would otherwise have surfaced on a $0.72/hr GPU.
