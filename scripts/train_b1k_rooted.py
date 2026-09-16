@@ -51,6 +51,11 @@ def main() -> int:
     ap.add_argument("--progress-loss-weight", type=float, default=None)
     ap.add_argument("--video-backend", default="pyav")
     ap.add_argument("--wandb", action="store_true")
+    ap.add_argument("--term-grad-interval", type=int, default=25,
+                    help="measure term gradients every N steps (memory-bound, see patch 0002)")
+    ap.add_argument("--term-grad-batch", type=int, default=8,
+                    help="samples used for the term-gradient measurement; the calibration reads a "
+                         "RATIO of norms, which a sub-batch estimates fine")
     ap.add_argument("--log-term-grads", action="store_true",
                     help="log per-term gradient norms for lambda calibration (2 extra backward passes/step)")
     ap.add_argument("--overwrite", action="store_true")
@@ -95,7 +100,9 @@ def main() -> int:
         if not hasattr(cfg, "log_loss_term_grad_norms"):
             print("FAIL: --log-term-grads but TrainConfig has no log_loss_term_grad_norms (patch 0002 out of date?)")
             return 2
-        cfg = dataclasses.replace(cfg, log_loss_term_grad_norms=True)
+        cfg = dataclasses.replace(cfg, log_loss_term_grad_norms=True,
+                                  log_term_grad_interval=a.term_grad_interval,
+                                  term_grad_batch=a.term_grad_batch)
 
     effective = cfg.data.create(cfg.assets_dirs, cfg.model)
     root = getattr(effective, "dataset_root", None)

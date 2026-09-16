@@ -69,3 +69,18 @@ def test_throughput_excludes_compile_steps():
         lines.append(f"{t:.3f} Step {s}: action_loss=0.8")
     r = throughput(parse("\n".join(lines)))
     assert abs(r["steps_per_s"] - 2.0) < 1e-6
+
+
+def test_a_second_log_line_for_the_same_step_does_not_misalign_series():
+    """The lambda calibration writes its own line for the same step with different
+    keys. Zipping steps against a filtered series would shift every later step."""
+    from analysis.rung_report import by_step
+    text = "\n".join([
+        "100.0 Step 0: action_loss=1.0",
+        "100.1 Step 0: grad_norm_action=2.0, grad_norm_progress_raw=4.0",
+        "101.0 Step 1: action_loss=2.0",
+        "102.0 Step 2: action_loss=3.0",
+    ])
+    run = parse(text)
+    assert by_step(run, "action_loss") == {0: 1.0, 1: 2.0, 2: 3.0}
+    assert by_step(run, "grad_norm_action") == {0: 2.0}

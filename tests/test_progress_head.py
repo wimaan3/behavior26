@@ -436,15 +436,27 @@ def test_per_term_gradients_decompose_the_total(openpi, head_model, grads_low):
         f"the logged shares would describe a different update than the one applied")
 
 
-def test_train_step_logs_term_gradients_only_when_asked():
-    """Opt-in: two extra backward passes are fine for calibration, not for
-    production. And the update must still use the original `grads`."""
+def test_term_gradients_are_measured_outside_the_update_step():
+    """Opt-in, and NOT fused into train_step.
+
+    Fusing two extra backward passes into the update made arm B allocate ~19 GiB
+    on top of a step that already peaked near the card's limit; it died with
+    RESOURCE_EXHAUSTED before step 0. The measurement lives in its own function,
+    runs every log_term_grad_interval steps over term_grad_batch samples, and the
+    update must still be computed from the original grads.
+    """
     root = Path(__import__("os").environ.get("OPENPI_ROOT", REPO.parent / "openpi"))
     text = (root / "scripts" / "b1k" / "train_b1k.py").read_text()
-    step = text[text.index("def train_step("):]
-    assert "config.log_loss_term_grad_norms" in step
-    guarded = step[step.index("config.log_loss_term_grad_norms"):]
-    for key in ("grad_norm_action", "grad_norm_progress_raw", "progress_grad_share", "grad_cosine_action_progress"):
-        assert key in guarded, key
-    before = step[: step.index("config.log_loss_term_grad_norms")]
-    assert "state.tx.update(grads" in before, "the update must be computed from the original grads"
+
+    assert "def term_grad_info(" in text, "the measurement needs its own function"
+    term_fn = text[text.index("def term_grad_info("): text.index("def train_step(")]
+    for key in ("grad_norm_action", "grad_norm_progress_raw", "progress_grad_share",
+                "grad_cosine_action_progress", "config.term_grad_batch"):
+        assert key in term_fn, key
+
+    step = text[text.index("def train_step("): text.index("def main(")]
+    assert "nnx.grad(term_fn" not in step, "term gradients must not be inside the update step"
+    assert "state.tx.update(grads" in step, "the update must use the original grads"
+
+    loop = text[text.index("def main("):]
+    assert "config.log_loss_term_grad_norms" in loop and "log_term_grad_interval" in loop

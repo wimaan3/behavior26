@@ -1,8 +1,57 @@
 diff --git a/scripts/b1k/train_b1k.py b/scripts/b1k/train_b1k.py
-index b53dc5c..d8470ba 100644
+index b53dc5c..b3d1eaa 100644
 --- a/scripts/b1k/train_b1k.py
 +++ b/scripts/b1k/train_b1k.py
-@@ -348,15 +348,24 @@ def train_step(
+@@ -335,6 +335,48 @@ def init_train_state(
+ 
+ 
+ @at.typecheck
++def term_grad_info(config, rng, state, batch):
++    """Per-term gradient norms for calibrating progress_loss_weight.
++
++    SEPARATE from train_step, and deliberately so. Fusing two extra backward
++    passes into the update step made arm B allocate ~19 GiB on top of a step that
++    already peaked near the card's limit, and it died with RESOURCE_EXHAUSTED
++    before step 0. Here the two gradients are taken on their own, every
++    `log_term_grad_interval` steps, over the first `term_grad_batch` samples --
++    peak memory is a fraction of a normal step, and the update is untouched.
++
++    The calibration reads a RATIO of norms, which a sub-batch estimates fine; the
++    report says which batch size it came from.
++    """
++    model = nnx.merge(state.model_def, state.params)
++    observation, actions = batch
++    n = config.term_grad_batch
++    observation = jax.tree.map(lambda x: x[:n], observation)
++    actions = jax.tree.map(lambda x: x[:n], actions)
++    diff_state = nnx.DiffState(0, config.trainable_filter)
++
++    def term_fn(term):
++        def fn(m, r, obs, act):
++            return jnp.mean(m.compute_losses(r, obs, act, train=True)[term])
++
++        return fn
++
++    g_action = nnx.grad(term_fn("action_loss"), argnums=diff_state)(model, rng, observation, actions)
++    g_progress = nnx.grad(term_fn("progress_loss"), argnums=diff_state)(model, rng, observation, actions)
++    weight = getattr(model, "progress_loss_weight", 0.0)
++    n_action = optax.global_norm(g_action)
++    n_progress_raw = optax.global_norm(g_progress)          # d(progress_loss), UNweighted
++    n_progress = weight * n_progress_raw
++    dot = sum(jnp.vdot(a, b) for a, b in zip(jax.tree.leaves(g_action), jax.tree.leaves(g_progress), strict=True))
++    return {
++        "grad_norm_action": n_action,
++        "grad_norm_progress_raw": n_progress_raw,
++        "grad_norm_progress": n_progress,
++        "progress_grad_share": n_progress / (n_action + n_progress + 1e-12),
++        "grad_cosine_action_progress": dot / (n_action * n_progress_raw + 1e-12),
++    }
++
++
+ def train_step(
+     config: _config.TrainConfig,
+     rng: at.KeyArrayLike,
+@@ -348,15 +390,24 @@ def train_step(
      def loss_fn(
          model: _model.BaseModel, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions
      ):
@@ -29,7 +78,7 @@ index b53dc5c..d8470ba 100644
  
      params = state.params.filter(config.trainable_filter)
      updates, new_opt_state = state.tx.update(grads, state.opt_state, params)
-@@ -388,7 +397,43 @@ def train_step(
+@@ -388,7 +439,10 @@ def train_step(
          "loss": loss,
          "grad_norm": optax.global_norm(grads),
          "param_norm": optax.global_norm(kernel_params),
@@ -37,42 +86,40 @@ index b53dc5c..d8470ba 100644
 +        **{k: v for k, v in loss_terms.items() if k != "loss"},
      }
 +
-+    # behavior26: per-term GRADIENT norms, for calibrating progress_loss_weight.
-+    #
-+    # The calibration target is the progress term's share of the GRADIENT, and a
-+    # loss share is not that: the two terms can have very different gradient
-+    # magnitudes per unit loss. Opt-in because it costs two extra backward passes.
-+    # The parameter update above is untouched -- these gradients are measured and
-+    # then discarded, and they reuse `train_rng`, so they see the same noise draw.
-+    if config.log_loss_term_grad_norms and "progress_loss" in loss_terms:
-+
-+        def term_fn(term):
-+            def fn(model, rng, observation, actions):
-+                return jnp.mean(model.compute_losses(rng, observation, actions, train=True)[term])
-+
-+            return fn
-+
-+        g_action = nnx.grad(term_fn("action_loss"), argnums=diff_state)(model, train_rng, observation, actions)
-+        g_progress = nnx.grad(term_fn("progress_loss"), argnums=diff_state)(model, train_rng, observation, actions)
-+        weight = getattr(model, "progress_loss_weight", 0.0)
-+        n_action = optax.global_norm(g_action)
-+        n_progress_raw = optax.global_norm(g_progress)  # d(progress_loss), UNweighted
-+        n_progress = weight * n_progress_raw  # what the weighted term actually contributes
-+        dot = sum(jnp.vdot(a, b) for a, b in zip(jax.tree.leaves(g_action), jax.tree.leaves(g_progress), strict=True))
-+        info.update(
-+            {
-+                "grad_norm_action": n_action,
-+                "grad_norm_progress_raw": n_progress_raw,
-+                "grad_norm_progress": n_progress,
-+                # share of the combined gradient magnitude carried by lambda * progress
-+                "progress_grad_share": n_progress / (n_action + n_progress + 1e-12),
-+                # < 0 means the head pulls shared weights against the action loss
-+                "grad_cosine_action_progress": dot / (n_action * n_progress_raw + 1e-12),
-+            }
-+        )
      return new_state, info
  
  
+@@ -449,6 +503,14 @@ def main(config: _config.TrainConfig):
+         donate_argnums=(1,),
+     )
+ 
++    pterm_grads = None
++    if config.log_loss_term_grad_norms:
++        pterm_grads = jax.jit(
++            functools.partial(term_grad_info, config),
++            in_shardings=(replicated_sharding, train_state_sharding, data_sharding),
++            out_shardings=replicated_sharding,
++        )
++
+     start_step = int(train_state.step)
+     pbar = tqdm.tqdm(
+         range(start_step, config.num_train_steps),
+@@ -469,6 +531,15 @@ def main(config: _config.TrainConfig):
+             pbar.write(f"Step {step}: {info_str}")
+             wandb.log(reduced_info, step=step)
+             infos = []
++        # behavior26: lambda calibration, on its own compiled function and its own
++        # log line -- `infos` is stacked across steps, so a dict that gains keys on
++        # some steps only would break that stacking.
++        if config.log_loss_term_grad_norms and step % max(1, config.log_term_grad_interval) == 0:
++            with sharding.set_mesh(mesh):
++                tg = jax.device_get(pterm_grads(train_rng, train_state, batch))
++            pbar.write(f"Step {step}: " + ", ".join(f"{k}={float(v):.6f}" for k, v in tg.items()))
++            wandb.log({k: float(v) for k, v in tg.items()}, step=step)
++
+         if config.val_log_interval and step % config.val_log_interval == 0:
+             val_loss = compute_validation_loss(
+                 config, train_state, mesh, train_state_sharding, replicated_sharding, data_loader
 diff --git a/src/openpi/models/model.py b/src/openpi/models/model.py
 index 29618b4..fe8e9c5 100644
 --- a/src/openpi/models/model.py
@@ -397,7 +444,7 @@ index 2939988..2be518c 100644
  
  
 diff --git a/src/openpi/training/config.py b/src/openpi/training/config.py
-index ec6cd0f..0a619ab 100644
+index ec6cd0f..7eed601 100644
 --- a/src/openpi/training/config.py
 +++ b/src/openpi/training/config.py
 @@ -377,6 +377,10 @@ class LeRobotB1KDataConfig(DataConfigFactory):
@@ -420,7 +467,7 @@ index ec6cd0f..0a619ab 100644
  
          repack_transform = _transforms.Group(inputs=[_transforms.RepackTransform(repack_mapping)])
  
-@@ -613,6 +619,10 @@ class TrainConfig:
+@@ -613,6 +619,15 @@ class TrainConfig:
  
      # How often (in steps) to log training metrics.
      log_interval: int = 100
@@ -428,10 +475,15 @@ index ec6cd0f..0a619ab 100644
 +    # progress_loss_weight. Costs two extra backward passes per step; off for
 +    # production runs, on for the lambda calibration rung.
 +    log_loss_term_grad_norms: bool = False
++    # How often to measure them, and over how many samples. Both exist because the
++    # measurement is memory-bound, not time-bound: run in-line with the update it
++    # OOM'd a card that the update alone already nearly filled.
++    log_term_grad_interval: int = 25
++    term_grad_batch: int = 8
      # How often (in steps) to save checkpoints.
      save_interval: int = 1000
      # If set, any existing checkpoints matching step % keep_period == 0 will not be deleted.
-@@ -668,6 +678,31 @@ class TrainConfig:
+@@ -668,6 +683,31 @@ class TrainConfig:
              raise ValueError("Cannot resume and overwrite at the same time.")
  
  
@@ -463,7 +515,7 @@ index ec6cd0f..0a619ab 100644
  # Use `get_config` if you need to get a config by name in your code.
  _CONFIGS = [
      #
-@@ -772,6 +807,99 @@ _CONFIGS = [
+@@ -772,6 +812,99 @@ _CONFIGS = [
          assets_base_dir="./outputs/assets",
          checkpoint_base_dir="./outputs/checkpoints",
      ),
