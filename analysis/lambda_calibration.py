@@ -73,7 +73,10 @@ _STEP = re.compile(r"Step (\d+): (.*)")
 def parse_log(text: str) -> list[dict[str, float]]:
     """`Step N: k=v, k=v` lines from train_b1k.py into dicts."""
     rows = []
-    for line in text.splitlines():
+    for raw in text.split("\n"):
+        # see analysis/rung_report.parse: tqdm's carriage returns mean the last
+        # \r-separated segment is the live one.
+        line = raw.split("\r")[-1]
         m = _STEP.search(line)
         if not m:
             continue
