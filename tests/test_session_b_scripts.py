@@ -104,10 +104,74 @@ def test_loader_bench_states_the_rate_training_needs():
     assert "step-seconds" in LB.read_text() and "KEEPS UP" in LB.read_text()
 
 
-def test_loader_bench_drains_the_prefetch_queue_before_measuring():
-    """torch prefetches workers*2 batches while the first is produced. Measuring a
-    few batches after that times the queue emptying at memory speed: the first
-    attempt reported 777 items/s and 'KEEPS UP' for a loader that sustains ~5."""
-    text = LB.read_text()
-    assert "queue_depth" in text and "workers) * 2" in text
-    assert "sustained" in text
+def _fake_queue_iter(rate_items_s, batch_size, depth, clock):
+    """A loader that PRODUCES at `rate_items_s` into a queue of `depth` batches,
+    prefilled. Consuming a queued batch is instant; once the queue is empty the
+    consumer waits for production. This is the shape that fooled the first bench.
+    """
+    queued = depth
+    produced_at = clock()
+
+    def nxt():
+        nonlocal queued, produced_at
+        if queued > 0:
+            queued -= 1
+            return
+        wait = batch_size / rate_items_s
+        produced_at = clock(advance=wait)
+
+    return nxt
+
+
+def test_measure_recovers_the_production_rate_not_the_drain_rate():
+    """The defect this guards: with a prefilled queue, timing a few batches measures
+    memory, not the loader. The first bench reported 777 items/s and 'KEEPS UP' for a
+    loader that actually sustains ~5."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("loader_bench", LB)
+    lb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lb)
+
+    now = [0.0]
+
+    def clock(advance=0.0):
+        now[0] += advance
+        return now[0]
+
+    workers, batch = 24, 32
+    depth = workers * lb.PREFETCH_FACTOR
+    true_rate = 5.0
+    nxt = _fake_queue_iter(true_rate, batch, depth, clock)
+    r = lb.measure(nxt, batches=depth + 60, batch_size=batch, queue_depth=depth,
+                   clock=lambda: now[0])
+    assert abs(r["items_per_s"] - true_rate) < 0.2, r
+
+
+def test_measure_refuses_to_report_when_the_run_is_too_short_to_outrun_the_queue():
+    """70 batches at 24 workers is 2 batches past a 72-deep queue -- not a rate."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("loader_bench", LB)
+    lb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lb)
+
+    now = [0.0]
+
+    def clock(advance=0.0):
+        now[0] += advance
+        return now[0]
+
+    depth = 24 * lb.PREFETCH_FACTOR
+    nxt = _fake_queue_iter(5.0, 32, depth, clock)
+    r = lb.measure(nxt, batches=70, batch_size=32, queue_depth=depth, clock=lambda: now[0])
+    assert r["items_per_s"] is None
+    assert "too short" in r["why"], r
+
+
+def test_prefetch_factor_matches_what_the_rung4_log_showed():
+    """Rung 4 stalled every 24 steps at 8 workers, so the depth is workers*3, not *2.
+    Using *2 leaves a third of the queue inside the 'sustained' window."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("loader_bench", LB)
+    lb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lb)
+    assert lb.PREFETCH_FACTOR == 3
