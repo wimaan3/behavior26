@@ -31,8 +31,29 @@ CKPT="${CKPT:-$(find "${CKPT_ROOT}" -maxdepth 3 -type d -name params -printf '%h
 [ -n "${CKPT}" ] && [ -d "${CKPT}/params" ] \
   || { echo "no checkpoint under ${CKPT_ROOT} (looked for a dir containing params/)" >&2; exit 1; }
 echo "checkpoint: ${CKPT}"
+echo "config: ${CONFIG}"
+
+# NORM STATS RIDE INSIDE THE CHECKPOINT. openpi reads them from
+# <checkpoint>/assets/<asset id> and there is no flag to point elsewhere: Checkpoint
+# carries only config and dir. When they are missing it logs "not found ... skipping"
+# and serves an UNNORMALISED policy that scores near zero -- which, on an arm, reads
+# as the treatment failing rather than as a missing file, after Isaac Sim has already
+# paid a 12-minute scene load. So check now, when it costs nothing.
+if ! find "${CKPT}/assets" -name norm_stats.json -print -quit 2>/dev/null | grep -q .; then
+  echo "no norm_stats.json under ${CKPT}/assets -- openpi would serve this policy \
+UNNORMALISED and it would score ~0. Copy the assets the run trained with into the \
+checkpoint before serving." >&2
+  exit 1
+fi
 TASK="${TASK:-turning_on_radio}"
 PORT="${PORT:-8000}"
+# The RELEASED baseline trained under pi05_b1k. Our own arms train under
+# pi05_b1k_frozen_vlm, and arm B's checkpoint carries a progress head that only the
+# patched config declares -- so serving an arm needs the config it trained under:
+#   CONFIG=pi05_b1k_frozen_vlm CKPT=/opt/checkpoints/pi05_b1k_frozen_vlm/armB/30000 \
+#   ASSETS=/opt/assets_shot1 bash serve_baseline.sh
+# Hardcoding pi05_b1k here would fail only AFTER Isaac Sim had paid its scene load.
+CONFIG="${CONFIG:-pi05_b1k}"
 
 cd "${OPENPI_ROOT}"
 # NO `policy:checkpoint` subcommand. The fork's docs/b1k.md shows one, but at
@@ -46,5 +67,5 @@ exec uv run scripts/b1k/serve_b1k.py \
   --task "b1k/${TASK}" \
   --repo-id "${TASK}" \
   --port "${PORT}" \
-  --policy.config pi05_b1k \
+  --policy.config "${CONFIG}" \
   --policy.dir "${CKPT}"
