@@ -3,7 +3,7 @@
 **Read this first.** One page tracking every deliverable. Detailed evidence lives in
 the dated `docs/session*` folders it links to. Updated with every milestone.
 
-*Last updated: 2026-09-15 · Deadline: **16 Oct 2026** (31 days) · Spend: **$12.27 of $200***
+*Last updated: 2026-09-16 · Deadline: **16 Oct 2026** (30 days) · Spend: **$18.00 of $200***
 
 ## Deliverables
 
@@ -15,9 +15,9 @@ the dated `docs/session*` folders it links to. Updated with every milestone.
 | 4 | Per-task dataset slicing + label merge + compaction | ✅ done, validated on real data | `docs/DATASET_SLICING.md`, `docs/sessionB-2026-09-14-DATA-READY.md` |
 | 5 | Progress labels for training tasks | ✅ 3 tasks (coffee, shoes, toolbox) on `main` | `labels/` |
 | 6 | Session B rung 1 — both arms load, fit, 10 steps | ✅ done, batch 32 | `docs/sessionB-2026-09-15-rung1/RUNG1.md` |
-| 7 | Session B rungs 2–5 — head learns, λ, steps/s, k | 🟡 **script ready, not yet run** | `scripts/session_b/rung2_5.sh`, pre-registered in `AB_PROTOCOL.md` rev 2026-09-15 |
+| 7 | Session B rungs 2–5 — head learns, λ, steps/s, k | ✅ **done** — Branch 0 LEARNING, action loss NOT_DEGRADED | `docs/sessionB-2026-09-16-rung2-5/` |
 | 8 | Noise floor σ_w (§2: 12 instances × 6 repeats) | 🔴 **not started** — protocol says before the first A/B | `AB_PROTOCOL.md` §2 |
-| 9 | Decide k and λ | ⏳ blocked on 7 (and on labels if k > 3) | — |
+| 9 | Decide k and λ | 🟡 λ ≈ **0.14–0.15** for a 20% gradient share; k still open (labels, not throughput) | `docs/sessionB-2026-09-16-rung2-5/RUNG2-5.md` |
 | 10 | Shot one: train arm A and arm B | ⏳ blocked on 7, 8, 9 | — |
 | 11 | Evaluate both arms, paired ΔQ (`analysis/compare.py`) | ⏳ blocked on 10 | — |
 | 12 | Partial submission (2 tasks × 20 public instances) | ⏳ blocked on 10 | `submission/` |
@@ -25,17 +25,25 @@ the dated `docs/session*` folders it links to. Updated with every milestone.
 
 ## Next actions, in order
 
-1. **Run rungs 2–5** on one RTX PRO 4500 pod (~3 h, ~$2.20): `bash scripts/session_b/rung2_5.sh`,
-   then `python -m analysis.rung_report <log dir>` and commit the report.
-2. **Run the σ_w noise floor** (§2) — needed to size the A/B; cheap now that scene load is per job.
-3. **Decide k and λ** from the rung report. k > 3 needs more Jetson labels — start those
-   in parallel if k > 2 is still wanted.
+1. **Settle the loader** (in progress, pod `5cm27uy401j5j3`). Rung 4 spends 52.8% of the
+   clock in a prefetch sawtooth; the arithmetic says ~2.1× more workers removes it and
+   takes 30k steps from $48.68 to $23.40 per arm. `scripts/loader_bench.py` sweeping
+   8/16/24 workers × pyav/torchcodec answers both "more workers" and "faster decoder".
+2. **Run the σ_w noise floor** (§2, ~4 h ≈ $3) — needed to size the A/B. Built and tested
+   (`scripts/session_a/noise_floor.sh`, `analysis/noise_floor.py`), not yet run.
+3. **Decide the step budget** once 1 lands, then **k**. λ is answered (≈0.14–0.15 for a
+   20% gradient share); k is a labelling and convergence question, not a throughput one.
 4. **Shot one**, then evaluation, submission, write-up.
 
 ## Open decisions for the project owner
 
-- **k:** throughput cannot settle it (batch-bound by construction); it is a convergence
-  and labelling question.
+- **Step budget for shot one.** At the measured mean (8 workers) 30k steps is $48.68
+  per arm and 10k is $16.23; if the sawtooth fix lands they are $23.40 and $7.80. Two
+  arms plus the σ_w floor plus evaluation has to fit in the $182 left. Recommendation:
+  decide after the loader sweep, and prefer 30k-if-fixed over 10k-anyway — a
+  null result from an undertrained arm answers nothing.
+- **k:** throughput cannot settle it (ratio 1.00, batch-bound by construction); it is a
+  convergence and labelling question. Three tasks are labelled today.
 - **Research notes outside the repo** (`../HANDOFF-START-HERE.md`, Discord sweep notes)
   are not on GitHub. They quote third-party Discord messages and this repo is public,
   so they have not been pushed without an explicit decision.
