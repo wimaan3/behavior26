@@ -84,3 +84,47 @@ def test_a_second_log_line_for_the_same_step_does_not_misalign_series():
     run = parse(text)
     assert by_step(run, "action_loss") == {0: 1.0, 1: 2.0, 2: 3.0}
     assert by_step(run, "grad_norm_action") == {0: 2.0}
+
+
+REAL_LINE = ("1789517953.480086811 \r\rStep 55: action_loss=0.7019, grad_norm=1.2206, "
+             "loss=0.7019, param_norm=1801.9882")
+
+
+def test_tqdm_carriage_returns_do_not_hide_every_step():
+    """Real logs carry \\r before the step text. The first parser found ZERO steps in
+    a 1000-step log while passing on \\r-free fixtures."""
+    run = parse(REAL_LINE + "\n" + REAL_LINE.replace("Step 55", "Step 56").replace("1789517953", "1789517957"))
+    assert run.steps == [55, 56]
+    assert run.times == [1789517953.480086811, 1789517957.480086811]
+    assert run.series("action_loss") == [0.7019, 0.7019]
+
+
+def test_lambda_parser_also_survives_carriage_returns():
+    from analysis.lambda_calibration import parse_log
+    line = ("1789.0 \r\rStep 0: grad_norm_action=2.0, grad_norm_progress_raw=4.0, "
+            "grad_cosine_action_progress=0.01")
+    rows = parse_log(line)
+    assert rows and rows[0]["grad_norm_action"] == 2.0
+
+
+def test_reading_a_log_file_must_not_translate_carriage_returns(tmp_path):
+    """read_text() turns a lone \\r into \\n at READ time, splitting the timestamp
+    away from the step. A real 1000-step log parsed to zero steps that way."""
+    from analysis.rung_report import read_log
+    p = tmp_path / "train.log"
+    p.write_bytes((REAL_LINE + "\n").encode())
+    assert parse(p.read_text()).steps == [], "read_text loses it -- this is the trap"
+    assert parse(read_log(p)).steps == [55], "read_log must preserve it"
+
+
+def test_throughput_reports_mean_as_well_as_median():
+    """Step time is bimodal (fast step + periodic loader stall). The median
+    describes the fast path; the MEAN sets wall clock and cost."""
+    lines, t = [], 0.0
+    for s in range(300):
+        t += 60.0 if s % 10 == 0 else 4.0      # one stall every ten steps
+        lines.append(f"{t:.3f} Step {s}: action_loss=0.8")
+    r = throughput(parse("\n".join(lines)))
+    assert abs(r["s_per_step"] - 4.0) < 0.01
+    assert r["mean_s_per_step"] > 9.0
+    assert r["wall_steps_per_s"] < r["steps_per_s"]

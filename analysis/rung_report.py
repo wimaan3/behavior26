@@ -36,7 +36,14 @@ from pathlib import Path
 
 FLAT_WINDOW = 100
 STEADY_FROM = 50
-_LINE = re.compile(r"^(\d+(?:\.\d+)?)\s+.*?Step (\d+): (.*)$")
+# tqdm writes CARRIAGE RETURNS, so a real line is
+#     "<unix-time> \r\rStep 55: action_loss=..."
+# and splitting the file on "\n" leaves the timestamp and the step text in the same
+# physical line but separated by \r. Reading with Python's universal newlines would
+# split them apart and the timestamp would be lost -- the first version of this
+# parser found ZERO steps in every real log while passing on \r-free fixtures.
+_TS = re.compile(r"^(\d+(?:\.\d+)?)\s")
+_STEP = re.compile(r"Step (\d+): (.*)$")
 
 
 @dataclass
@@ -49,22 +56,40 @@ class Run:
         return [m[key] for m in self.metrics if key in m]
 
 
+def read_log(path) -> str:
+    """Read a training log WITHOUT newline translation.
+
+    Python's text mode converts a lone "\r" into "\n", which splits
+    "<timestamp> \r\rStep 55: ..." into two lines and strips every step of its
+    timestamp. parse() then finds nothing. Reading a real 1000-step log through
+    read_text() returned ZERO steps while \r-bearing strings passed in tests --
+    the translation happens at read time, before the parser sees anything.
+    """
+    with open(path, encoding="utf-8", errors="replace", newline="") as fh:
+        return fh.read()
+
+
 def parse(text: str) -> Run:
     run = Run()
-    for line in text.splitlines():
-        m = _LINE.match(line.strip())
+    for raw in text.split("\n"):
+        ts = _TS.match(raw)
+        if not ts:
+            continue
+        # last \r-separated segment: tqdm repaints in place, so earlier segments on
+        # the same line are superseded progress bars.
+        m = _STEP.search(raw.split("\r")[-1].strip())
         if not m:
             continue
         vals = {}
-        for part in m.group(3).split(","):
+        for part in m.group(2).split(","):
             if "=" in part:
                 k, v = part.strip().split("=", 1)
                 try:
                     vals[k] = float(v)
                 except ValueError:
                     vals[k] = float("nan")
-        run.times.append(float(m.group(1)))
-        run.steps.append(int(m.group(2)))
+        run.times.append(float(ts.group(1)))
+        run.steps.append(int(m.group(1)))
         run.metrics.append(vals)
     return run
 
@@ -122,7 +147,13 @@ def throughput(run: Run, steady_from: int = STEADY_FROM) -> dict:
         return {"steps_per_s": None, "n": len(pts)}
     dts = [(t2 - t1) / (s2 - s1) for (s1, t1), (s2, t2) in zip(pts, pts[1:]) if s2 > s1]
     med = statistics.median(dts)
-    return {"steps_per_s": 1 / med if med > 0 else None, "s_per_step": med, "n": len(dts)}
+    mean = statistics.fmean(dts)
+    # Both, deliberately. Step time here is BIMODAL -- a fast step plus a periodic
+    # loader stall -- so the median describes the fast path and the MEAN is what
+    # sets wall clock and cost. Quoting only the median underprices a run.
+    return {"steps_per_s": 1 / med if med > 0 else None, "s_per_step": med,
+            "mean_s_per_step": mean, "p90_s_per_step": sorted(dts)[int(len(dts) * 0.9)],
+            "wall_steps_per_s": 1 / mean if mean > 0 else None, "n": len(dts)}
 
 
 def gpu_util(csv_path: Path, t_from: float | None = None) -> float | None:
@@ -146,7 +177,10 @@ def report(log_dir: Path) -> str:
 
     def load(name):
         p = log_dir / f"train_{name}.log"
-        return (parse(p.read_text()), p.read_text()) if p.exists() else (Run(), "")
+        if not p.exists():
+            return Run(), ""
+        text = read_log(p)
+        return parse(text), text
 
     a, _ = load("rung4_armA")
     b, b_text = load("rung23_armB")
@@ -189,11 +223,14 @@ def report(log_dir: Path) -> str:
     ua = gpu_util(log_dir / "gpu_rung4_armA.csv", t_from)
     out += ["", "## Rung 4 -- throughput (arm A)", ""]
     if ta["steps_per_s"]:
-        out.append(f"{ta['steps_per_s']:.3f} steps/s ({ta['s_per_step']:.2f} s/step) over {ta['n']} intervals; "
+        out.append(f"median {ta['s_per_step']:.2f} s/step, **mean {ta['mean_s_per_step']:.2f} s/step** "
+                   f"(p90 {ta['p90_s_per_step']:.2f}) over {ta['n']} intervals; "
                    f"median GPU utilisation {ua if ua is not None else 'n/a'}%")
+        out.append("")
+        out.append("Step time is bimodal: a fast step plus a periodic loader stall. Cost follows the MEAN.")
         for n_steps in (10_000, 30_000):
-            out.append(f"- {n_steps:,} steps ~ {n_steps * ta['s_per_step'] / 3600:.1f} h ~ "
-                       f"${n_steps * ta['s_per_step'] / 3600 * 0.72:.2f} at $0.72/h")
+            h = n_steps * ta["mean_s_per_step"] / 3600
+            out.append(f"- {n_steps:,} steps ~ {h:.1f} h ~ ${h * 0.72:.2f} per arm at $0.72/h")
     else:
         out.append("not enough steady-state steps logged")
 
