@@ -36,6 +36,7 @@ from pathlib import Path
 
 FLAT_WINDOW = 100
 STEADY_FROM = 50
+BATCH = 32          # rung2_5.sh BATCH; only used to convert steps/s to samples/s
 # tqdm writes CARRIAGE RETURNS, so a real line is
 #     "<unix-time> \r\rStep 55: action_loss=..."
 # and splitting the file on "\n" leaves the timestamp and the step text in the same
@@ -156,6 +157,53 @@ def throughput(run: Run, steady_from: int = STEADY_FROM) -> dict:
             "wall_steps_per_s": 1 / mean if mean > 0 else None, "n": len(dts)}
 
 
+def stalls(run: Run, steady_from: int = STEADY_FROM, threshold_s: float = 20.0) -> dict:
+    """Locate the slow steps and ask whether they are PERIODIC.
+
+    Rung 4 measured median 3.90 s/step but mean 8.11 s/step. The mean is what the
+    clock charges, but on its own it does not say what to fix. The step numbers do:
+    the slow steps landed on 72, 96, 120, ... -- exactly every 24 -- and 24 is the
+    dataloader pipeline depth (8 workers x prefetch 3), not anything about the data.
+    A constant period is the signature of a prefetch sawtooth: the trainer drains a
+    full queue at the GPU-bound rate, then blocks while the workers refill it. That
+    is fixed by adding workers; a slow *dataset* is not.
+
+    `clock_share` is the fraction of wall time spent inside stalls -- the headline,
+    because a stall on 4% of the steps can own half the run.
+    """
+    pts = [(s, t) for s, t in zip(run.steps, run.times) if s >= steady_from]
+    if len(pts) < 3:
+        return {"n": 0, "period": None, "clock_share": 0.0, "median_stall_s": None,
+                "steps": [], "total_s": 0.0}
+    iv = [(s2, (t2 - t1) / (s2 - s1)) for (s1, t1), (s2, t2) in zip(pts, pts[1:]) if s2 > s1]
+    total = sum(d for _, d in iv)
+    slow = [(s, d) for s, d in iv if d > threshold_s]
+    if not slow:
+        return {"n": 0, "period": None, "clock_share": 0.0, "median_stall_s": None,
+                "steps": [], "total_s": total}
+    gaps = [b - a for (a, _), (b, _) in zip(slow, slow[1:])]
+    # "periodic" = every gap identical. Anything less regular is not a pipeline
+    # artefact and must not be reported as one.
+    period = gaps[0] if gaps and len(set(gaps)) == 1 else None
+    return {"n": len(slow), "period": period,
+            "clock_share": sum(d for _, d in slow) / total if total else 0.0,
+            "median_stall_s": statistics.median([d for _, d in slow]),
+            "steps": [s for s, _ in slow], "total_s": total}
+
+
+def sustained_loader_rate(st: dict, fast_s_per_step: float, batch_size: int) -> float | None:
+    """Samples/s the loader actually sustains, from the sawtooth geometry.
+
+    One cycle delivers `period` batches and costs (period-1) fast steps plus one
+    stall, so the rate is period*batch / cycle_seconds. Compare against
+    batch/fast_s_per_step -- what a step consumes -- to size the worker count.
+    """
+    if not st.get("period") or not st.get("median_stall_s"):
+        return None
+    cycle = (st["period"] - 1) * fast_s_per_step + st["median_stall_s"]
+    return st["period"] * batch_size / cycle if cycle > 0 else None
+
+
 def gpu_util(csv_path: Path, t_from: float | None = None) -> float | None:
     if not csv_path.exists():
         return None
@@ -231,6 +279,35 @@ def report(log_dir: Path) -> str:
         for n_steps in (10_000, 30_000):
             h = n_steps * ta["mean_s_per_step"] / 3600
             out.append(f"- {n_steps:,} steps ~ {h:.1f} h ~ ${h * 0.72:.2f} per arm at $0.72/h")
+
+        st = stalls(a)
+        out += ["", "### Where the time goes", ""]
+        if st["n"] == 0:
+            out.append("No step exceeded 20 s -- step time is flat and the mean is the median.")
+        else:
+            out.append(f"{st['n']} intervals over 20 s (median {st['median_stall_s']:.0f} s) account for "
+                       f"**{st['clock_share'] * 100:.1f}% of the wall clock**.")
+            if st["period"]:
+                rate = sustained_loader_rate(st, ta["s_per_step"], BATCH)
+                need = BATCH / ta["s_per_step"]
+                out.append("")
+                out.append(f"They land **exactly every {st['period']} steps** -- a prefetch sawtooth, not slow "
+                           f"data. {st['period']} is the pipeline depth (workers x prefetch factor): the "
+                           f"trainer drains a full queue at the GPU-bound rate, then blocks while the workers "
+                           f"refill it.")
+                if rate:
+                    out.append("")
+                    out.append(f"Sustained loader rate **{rate:.1f} samples/s** against the **{need:.1f} "
+                               f"samples/s** a {ta['s_per_step']:.2f} s step consumes -- so roughly "
+                               f"**{need / rate:.1f}x** more workers removes the stall and floors "
+                               f"step time at {ta['s_per_step']:.2f} s.")
+                    for n_steps in (10_000, 30_000):
+                        h = n_steps * ta["s_per_step"] / 3600
+                        out.append(f"  - if fixed: {n_steps:,} steps ~ {h:.1f} h ~ ${h * 0.72:.2f} per arm")
+            else:
+                out.append("")
+                out.append("They are NOT periodic, so this is not a prefetch artefact -- do not treat adding "
+                           "workers as the fix without measuring again.")
     else:
         out.append("not enough steady-state steps logged")
 

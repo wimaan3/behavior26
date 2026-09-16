@@ -128,3 +128,52 @@ def test_throughput_reports_mean_as_well_as_median():
     assert abs(r["s_per_step"] - 4.0) < 0.01
     assert r["mean_s_per_step"] > 9.0
     assert r["wall_steps_per_s"] < r["steps_per_s"]
+
+
+# --- stall periodicity -------------------------------------------------------
+# Rung 4 showed 39 intervals over 20 s at steps 72, 96, 120, ... -- exactly every 24,
+# which is the prefetch pipeline depth (8 workers x 3), not a property of the data.
+# Reporting only the median hides this; reporting only the mean hides WHY.
+
+def _sawtooth_log(n_steps=200, fast=3.9, stall=103.0, period=24, t0=1_000_000.0):
+    """A log whose every `period`-th step pays a stall. Written with the \r that tqdm
+    emits, so the parser is exercised the way a real log exercises it."""
+    lines, t = [], t0
+    for s in range(n_steps + 1):
+        lines.append(f"{t:.0f} \r\rStep {s}: action_loss=1.0")
+        t += stall if (s + 1) % period == 0 else fast
+    return "\n".join(lines)
+
+
+def test_stalls_finds_the_period_and_its_share_of_the_clock():
+    from analysis.rung_report import parse, stalls
+    run = parse(_sawtooth_log())
+    st = stalls(run, steady_from=50, threshold_s=20.0)
+    assert st["n"] > 0
+    assert st["period"] == 24, st
+    assert 95 < st["median_stall_s"] < 110
+    # the whole point: a 4%-of-steps event that owns half the wall clock
+    assert 0.4 < st["clock_share"] < 0.65, st
+
+
+def test_stalls_reports_none_when_step_time_is_flat():
+    from analysis.rung_report import parse, stalls
+    run = parse(_sawtooth_log(stall=3.9))       # no stall at all
+    st = stalls(run, steady_from=50, threshold_s=20.0)
+    assert st["n"] == 0
+    assert st["period"] is None
+    assert st["clock_share"] == 0.0
+
+
+def test_stalls_period_is_none_when_stalls_are_irregular():
+    from analysis.rung_report import parse, stalls
+    text = _sawtooth_log(stall=3.9)
+    lines = text.split("\n")
+    # hand-place stalls at irregular steps by rewriting timestamps
+    t, out = 1_000_000.0, []
+    for s, _ in enumerate(lines):
+        out.append(f"{t:.0f} \r\rStep {s}: action_loss=1.0")
+        t += 103.0 if s in (60, 77, 140) else 3.9
+    st = stalls(parse("\n".join(out)), steady_from=50, threshold_s=20.0)
+    assert st["n"] == 3
+    assert st["period"] is None, st
