@@ -81,5 +81,5 @@ GPU-bound 3.90 s and the same runs cost:
 | 30,000 | 32.5 | $23.40 |
 
 The arithmetic says the break-even is ~17 workers (8.2 / 0.49); the box has 27 vCPU and
-218 GB free, so 24 workers fits. That prediction is being tested directly — see
-[`W24.md`](W24.md).
+218 GB free, so 24 workers fits. **That prediction is still untested.** The sweep meant to
+measure it was lost with the pod; see [`LOADER-SWEEP.md`](LOADER-SWEEP.md).
