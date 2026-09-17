@@ -11,7 +11,7 @@ Page: https://app.notion.com/p/Findings-3d280ea5df6a81b49ce4db9e7fa38605
 ## Findings — 13–16 Sep 2026 (sessions A and B)
 
 **Where we are:** the whole pipeline runs end to end on rented GPUs, the baseline is
-measured, and both A/B arms train. Spend to date **$18.00 of $200**; deadline 16 Oct.
+measured, and both A/B arms train. Spend to date **$23.61 of $200**; deadline 16 Oct.
 Everything below is reproducible from the repo — evidence links are files, not claims.
 
 ### The headline numbers
@@ -83,8 +83,10 @@ is the instrument**: a 1000-step run contains 39 independent refill cycles, whil
 
 ### What is still open
 
-- **The loader fix.** A corrected sweep (8/16/24 workers × pyav/torchcodec) is running
-  now. It sets the step budget for shot one.
+- **The loader fix. Still unmeasured.** The corrected sweep (8/16/24 workers) ran on
+  container disk. The pod was terminated before its log was saved, after billing ~6 h
+  unattended. The 24-worker prediction stands, untested. Lesson recorded: long pod jobs
+  write to the volume and stop their own pod.
 - **k (how many tasks).** Throughput cannot settle it — one-task and two-task steps/s
   came out at a ratio of **1.00**. It is a convergence question, and a labelling one:
   progress labels exist for **three** tasks, so k > 3 needs more labelling first.

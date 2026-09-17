@@ -3,7 +3,7 @@
 **Read this first.** One page tracking every deliverable. Detailed evidence lives in
 the dated `docs/session*` folders it links to. Updated with every milestone.
 
-*Last updated: 2026-09-16 · Deadline: **16 Oct 2026** (30 days) · Spend: **$18.00 of $200***
+*Last updated: 2026-09-16 · Deadline: **16 Oct 2026** (30 days) · Spend: **$23.61 of $200** · Pods running: **none***
 
 ## Deliverables
 
@@ -25,15 +25,19 @@ the dated `docs/session*` folders it links to. Updated with every milestone.
 
 ## Next actions, in order
 
-1. **Settle the loader** (in progress, pod `5cm27uy401j5j3`). Rung 4 spends 52.8% of the
-   clock in a prefetch sawtooth; the arithmetic says ~2.1× more workers removes it and
-   takes 30k steps from $48.68 to $23.40 per arm. `scripts/loader_bench.py` sweeping
-   8/16/24 workers × pyav/torchcodec answers both "more workers" and "faster decoder".
+1. **Settle the loader. NOT answered: the sweep was lost with the pod.** Rung 4 spends 52.8%
+   of the clock in a prefetch sawtooth, and the arithmetic predicts ~17+ workers removes it
+   (30k steps: $48.68 → $23.40 per arm). The corrected sweep ran on container disk. The pod
+   was then terminated before anyone copied the log, and billed ~6 h unattended first. See
+   `docs/sessionB-2026-09-16-rung2-5/LOADER-SWEEP.md` for the timeline and a re-run
+   recipe that writes to the volume and stops its own pod.
 2. **Run the σ_w noise floor** (§2, ~4 h ≈ $3) — needed to size the A/B. Built and tested
    (`scripts/session_a/noise_floor.sh`, `analysis/noise_floor.py`), not yet run.
 3. **Decide the step budget** once 1 lands, then **k**. λ is answered (≈0.14–0.15 for a
    20% gradient share); k is a labelling and convergence question, not a throughput one.
-4. **Shot one**, then evaluation, submission, write-up.
+4. **Shot one**, then evaluation, submission, write-up. The runner is built and tested
+   (`scripts/shot_one.sh`: one shared trainer call, resumable, seed recorded and applied),
+   and `serve_baseline.sh` can now serve our own arms (`CONFIG=pi05_b1k_frozen_vlm`).
 
 ## Open decisions for the project owner
 
