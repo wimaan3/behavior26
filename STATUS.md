@@ -54,6 +54,21 @@ the dated `docs/session*` folders it links to. Updated with every milestone.
 
 ## Where results are saved
 
-Every pod session's logs, fingerprints and artifacts are salvaged before the pod is
-terminated and committed under `docs/session*`. Nothing irreplaceable lives on a pod
-or on the network volume.
+Audited 2026-09-18. "Saved" means it survives this laptop and any pod.
+
+| What | Where | Status |
+|---|---|---|
+| Code, scripts, tests, analysis | GitHub `wimaan3/behavior26` (public) | ✅ saved |
+| Results, reports, protocol, this file | GitHub, `docs/` + `AB_PROTOCOL.md` | ✅ saved |
+| Training/eval logs behind every result (23 files) | GitHub, `docs/session*/logs/` | ✅ saved since `c75ea72`. **Before that, `*.log` was gitignored and they existed only on the laptop.** A test now fails if anything under `docs/` is ignored |
+| Norm stats (rung 1, both arms) | GitHub, `docs/sessionB-2026-09-15-rung1/norm_stats/` | ✅ saved |
+| Progress labels (3 tasks) | GitHub, `labels/` | ✅ saved |
+| Our openpi changes | GitHub, `training/patches/0001`, `0002` | ✅ saved. The local openpi clone was verified equal to upstream `0cc8e35` + these two patches, with nothing extra |
+| Findings write-up for Notion | GitHub, `docs/NOTION-FINDINGS-UPDATE.md` | ⚠️ **not on Notion.** The connector returned 404 every time it was tried |
+| Research notes: Discord sweep, handoff (6 files, ~120 KB, beside the repo) | **laptop only** | ❌ **not backed up.** They quote third-party Discord messages, so they need a PRIVATE home, not this repo |
+| Simulator env + 36 GB dataset | RunPod network volume `96mu3d0s32` | rebuildable from `scripts/setup_cloud.sh` + `scripts/download_dataset.sh` |
+| Pod container disks | nowhere | wiped on terminate. The 2026-09-16 loader sweep was lost this way (`docs/sessionB-2026-09-16-rung2-5/LOADER-SWEEP.md`) |
+
+Rule going forward: a pod job that outlives the conversation writes its results to the
+network volume and stops its own pod. Every session's logs are committed under `docs/`
+before the pod is terminated.
