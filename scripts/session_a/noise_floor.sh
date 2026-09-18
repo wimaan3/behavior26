@@ -18,11 +18,33 @@ set -uo pipefail
 TASK="${TASK:-turning_on_radio}"
 INSTANCES="${INSTANCES:-12}"
 REPEATS="${REPEATS:-6}"
-OUT="${OUT:-/opt/noise_floor}"
+# On the NETWORK VOLUME, one directory per run: the 2026-09-16 loader sweep wrote to
+# container disk and was lost with its pod.
+OUT="${OUT:-/workspace/noise_floor/$(date -u +%Y%m%dT%H%MZ)}"
+SELF_STOP="${SELF_STOP:-1}"
 B26=/opt/behavior26
 export PATH="${HOME}/.local/bin:${PATH}"
+CUR=init
 stage () { echo; echo "=== STAGE $1 $(date -u +%H:%M:%S)"; CUR="$1"; }
-fail  () { echo "NOISE_FLOOR_FAILED_AT=${CUR}: $*"; exit 1; }
+fail  () { echo "NOISE_FLOOR_FAILED_AT=${CUR}: $*" | tee -a "$OUT/STATUS"; exit 1; }
+
+# The pod stops itself however this ends -- its lifetime must not depend on anyone
+# watching it. A volume-attached pod may refuse `stop`; the results are on the volume,
+# so terminating it loses nothing.
+self_stop () {
+  [ "$SELF_STOP" = "1" ] || return 0
+  sync; runpodctl stop pod "$RUNPOD_POD_ID" || runpodctl remove pod "$RUNPOD_POD_ID"
+}
+mkdir -p "$OUT" || { echo "cannot write $OUT -- is the volume mounted?"; exit 1; }
+[ -z "$(ls -A "$OUT")" ] || { echo "$OUT is not empty; refusing to mix runs"; exit 1; }
+exec > >(tee -a "$OUT/noise_floor.log") 2>&1
+if [ "$SELF_STOP" = "1" ]; then
+  [ -n "${RUNPOD_POD_ID:-}" ] && runpodctl get pod "$RUNPOD_POD_ID" >/dev/null 2>&1 \
+    || fail "runpodctl cannot see this pod, so it could not stop it. Set SELF_STOP=0 only if \
+someone will stop it by hand."
+fi
+[ "$(stat -f -c %T "$(dirname "$OUT")")" != "overlayfs" ] || fail "$OUT is on container disk, not the volume"
+trap 'echo "EXIT $(date -u +%FT%TZ)" >> "$OUT/STATUS"; self_stop' EXIT
 
 stage 0_serve
 bash $B26/scripts/install_openpi.sh 2>&1 | tail -3
@@ -33,7 +55,6 @@ bash $B26/scripts/wait_for_policy_server.sh || { tail -20 /tmp/serve.out; fail "
 stage 1_rollouts
 # shellcheck disable=SC1091
 source /workspace/env.sh || fail "no /workspace/env.sh -- mount the volume with the omnigibson env"
-rm -rf "$OUT"; mkdir -p "$OUT"
 # Video writing is deliberately OFF: sigma_w comes from the JSON, and 72 full-res
 # RGBD rollouts of video is tens of GB of container disk that nothing ever reads.
 # first_rollout.sh already lost a run to exactly this default.
