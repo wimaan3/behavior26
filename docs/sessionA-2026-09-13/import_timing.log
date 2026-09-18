@@ -1,0 +1,27 @@
+interpreter : /workspace/envs/behavior/bin/python
+env         : behavior
+
+== A. warm import omnigibson (x3) -- the per-process cost we pay ==
+WARM_OMNIGIBSON_1=45.006
+WARM_OMNIGIBSON_2=44.474
+WARM_OMNIGIBSON_3=44.094
+
+== B. cold vs warm NFS read, no shader path ==
+COLD_scipy=0.924      WARM_scipy=0.819
+COLD_matplotlib=1.227 WARM_matplotlib=1.323
+COLD_sympy=1.912      WARM_sympy=1.910
+COLD_pandas=2.391     WARM_pandas=2.287
+
+NOTE: page cache cannot be dropped inside an unprivileged container, so 'COLD_'
+above is only cold for modules nothing has read yet on this pod. A COLD/WARM pair
+that is nearly equal means 'already cached', not 'NFS is fast'.
+
+== C. file-tree walk cost on the volume vs container disk ==
+36494 files   NFS_WALK_ENV=22.653 s   (0.621 ms/file)
+  334 files   LOCAL_WALK_ROOT=0.014 s (0.042 ms/file)  -> 14.8x slower on NFS
+
+== D. Isaac Sim's own view of the rendering failure (from smoke.log) ==
+[carb.graphics-vulkan.plugin] VkResult: ERROR_INCOMPATIBLE_DRIVER
+[carb.graphics-vulkan.plugin] vkCreateInstance failed. Vulkan 1.1 is not supported
+[omni.gpu_foundation_factory.plugin] Failed to create any GPU devices
+Fatal Python error: Segmentation fault

@@ -48,3 +48,9 @@ openpi/
 
 # Built submission packages -- regenerate with submission.build
 submission/dist/
+
+# docs/ is the project's RECORD and nothing under it is ignored. The *.log and
+# norm_stats.json rules above are for scratch output; without this they silently
+# kept every training log behind the rung 1-5 results off GitHub.
+# (tests/test_evidence_is_tracked.py)
+!docs/**
