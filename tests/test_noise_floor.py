@@ -103,3 +103,21 @@ def test_the_runner_checks_it_got_every_rollout():
     text = _runner_text()
     assert "INSTANCES * REPEATS" in text
     assert "-eq \"$((INSTANCES * REPEATS))\"" in text, "must require ALL rollouts, not merely some"
+
+
+# --- the same two safeguards shot_one.sh has, for the same reason -------------------
+# The 2026-09-16 loader sweep wrote to container disk, outlived the conversation, billed
+# six unattended hours and was lost when the pod went. A 4 h unattended run must not.
+
+def test_the_runner_writes_its_results_to_the_network_volume():
+    import re
+    text = _runner_text()
+    assert re.search(r'^OUT="\$\{OUT:-/workspace/', text, re.M), "results must survive the pod"
+
+
+def test_the_runner_stops_its_own_pod_on_every_exit_path():
+    text = _runner_text()
+    assert "trap" in text and "EXIT" in text
+    assert "runpodctl stop pod" in text
+    pre = text[:text.index("stage 0_serve")]
+    assert "runpodctl get pod" in pre, "prove it CAN stop the pod before spending"
