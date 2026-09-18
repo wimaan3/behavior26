@@ -1,0 +1,16 @@
+BATCH OK
+  actions       (2, 32, 32):float32
+  state                        (2, 32):float32
+  tokenized_prompt             (2, 200):int32
+  tokenized_prompt_mask        (2, 200):bool
+  token_ar_mask                ():NoneType
+  token_loss_mask              ():NoneType
+  progress                     (2, 1):float32
+  image.base_0_rgb                 (2, 224, 224, 3):float32
+  image.left_wrist_0_rgb           (2, 224, 224, 3):float32
+  image.right_wrist_0_rgb          (2, 224, 224, 3):float32
+  image_mask.base_0_rgb                 (2,):bool
+  image_mask.left_wrist_0_rgb           (2,):bool
+  image_mask.right_wrist_0_rgb          (2,):bool
+  progress range  [0.1667, 0.1667]
+FIRST_BATCH_OK

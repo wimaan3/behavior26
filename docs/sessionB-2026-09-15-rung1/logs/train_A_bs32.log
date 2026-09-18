@@ -1,0 +1,203 @@
+01:41:08.882 [I] Running on: 5f6806fe3ec9                                                         (651360:train_b1k.py:408)
+INFO:2026-09-15 01:41:09,376:jax._src.xla_bridge:925: Unable to initialize backend 'rocm': module 'jaxlib.xla_extension' has no attribute 'GpuAllocatorConfig'
+01:41:09.376 [I] Unable to initialize backend 'rocm': module 'jaxlib.xla_extension' has no attribute 'GpuAllocatorConfig' (651360:xla_bridge.py:925)
+INFO:2026-09-15 01:41:09,377:jax._src.xla_bridge:925: Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+01:41:09.377 [I] Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory (651360:xla_bridge.py:925)
+01:41:09.669 [I] Created BasePyTreeCheckpointHandler: use_ocdbt=True, use_zarr3=False, pytree_metadata_options=PyTreeMetadataOptions(support_rich_types=False), array_metadata_store=<orbax.checkpoint._src.metadata.array_metadata_store.Store object at 0x77805a151890> (651360:base_pytree_checkpoint_handler.py:334)
+01:41:09.669 [I] Created BasePyTreeCheckpointHandler: use_ocdbt=True, use_zarr3=False, pytree_metadata_options=PyTreeMetadataOptions(support_rich_types=False), array_metadata_store=<orbax.checkpoint._src.metadata.array_metadata_store.Store object at 0x77805a151890> (651360:base_pytree_checkpoint_handler.py:334)
+01:41:09.670 [I] [thread=MainThread] Failed to get flag value for EXPERIMENTAL_ORBAX_USE_DISTRIBUTED_PROCESS_ID. (651360:multihost.py:390)
+01:41:09.670 [I] [process=0][thread=MainThread] CheckpointManager init: checkpointers=None, item_names=None, item_handlers={'assets': <openpi.training.checkpoints.CallbackHandler object at 0x777e90165b10>, 'train_state': <orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeCheckpointHandler object at 0x777e90166a10>, 'params': <orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeCheckpointHandler object at 0x777e906d9750>}, handler_registry=None (651360:checkpoint_manager.py:620)
+01:41:09.670 [I] Deferred registration for item: "assets". Adding handler `<openpi.training.checkpoints.CallbackHandler object at 0x777e90165b10>` for item "assets" and save args `<class 'openpi.training.checkpoints.CallbackSave'>` and restore args `<class 'openpi.training.checkpoints.CallbackRestore'>` to `_handler_registry`. (651360:composite_checkpoint_handler.py:234)
+01:41:09.670 [I] Deferred registration for item: "train_state". Adding handler `<orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeCheckpointHandler object at 0x777e90166a10>` for item "train_state" and save args `<class 'orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeSaveArgs'>` and restore args `<class 'orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeRestoreArgs'>` to `_handler_registry`. (651360:composite_checkpoint_handler.py:234)
+01:41:09.670 [I] Deferred registration for item: "params". Adding handler `<orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeCheckpointHandler object at 0x777e906d9750>` for item "params" and save args `<class 'orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeSaveArgs'>` and restore args `<class 'orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeRestoreArgs'>` to `_handler_registry`. (651360:composite_checkpoint_handler.py:234)
+01:41:09.670 [I] Deferred registration for item: "metrics". Adding handler `<orbax.checkpoint._src.handlers.json_checkpoint_handler.JsonCheckpointHandler object at 0x777e901abb10>` for item "metrics" and save args `<class 'orbax.checkpoint._src.handlers.json_checkpoint_handler.JsonSaveArgs'>` and restore args `<class 'orbax.checkpoint._src.handlers.json_checkpoint_handler.JsonRestoreArgs'>` to `_handler_registry`. (651360:composite_checkpoint_handler.py:234)
+01:41:09.670 [I] Initialized registry DefaultCheckpointHandlerRegistry({('assets', <class 'openpi.training.checkpoints.CallbackSave'>): <openpi.training.checkpoints.CallbackHandler object at 0x777e90165b10>, ('assets', <class 'openpi.training.checkpoints.CallbackRestore'>): <openpi.training.checkpoints.CallbackHandler object at 0x777e90165b10>, ('train_state', <class 'orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeSaveArgs'>): <orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeCheckpointHandler object at 0x777e90166a10>, ('train_state', <class 'orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeRestoreArgs'>): <orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeCheckpointHandler object at 0x777e90166a10>, ('params', <class 'orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeSaveArgs'>): <orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeCheckpointHandler object at 0x777e906d9750>, ('params', <class 'orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeRestoreArgs'>): <orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeCheckpointHandler object at 0x777e906d9750>, ('metrics', <class 'orbax.checkpoint._src.handlers.json_checkpoint_handler.JsonSaveArgs'>): <orbax.checkpoint._src.handlers.json_checkpoint_handler.JsonCheckpointHandler object at 0x777e901abb10>, ('metrics', <class 'orbax.checkpoint._src.handlers.json_checkpoint_handler.JsonRestoreArgs'>): <orbax.checkpoint._src.handlers.json_checkpoint_handler.JsonCheckpointHandler object at 0x777e901abb10>}). (651360:composite_checkpoint_handler.py:502)
+01:41:09.671 [I] orbax-checkpoint version: 0.11.13                                                (651360:abstract_checkpointer.py:35)
+01:41:09.671 [I] [process=0][thread=MainThread] Using barrier_sync_fn: <function get_barrier_sync_fn.<locals>.<lambda> at 0x777e9016f240> timeout: 7200 secs and primary_host=0 for async checkpoint writes (651360:async_checkpointer.py:170)
+01:41:09.671 [I] Found 0 checkpoint steps in /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32    (651360:checkpoint_manager.py:1701)
+01:41:09.671 [I] [process=0][thread=MainThread] CheckpointManager created,  primary_host=0, CheckpointManagerOptions=CheckpointManagerOptions(save_interval_steps=1, max_to_keep=1, keep_time_interval=None, keep_period=5000, should_keep_fn=None, best_fn=None, best_mode='max', keep_checkpoints_without_metrics=True, step_prefix=None, step_format_fixed_length=None, step_name_format=None, create=False, cleanup_tmp_directories=False, save_on_steps=frozenset(), single_host_load_and_broadcast=False, todelete_subdir=None, enable_background_delete=False, read_only=False, enable_async_checkpointing=True, async_options=AsyncOptions(timeout_secs=7200, barrier_sync_fn=None, post_finalization_callback=None, create_directories_asynchronously=True), multiprocessing_options=MultiprocessingOptions(primary_host=0, active_processes=None, barrier_sync_key_prefix=None), should_save_fn=None, file_options=FileOptions(path_permission_mode=None), save_root_metadata=True, temporary_path_class=None, save_decision_policy=None, prevent_write_metrics=False), root_directory=/opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32: <orbax.checkpoint.checkpoint_manager.CheckpointManager object at 0x777e901ab390> (651360:checkpoint_manager.py:801)
+01:41:09.892 [I] Loaded norm stats from /opt/assets/pi05_b1k_frozen_vlm/set_up_a_coffee_station_in_your_kitchen (651360:config.py:213)
+01:41:09.940 [I] Using video codec: hevc                                                          (651360:video.py:189)
+01:41:09.940 [I] Using video codec: hevc                                                          (651360:video.py:189)
+01:41:09.940 [I] Using video codec: hevc                                                          (651360:video.py:189)
+config            pi05_b1k_frozen_vlm
+exp_name          rung1-A-bs32
+dataset_root      /opt/merged
+repo_id           set_up_a_coffee_station_in_your_kitchen
+assets_dir        /opt/assets/pi05_b1k_frozen_vlm
+norm_stats loaded True
+checkpoint_dir    /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32
+progress_key      None
+progress_weight   0.0
+weight_loader     CheckpointWeightLoader(params_path='gs://openpi-assets/checkpoints/pi05_base/params', missing_regex='.*lora.*')
+01:43:01.859 [I] Initialized data loader:
+[0].images['base_0_rgb']: (32, 224, 224, 3)@float32
+[0].images['left_wrist_0_rgb']: (32, 224, 224, 3)@float32
+[0].images['right_wrist_0_rgb']: (32, 224, 224, 3)@float32
+[0].image_masks['base_0_rgb']: (32,)@bool
+[0].image_masks['left_wrist_0_rgb']: (32,)@bool
+[0].image_masks['right_wrist_0_rgb']: (32,)@bool
+[0].state: (32, 32)@float32
+[0].tokenized_prompt: (32, 200)@int32
+[0].tokenized_prompt_mask: (32, 200)@bool
+[1]: (32, 32, 32)@float32 (651360:train_b1k.py:440)
+wandb: WARNING Data passed to `wandb.Image` should consist of values in the range [0, 255], image data will be normalized to this range, but behavior will be removed in a future version of wandb.
+01:43:03.037 [I] Downloading gs://openpi-assets/checkpoints/pi05_base/params to /home/ubuntu/.cache/openpi/openpi-assets/checkpoints/pi05_base/params (651360:download.py:90)
+01:43:03.038 [W] gsutil not found, falling back to gcsfs. This may fail if GCP credentials are not configured correctly. (651360:download.py:115)
+01:43:40.240 [I] Progress on: -/12441721931 rate:- remaining:? elapsed:00:00 postfix:-            (651360:tqdm_logging.py:145)
+01:43:50.259 [I] Progress on: 2.18GiB/11.6GiB rate:249,129,762.8iB/s remaining:00:40 elapsed:00:10 postfix:- (651360:tqdm_logging.py:145)
+01:44:00.279 [I] Progress on: 4.55GiB/11.6GiB rate:251,398,418.2iB/s remaining:00:30 elapsed:00:20 postfix:- (651360:tqdm_logging.py:145)
+01:44:10.298 [I] Progress on: 6.81GiB/11.6GiB rate:228,533,120.5iB/s remaining:00:22 elapsed:00:30 postfix:- (651360:tqdm_logging.py:145)
+01:44:20.315 [I] Progress on: 8.41GiB/11.6GiB rate:171,414,626.7iB/s remaining:00:19 elapsed:00:40 postfix:- (651360:tqdm_logging.py:145)
+01:44:30.333 [I] Progress on: 9.99GiB/11.6GiB rate:168,583,227.3iB/s remaining:00:10 elapsed:00:50 postfix:- (651360:tqdm_logging.py:145)
+01:44:40.351 [I] Progress on: 11.0GiB/11.6GiB rate:74,345,625.8iB/s remaining:00:08 elapsed:01:00 postfix:- (651360:tqdm_logging.py:145)
+01:44:50.364 [I] Progress on: 11.4GiB/11.6GiB rate:42,555,429.0iB/s remaining:00:04 elapsed:01:10 postfix:- (651360:tqdm_logging.py:145)
+01:44:55.370 [I] Progress on: 11.6GiB/11.6GiB rate:35,869,716.9iB/s remaining:00:00 elapsed:01:15 postfix:- (651360:tqdm_logging.py:145)
+01:44:55.372 [I] Created BasePyTreeCheckpointHandler: use_ocdbt=True, use_zarr3=False, pytree_metadata_options=PyTreeMetadataOptions(support_rich_types=False), array_metadata_store=<orbax.checkpoint._src.metadata.array_metadata_store.Store object at 0x77805a151890> (651360:base_pytree_checkpoint_handler.py:334)
+01:44:55.406 [I] Restoring checkpoint from /home/ubuntu/.cache/openpi/openpi-assets/checkpoints/pi05_base/params. (651360:checkpointer.py:298)
+01:45:02.211 [I] [process=0] /jax/checkpoint/read/bytes_per_sec: 1.8 GiB/s (total bytes: 12.5 GiB) (time elapsed: 6 seconds) (per-host) (651360:base_pytree_checkpoint_handler.py:114)
+01:45:02.211 [I] Finished restoring checkpoint in 6.81 seconds from /home/ubuntu/.cache/openpi/openpi-assets/checkpoints/pi05_base/params. (651360:checkpointer.py:309)
+01:45:09.566 [I] Initialized train state:
+['PaliGemma']['img']['Transformer']['encoder_norm']['bias'].value: (1152,)@bfloat16
+['PaliGemma']['img']['Transformer']['encoder_norm']['scale'].value: (1152,)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['LayerNorm_0']['bias'].value: (27, 1152)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['LayerNorm_0']['scale'].value: (27, 1152)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['LayerNorm_1']['bias'].value: (27, 1152)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['LayerNorm_1']['scale'].value: (27, 1152)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MlpBlock_0']['Dense_0']['bias'].value: (27, 4304)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MlpBlock_0']['Dense_0']['kernel'].value: (27, 1152, 4304)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MlpBlock_0']['Dense_1']['bias'].value: (27, 1152)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MlpBlock_0']['Dense_1']['kernel'].value: (27, 4304, 1152)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MultiHeadDotProductAttention_0']['key']['bias'].value: (27, 16, 72)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MultiHeadDotProductAttention_0']['key']['kernel'].value: (27, 1152, 16, 72)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MultiHeadDotProductAttention_0']['out']['bias'].value: (27, 1152)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MultiHeadDotProductAttention_0']['out']['kernel'].value: (27, 16, 72, 1152)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MultiHeadDotProductAttention_0']['query']['bias'].value: (27, 16, 72)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MultiHeadDotProductAttention_0']['query']['kernel'].value: (27, 1152, 16, 72)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MultiHeadDotProductAttention_0']['value']['bias'].value: (27, 16, 72)@bfloat16
+['PaliGemma']['img']['Transformer']['encoderblock']['MultiHeadDotProductAttention_0']['value']['kernel'].value: (27, 1152, 16, 72)@bfloat16
+['PaliGemma']['img']['embedding']['bias'].value: (1152,)@bfloat16
+['PaliGemma']['img']['embedding']['kernel'].value: (14, 14, 3, 1152)@bfloat16
+['PaliGemma']['img']['head']['bias'].value: (2048,)@bfloat16
+['PaliGemma']['img']['head']['kernel'].value: (1152, 2048)@bfloat16
+['PaliGemma']['img']['pos_embedding'].value: (1, 256, 1152)@bfloat16
+['PaliGemma']['llm']['embedder']['input_embedding'].value: (257152, 2048)@bfloat16
+['PaliGemma']['llm']['final_norm']['scale'].value: (2048,)@bfloat16
+['PaliGemma']['llm']['final_norm_1']['Dense_0']['bias'].value: (3072,)@float32
+['PaliGemma']['llm']['final_norm_1']['Dense_0']['kernel'].value: (1024, 3072)@float32
+['PaliGemma']['llm']['layers']['attn']['attn_vec_einsum']['w'].value: (18, 8, 256, 2048)@bfloat16
+['PaliGemma']['llm']['layers']['attn']['attn_vec_einsum_1']['w'].value: (18, 8, 256, 1024)@float32
+['PaliGemma']['llm']['layers']['attn']['kv_einsum']['w'].value: (18, 2, 1, 2048, 256)@bfloat16
+['PaliGemma']['llm']['layers']['attn']['kv_einsum_1']['w'].value: (18, 2, 1, 1024, 256)@float32
+['PaliGemma']['llm']['layers']['attn']['q_einsum']['w'].value: (18, 8, 2048, 256)@bfloat16
+['PaliGemma']['llm']['layers']['attn']['q_einsum_1']['w'].value: (18, 8, 1024, 256)@float32
+['PaliGemma']['llm']['layers']['mlp']['gating_einsum'].value: (18, 2, 2048, 16384)@bfloat16
+['PaliGemma']['llm']['layers']['mlp']['linear'].value: (18, 16384, 2048)@bfloat16
+['PaliGemma']['llm']['layers']['mlp_1']['gating_einsum'].value: (18, 2, 1024, 4096)@float32
+['PaliGemma']['llm']['layers']['mlp_1']['linear'].value: (18, 4096, 1024)@float32
+['PaliGemma']['llm']['layers']['pre_attention_norm']['scale'].value: (18, 2048)@bfloat16
+['PaliGemma']['llm']['layers']['pre_attention_norm_1']['Dense_0']['bias'].value: (18, 3072)@float32
+['PaliGemma']['llm']['layers']['pre_attention_norm_1']['Dense_0']['kernel'].value: (18, 1024, 3072)@float32
+['PaliGemma']['llm']['layers']['pre_ffw_norm']['scale'].value: (18, 2048)@bfloat16
+['PaliGemma']['llm']['layers']['pre_ffw_norm_1']['Dense_0']['bias'].value: (18, 3072)@float32
+['PaliGemma']['llm']['layers']['pre_ffw_norm_1']['Dense_0']['kernel'].value: (18, 1024, 3072)@float32
+['action_in_proj']['bias'].value: (1024,)@float32
+['action_in_proj']['kernel'].value: (32, 1024)@float32
+['action_out_proj']['bias'].value: (32,)@float32
+['action_out_proj']['kernel'].value: (1024, 32)@float32
+['time_mlp_in']['bias'].value: (1024,)@float32
+['time_mlp_in']['kernel'].value: (1024, 1024)@float32
+['time_mlp_out']['bias'].value: (1024,)@float32
+['time_mlp_out']['kernel'].value: (1024, 1024)@float32 (651360:train_b1k.py:451)
+Warning: PaliGemma/img/Transformer/encoder_norm/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoder_norm/scale has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/LayerNorm_0/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/LayerNorm_0/scale has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/LayerNorm_1/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/LayerNorm_1/scale has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MlpBlock_0/Dense_0/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MlpBlock_0/Dense_0/kernel has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MlpBlock_0/Dense_1/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MlpBlock_0/Dense_1/kernel has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MultiHeadDotProductAttention_0/key/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MultiHeadDotProductAttention_0/key/kernel has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MultiHeadDotProductAttention_0/out/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MultiHeadDotProductAttention_0/out/kernel has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MultiHeadDotProductAttention_0/query/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MultiHeadDotProductAttention_0/query/kernel has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MultiHeadDotProductAttention_0/value/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/Transformer/encoderblock/MultiHeadDotProductAttention_0/value/kernel has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/embedding/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/embedding/kernel has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/head/bias has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/head/kernel has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/img/pos_embedding has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/llm/embedder/input_embedding has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/llm/final_norm/scale has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/llm/layers/attn/attn_vec_einsum/w has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/llm/layers/attn/kv_einsum/w has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/llm/layers/attn/q_einsum/w has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/llm/layers/mlp/gating_einsum has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/llm/layers/mlp/linear has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/llm/layers/pre_attention_norm/scale has dtype float32 but reference has dtype bfloat16
+Warning: PaliGemma/llm/layers/pre_ffw_norm/scale has dtype float32 but reference has dtype bfloat16
+01:45:09.587 [I] Progress on: -/10 rate:- remaining:? elapsed:00:00 postfix:-                     (651360:tqdm_logging.py:145)
+2026-09-15 01:46:04.629032: W external/xla/xla/hlo/transforms/simplifiers/hlo_rematerialization.cc:3021] Can't reduce memory use below 18.52GiB (19888638825 bytes) by rematerialization; only reduced to 20.10GiB (21578381344 bytes), down from 20.30GiB (21802098632 bytes) originally
+01:46:24.091 [I] Progress on: -/10 rate:- remaining:? elapsed:01:14 postfix:-                     (651360:tqdm_logging.py:145)
+01:46:35.006 [I] Progress on: 3.00it/10.0it rate:19.5s/it remaining:02:16 elapsed:01:25 postfix:- (651360:tqdm_logging.py:145)
+01:46:46.000 [I] Progress on: 6.00it/10.0it rate:7.7s/it remaining:00:30 elapsed:01:36 postfix:-  (651360:tqdm_logging.py:145)
+01:47:55.924 [I] Progress on: 9.00it/10.0it rate:24.5s/it remaining:00:24 elapsed:02:46 postfix:- (651360:tqdm_logging.py:145)
+01:47:59.535 [I] [process=0][thread=MainThread][wait_until_finished] No Save Finalize thread to wait for. Returning. (651360:checkpoint_manager.py:1987)
+01:47:59.535 [I] [process=0] Saving checkpoint at step 9                                          (651360:checkpoint_manager.py:1408)
+01:47:59.535 [I] [process=0] Started async saving checkpoint to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9. (651360:async_checkpointer.py:439)
+01:47:59.536 [I] Using ThreadSafeKeyValueSignalingClient                                          (651360:signaling_client.py:332)
+01:47:59.544 [I] Creating tmp directory /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0 (651360:atomicity.py:144)
+01:47:59.546 [I] Wrote Metadata={'item_handlers': None, 'metrics': {}, 'performance_metrics': {}, 'init_timestamp_nsecs': 1789436879544753541, 'commit_timestamp_nsecs': None, 'custom_metadata': {}}, json={"item_handlers": null, "metrics": {}, "performance_metrics": {}, "init_timestamp_nsecs": 1789436879544753541, "commit_timestamp_nsecs": null, "custom_metadata": {}} to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/_CHECKPOINT_METADATA (651360:checkpoint.py:186)
+01:47:59.547 [I] Creating tmp directory /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/assets.orbax-checkpoint-tmp-1 (651360:atomicity.py:144)
+01:47:59.547 [I] Creating tmp directory /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/params.orbax-checkpoint-tmp-2 (651360:atomicity.py:144)
+01:47:59.548 [I] Creating tmp directory /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/train_state.orbax-checkpoint-tmp-3 (651360:atomicity.py:144)
+01:47:59.573 [I] Transferring arrays to host memory with options: use_replica_parallel=True, enable_pinned_host_transfer=False (651360:replica_slices.py:341)
+01:48:02.994 [I] Transferring arrays to host memory with options: use_replica_parallel=True, enable_pinned_host_transfer=False (651360:replica_slices.py:341)
+01:48:02.998 [I] Array name: 'params.PaliGemma.llm.layers.mlp.gating_einsum.value', global shape: (18, 2, 2048, 16384), write shape: (18, 2, 2048, 16384), chosen chunk shape: (18, 2, 2048, 8192) (651360:tensorstore_utils.py:408)
+01:48:03.016 [I] [process=0][thread=array_type_handler] Wrote 51 array_metadata.ArrayMetadata to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/params.orbax-checkpoint-tmp-2/array_metadatas/process_0 (651360:array_metadata_store.py:198)
+01:48:04.998 [I] [process=0] /jax/checkpoint/write/blocking_bytes_per_sec: 1.3 GiB/s (total bytes: 7.0 GiB) (time elapsed: 5 seconds) (per-host) (651360:base_pytree_checkpoint_handler.py:114)
+01:48:04.999 [I] [process=0] /jax/checkpoint/write/blocking_bytes_per_sec: 601.5 MiB/s (total bytes: 3.2 GiB) (time elapsed: 5 seconds) (per-host) (651360:base_pytree_checkpoint_handler.py:114)
+01:48:05.005 [I] [process=0][thread=async_save] Background save thread started.                   (651360:async_checkpointer.py:77)
+01:48:05.005 [I] Finished blocking save in 5.47 seconds. Continuing to save asynchronously to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9. (651360:async_checkpointer.py:548)
+01:48:05.008 [I] [process=0][thread=MainThread][step=9] Starting CheckpointManager Save Finalize thread=save_finalize (651360:checkpoint_manager.py:1453)
+01:48:05.011 [I] [process=0][thread=save_finalize] Waiting for background save thread=async_save. (651360:async_checkpointer.py:258)
+01:48:05.013 [I] {'step': 9, 'event_type': 'save', 'directory': '/opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32', 'reached_preemption': False, 'preemption_received_at': None, 'synchronous': False, 'wait_for_prev_start_time': 1789436879.535032, 'wait_for_prev_duration_secs': 0.0001289844512939453, 'checkpointer_blocking_start_time': 1789436879.5354393, 'checkpointer_blocking_duration_secs': 5.472974538803101, 'get_old_steps_start_time': 1789436885.0084367, 'get_old_steps_duration_secs': 4.291534423828125e-06, 'checkpoint_manager_blocking_start_time': 1789436879.5349422, 'checkpoint_manager_blocking_duration_secs': 5.478302955627441} (651360:standard_logger.py:34)
+01:48:05.013 [I] Progress on: 10.0it/10.0it rate:19.7s/it remaining:00:00 elapsed:02:55 postfix:- (651360:tqdm_logging.py:145)
+01:48:05.014 [I] Waiting for checkpoint manager to finish                                         (651360:train_b1k.py:495)
+01:48:05.014 [I] [process=0][thread=MainThread][step=9][wait_until_finished] Waiting for Save Finalize thread (save_finalize) to complete. (651360:checkpoint_manager.py:1998)
+01:48:05.028 [I] [process=0][thread=array_type_handler] Wrote 41 array_metadata.ArrayMetadata to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/train_state.orbax-checkpoint-tmp-3/array_metadatas/process_0 (651360:array_metadata_store.py:198)
+01:48:07.768 [I] [process=0] /jax/checkpoint/write/bytes_per_sec: 876.9 MiB/s (total bytes: 7.0 GiB) (time elapsed: 8 seconds) (per-host) (651360:base_pytree_checkpoint_handler.py:114)
+01:48:07.916 [I] [process=0] /jax/checkpoint/write/bytes_per_sec: 391.9 MiB/s (total bytes: 3.2 GiB) (time elapsed: 8 seconds) (per-host) (651360:base_pytree_checkpoint_handler.py:114)
+01:48:07.916 [I] [process=0][thread=async_save] 5 Handler Commit operations completed.            (651360:async_checkpointer.py:87)
+01:48:07.916 [I] Read Metadata={'item_handlers': None, 'metrics': {}, 'performance_metrics': {}, 'init_timestamp_nsecs': 1789436879544753541, 'commit_timestamp_nsecs': None, 'custom_metadata': {}} from /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/_CHECKPOINT_METADATA (651360:checkpoint.py:226)
+01:48:07.917 [I] Renaming /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/assets.orbax-checkpoint-tmp-1 to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/assets (651360:atomicity.py:289)
+01:48:07.918 [I] Updated Metadata={'item_handlers': {'assets': 'openpi.training.checkpoints.CallbackHandler', 'params': 'orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeCheckpointHandler', 'train_state': 'orbax.checkpoint._src.handlers.pytree_checkpoint_handler.PyTreeCheckpointHandler'}, 'metrics': {}, 'performance_metrics': {}, 'init_timestamp_nsecs': 1789436879544753541, 'commit_timestamp_nsecs': None, 'custom_metadata': {}} to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/_CHECKPOINT_METADATA (651360:checkpoint.py:245)
+01:48:07.919 [I] [process=0][thread=async_save] Skipped cross-host ArrayMetadata validation because only one process is found: process_index=0. (651360:array_metadata_store.py:362)
+01:48:07.923 [I] Renaming /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/train_state.orbax-checkpoint-tmp-3 to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/train_state (651360:atomicity.py:289)
+01:48:07.925 [I] [process=0][thread=async_save] Skipped cross-host ArrayMetadata validation because only one process is found: process_index=0. (651360:array_metadata_store.py:362)
+01:48:07.928 [I] Renaming /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/params.orbax-checkpoint-tmp-2 to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0/params (651360:atomicity.py:289)
+01:48:07.928 [I] Renaming /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9.orbax-checkpoint-tmp-0 to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9 (651360:atomicity.py:289)
+01:48:07.929 [I] [process=0][thread=async_save] Finished saving checkpoint (finalized tmp dir) to `/opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9`. (651360:atomicity.py:573)
+01:48:07.929 [I] Finished asynchronous save (blocking + background) in 8.39 seconds to /opt/checkpoints/pi05_b1k_frozen_vlm/rung1-A-bs32/9 (651360:async_checkpointer.py:412)
+01:48:07.929 [I] [process=0][thread=async_save] Background save thread done.                      (651360:async_checkpointer.py:143)
+01:48:07.929 [I] [process=0][thread=save_finalize] Done with waiting for background save thread=async_save. (651360:async_checkpointer.py:266)
+01:48:07.929 [I] [process=0][thread=save_finalize] No errors found in background save thread=async_save. (651360:async_checkpointer.py:276)
+01:48:07.929 [I] [process=0][thread=save_finalize][step=9] CheckpointManager Save Finalize is syncing with other hosts... (651360:checkpoint_manager.py:2095)
+01:48:07.929 [I] [process=0][thread=save_finalize][step=9] CheckpointManager Save Finalize is done on all hosts. (651360:checkpoint_manager.py:2110)
+01:48:07.929 [I] [process=0][thread=MainThread][step=9][wait_until_finished] Done waiting for Save Finalize thread (save_finalize) running at step=9. (651360:checkpoint_manager.py:2010)
+Step 0: action_loss=0.8116, grad_norm=2.2401, loss=0.8116, param_norm=1801.9884
+Step 1: action_loss=1.0469, grad_norm=2.3060, loss=1.0469, param_norm=1801.9884
+Step 2: action_loss=0.6927, grad_norm=1.5445, loss=0.6927, param_norm=1801.9884
+Step 3: action_loss=0.6409, grad_norm=1.9288, loss=0.6409, param_norm=1801.9884
+Step 4: action_loss=1.1798, grad_norm=1.9839, loss=1.1798, param_norm=1801.9884
+Step 5: action_loss=0.8012, grad_norm=2.2482, loss=0.8012, param_norm=1801.9884
+Step 6: action_loss=0.5892, grad_norm=1.5389, loss=0.5892, param_norm=1801.9884
+Step 7: action_loss=0.6242, grad_norm=1.4021, loss=0.6242, param_norm=1801.9884
+Step 8: action_loss=0.8395, grad_norm=2.0544, loss=0.8395, param_norm=1801.9884
+Step 9: action_loss=1.1992, grad_norm=2.3200, loss=1.1992, param_norm=1801.9884
+TRAIN_DONE

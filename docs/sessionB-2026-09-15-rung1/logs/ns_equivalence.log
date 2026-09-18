@@ -1,0 +1,7 @@
+arm A sha256 83e028a53f96de7728ea17e4ff7117d575881b9eec76bc1689f8f80eeda4de28
+      /opt/ns_ref/pi05_b1k_frozen_vlm/set_up_a_coffee_station_in_your_kitchen/norm_stats.json
+arm B sha256 83e028a53f96de7728ea17e4ff7117d575881b9eec76bc1689f8f80eeda4de28
+      /opt/ns_nodecode/pi05_b1k_frozen_vlm/set_up_a_coffee_station_in_your_kitchen/norm_stats.json
+identical file: True
+shared keys: 8  mismatched: 0
+NORM_STATS_MATCH

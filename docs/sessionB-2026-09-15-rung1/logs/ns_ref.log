@@ -1,0 +1,3 @@
+config=pi05_b1k_frozen_vlm root=/opt/merged repo_id=set_up_a_coffee_station_in_your_kitchen video_decode=on
+frames=1247890 batches=20 -> /opt/ns_ref/pi05_b1k_frozen_vlm/set_up_a_coffee_station_in_your_kitchen
+NORM_STATS_OK /opt/ns_ref/pi05_b1k_frozen_vlm/set_up_a_coffee_station_in_your_kitchen/norm_stats.json
