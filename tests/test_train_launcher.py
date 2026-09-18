@@ -100,3 +100,35 @@ def test_launcher_exposes_the_seed_it_trains_with():
     text = LAUNCH.read_text()
     assert "--seed" in text
     assert re.search(r"seed\s*=\s*a\.seed", text), "must reach TrainConfig"
+
+
+# --- shot one: prove BOTH arms' configs before either one trains --------------
+
+def test_launcher_has_a_check_only_mode_that_stops_before_training():
+    """shot_one.sh gave arm B arm A's config plus --progress-loss-weight. The patch's
+    own guard raises for that (weight set, no head) -- but only when arm B STARTS,
+    after ~32 h of arm A. --check-only builds the complete config (roots, norm stats,
+    model overrides, which runs Pi0Config.__post_init__) and exits, so a runner can
+    prove both arms up front."""
+    text = LAUNCH.read_text()
+    assert "--check-only" in text
+    body = text[text.index("if a.check_only"):]
+    assert "CONFIG_OK" in body
+    assert body.index("return 0") < body.index("exec_module"), "must return before loading the trainer"
+
+
+def test_launcher_refuses_a_progress_head_with_no_label_column():
+    """With progress_key None the head is built but the progress term is skipped, so
+    arm B trains IDENTICALLY to arm A while its config says otherwise. A null ΔQ from
+    that would read as 'the head does not help'."""
+    text = LAUNCH.read_text()
+    assert "progress_head" in text and "no label" in text.lower()
+
+
+def test_launcher_can_limit_how_many_checkpoints_are_kept():
+    """openpi keeps every step % keep_period == 0 (default 5000) forever. At 30k steps
+    that is six ~10-16 GB checkpoints per arm -- enough to fill the network volume the
+    checkpoints now live on. 0 means keep only the latest."""
+    text = LAUNCH.read_text()
+    assert "--keep-period" in text
+    assert re.search(r"keep_period\s*=", text)
