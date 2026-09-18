@@ -3,7 +3,7 @@
 **Read this first.** One page tracking every deliverable. Detailed evidence lives in
 the dated `docs/session*` folders it links to. Updated with every milestone.
 
-*Last updated: 2026-09-16 · Deadline: **16 Oct 2026** (30 days) · Spend: **$23.61 of $200** · Pods running: **none***
+*Last updated: 2026-09-16 · Deadline: **16 Oct 2026** (30 days) · Spend: **$25.00** (account balance exhausted; budget $200) · Pods running: **none***
 
 ## Deliverables
 
@@ -24,6 +24,14 @@ the dated `docs/session*` folders it links to. Updated with every milestone.
 | 13 | Write-up | ⏳ ongoing in `docs/` | — |
 
 ## Next actions, in order
+
+**BLOCKED 2026-09-18: the RunPod account balance is used up.** Creating the shot-one pod
+returned HTTP 402 "account balance is too low". Total account spend is $25.00: $23.61
+pods, $1.39 volume storage. The budget is $200, but the account only held ~$25 of
+credit. Funds are added only by the project owner. Nothing irreplaceable is on RunPod:
+every result and log is in this repo, and the volume holds only the simulator env and
+dataset, which `scripts/setup_cloud.sh` and `scripts/download_dataset.sh` rebuild.
+
 
 1. **Shot one**, on one RTX PRO 4500 in EU-RO-1: `bash scripts/shot_one.sh` (coffee + shoes,
    30k steps, λ 0.15, 24 workers). It proves both arms' configs, then trains arm A. Its
