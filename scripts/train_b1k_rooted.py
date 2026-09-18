@@ -71,6 +71,12 @@ def main() -> int:
                     help="continue from the last checkpoint in checkpoint-base-dir/config/exp-name. "
                          "Shot one is 20-70 h per arm (rung 4); without this, one interruption "
                          "costs the whole run.")
+    ap.add_argument("--keep-period", type=int, default=None,
+                    help="checkpoints at step %% N are never deleted (openpi default 5000). 0 = keep "
+                         "only the latest -- at 30k steps the default keeps six ~10-16 GB checkpoints")
+    ap.add_argument("--check-only", action="store_true",
+                    help="build and validate the complete config (roots, norm stats, model "
+                         "overrides), print CONFIG_OK and exit without training")
     ap.add_argument("--openpi-root", default=os.environ.get("OPENPI_ROOT", "/opt/openpi"))
     a = ap.parse_args()
 
@@ -120,6 +126,8 @@ def main() -> int:
         num_workers=a.num_workers, wandb_enabled=a.wandb, overwrite=a.overwrite,
         resume=a.resume, seed=a.seed,
     )
+    if a.keep_period is not None:
+        cfg = dataclasses.replace(cfg, keep_period=a.keep_period or None)
     if a.log_term_grads:
         if not hasattr(cfg, "log_loss_term_grad_norms"):
             print("FAIL: --log-term-grads but TrainConfig has no log_loss_term_grad_norms (patch 0002 out of date?)")
@@ -141,17 +149,34 @@ def main() -> int:
     print(f"progress_weight   {getattr(cfg.model, 'progress_loss_weight', None)}")
     print(f"weight_loader     {cfg.weight_loader}")
     print(f"term_grad_norms   {getattr(cfg, 'log_loss_term_grad_norms', None)}")
+    print(f"progress_head     {getattr(cfg.model, 'progress_head', None)}")
+    print(f"keep_period       {getattr(cfg, 'keep_period', None)}")
     if not root or not pathlib.Path(root).exists():
         print(f"FAIL: dataset_root {root!r} does not exist")
         return 2
     if str(root) != str(plan.dataset_root):
         print(f"FAIL: config resolved to {root!r}, not the requested {str(plan.dataset_root)!r}")
         return 2
+    if (getattr(cfg.model, "progress_head", False) and getattr(cfg.model, "progress_loss_weight", 0)
+            and getattr(cfg.data, "progress_key", None) is None):
+        # The head is built but, with no label column, the progress term is skipped:
+        # this arm would train IDENTICALLY to the control while its config claims a
+        # treatment, and a null result would read as "the head does not help".
+        print("FAIL: progress head with a non-zero weight but no label column (--progress-key). "
+              "It would train identically to arm A.")
+        return 2
     if effective.norm_stats is None:
         print(f"FAIL: no norm stats under {cfg.assets_dirs}. openpi would log 'skipping' and "
               f"train UNNORMALISED. Run scripts/compute_norm_stats_b1k.py with the same "
               f"--assets-base-dir first.")
         return 2
+
+    if a.check_only:
+        # Everything above ran: roots, norm stats, and the model overrides (which run
+        # Pi0Config.__post_init__). A runner proves BOTH arms this way before either
+        # trains -- a config error in arm B otherwise surfaces ~32 h into arm A.
+        print(f"CONFIG_OK {cfg.name} {cfg.exp_name}")
+        return 0
 
     train_py = pathlib.Path(a.openpi_root) / "scripts" / "b1k" / "train_b1k.py"
     spec = importlib.util.spec_from_file_location("train_b1k", train_py)
