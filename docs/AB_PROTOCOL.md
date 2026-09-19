@@ -1712,3 +1712,37 @@ Steps/s from **arm A only** (arm B pays two extra backward passes), as 1 / media
 interval from step 50, with median GPU utilisation — low utilisation means data-bound.
 Rung 5: two-task steps/s against arm A's. Within ~10% → batch-bound, and k is a
 convergence question that throughput cannot settle before shot one.
+
+
+---
+
+## Revision 2026-09-18 — the episode limit is per task; radio's is the shortest
+
+The session-A finding "the episode timeout is 3,225 steps" is true **for
+`turning_on_radio` only**. The evaluator sets `max_steps = 1.5 × the task's mean
+human-demo length` (`evaluator.py`, `EVAL_TIMEOUT_MULTIPLIER = 1.5`, stats from
+`task.jsonl`). `analysis/reward/full_corpus_lengths.csv` already held this per task
+and predicts radio's limit as 3,224, one step from the 3,225 observed.
+
+| task | limit (steps) | at 30 Hz |
+|---|---|---|
+| `turning_on_radio` | 3,224 | 1.8 min, **the shortest of all 100** |
+| `set_up_a_coffee_station_in_your_kitchen` | 9,399 | 5.2 min |
+| `putting_shoes_on_rack` | 11,589 | 6.4 min |
+| median task | 15,350 | 8.5 min |
+| `assembling_gift_baskets` (longest) | 39,090 | 21.7 min |
+
+**Corrections that follow:**
+
+1. Revision 2026-09-13's "`WEEK1_CHARTER`'s ~15,800 is ~5× too high" holds for radio
+   only. For the median task the charter's figure was about right.
+2. The k=8 / n=27 evaluation cycle priced at **~$19** gave every task radio's
+   3,224-frame episode. With each task's own limit, and the same model
+   (`job_s = 615 + n × (30.8 + frames / 20.4)`, worst case: every episode runs to its
+   limit, as failures do):
+   - **our two training tasks, both arms, n=27: ~17.0 GPU-h ≈ $12.60**
+     (not the ~$4.70 the radio length implies);
+   - **the 8 shortest tasks, both arms: ~30.4 GPU-h ≈ $22.50.**
+   k remains affordable to evaluate; the conclusion stands, the number did not.
+3. The σ_w noise floor is measured on radio and is unaffected. Its cost estimate was
+   made with radio's own limit.

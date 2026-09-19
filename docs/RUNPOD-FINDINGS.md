@@ -13,11 +13,11 @@ Evidence: [`sessionA-2026-09-13/`](sessionA-2026-09-13/), `AB_PROTOCOL.md` revis
 | Finding | Value | Why it matters |
 |---|---|---|
 | **Baseline score** (released model, `turning_on_radio`, 27 full episodes) | **Q = 0.111** (3/27) | First real number; roughly matches the organizers' ~10% ([`baseline-Q-full.txt`](sessionA-2026-09-13/baseline-Q-full.txt)) |
-| Episode length limit | **3,225 steps** | The charter assumed ~15,800, so every earlier cost estimate was ~5× too pessimistic |
+| Episode length limit | **Per task: 1.5 × that task's mean human-demo length.** Measured 3,225 steps on `turning_on_radio` | Radio has the **shortest** limit of all 100 tasks (1.8 min). Coffee is 9,399 steps (5.2 min), shoes 11,589 (6.4 min); the median task is 15,350 (8.5 min), the longest 39,090 (21.7 min). Source: `analysis/reward/full_corpus_lengths.csv`, which predicts radio's 3,224 to within one step |
 | Scene loading | **~12 min warm, ~22 min cold, once per evaluator job** | Paid per job, not per episode, so evaluation is ~5× cheaper than feared ([`scene-reuse.jsonl`](sessionA-2026-09-13/scene-reuse.jsonl)) |
 | Cost per extra instance in a job | **30.8 s** | Instances are cheap, jobs are not. An early "almost free" reading from n=3 was wrong ([`scale-n27.txt`](sessionA-2026-09-13/scale-n27.txt)) |
 | End-to-end speed (simulator + policy inference) | **20.4 FPS** | Inside the organizers' 13.5–24.6 band |
-| Evaluating k=8 tasks × n=27 instances | **≈ $19** | Evaluation cost does not constrain k |
+| Evaluating both arms, n=27 | **our 2 tasks: ≈ 17 GPU-h ≈ $12.60; 8 shortest tasks: ≈ $22.50** | Still does not constrain k. The first figure published here ($19 for k=8) wrongly gave every task radio's episode length |
 
 Setup facts we paid to learn:
 - **Rendering** only works on an EGL desktop image (`ghcr.io/selkies-project/selkies-egl-desktop:26.04`).
