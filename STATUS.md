@@ -1,6 +1,7 @@
 # behavior26 — project status
 
-**Read this first.** One page tracking every deliverable. Detailed evidence lives in
+**Read this first.** One page tracking every deliverable. Everything learned on rented GPUs is summarised in
+[`docs/RUNPOD-FINDINGS.md`](docs/RUNPOD-FINDINGS.md). Detailed evidence lives in
 the dated `docs/session*` folders it links to. Updated with every milestone.
 
 *Last updated: 2026-09-16 · Deadline: **16 Oct 2026** (30 days) · Spend: **$25.00** (account balance exhausted; budget $200) · Pods running: **none***
