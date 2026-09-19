@@ -12,11 +12,19 @@ progress rather than just the next action.
 
 ## Status
 
-**Nothing has run on a GPU yet.** Every number below came from source-reading,
-a CPU, or the mock evaluator. Treat all of it as unverified against hardware.
+*Updated 2026-09-18.* Live tracker: [`STATUS.md`](STATUS.md). Everything learned on rented
+GPUs: [`docs/RUNPOD-FINDINGS.md`](docs/RUNPOD-FINDINGS.md).
 
 | | |
 |---|---|
+| **Measured on GPU** | The evaluator renders and scores on RunPod. **Baseline Q = 0.111** (released checkpoint, `turning_on_radio`, n=27). Evaluation cost model: scene load once per job, 30.8 s per instance, 20.4 FPS end to end. |
+| **Validated on real data** | Per-task slicing, progress-label merge and compaction: 10/10 checks, five silent-corruption bugs caught first. |
+| **Trained on GPU (rungs 1–5, 1,000 steps)** | Both arms fit at batch 32 on an RTX PRO 4500. The progress head **learns** (z = 18.7) and does **not** degrade the action loss. λ ≈ 0.14–0.15 gives the head a 20% gradient share. Throughput does not depend on task count. |
+| **Open** | A dataloader stall takes 52.8% of training time at 8 workers; the 24-worker fix is untested. The σ_w noise floor has not been run. |
+| **Ready, not yet run** | Shot one (`scripts/shot_one.sh`): both arms, 30k steps, self-stopping, with a step-300 loader gate. Blocked on the RunPod account balance (2026-09-18). |
+| **Known cap** | We train 2 tasks, so the submission ceiling is **Q = 0.020** (Q averages over all 100 tasks; 98 score zero). Accepted deliberately; see [AB_PROTOCOL](docs/AB_PROTOCOL.md). |
+
+---|---|
 | **Works, exercised end to end** | Rollout harness (parallel, resumable), mock evaluator, rollout parsing, failure taxonomy, paired A/B, submission packaging. All on a laptop, no GPU. |
 | **Works, CPU-verified only** | The progress head: builds, produces finite loss, and gradients reach it and the shared trunk. openpi patches apply cleanly; three training configs fit in 32 GB by measurement. |
 | **Untested — needs a GPU** | Every training config. `scripts/train_cloud.sh` (dry-run only). Serving a real checkpoint. LoRA on π₀.₅ is untested upstream too. |
