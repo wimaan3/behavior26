@@ -132,3 +132,12 @@ def test_launcher_can_limit_how_many_checkpoints_are_kept():
     text = LAUNCH.read_text()
     assert "--keep-period" in text
     assert re.search(r"keep_period\s*=", text)
+
+
+def test_launcher_can_tie_lr_decay_to_the_run_length():
+    """openpi's CosineDecaySchedule defaults decay_steps=30_000 regardless of
+    num_train_steps. --lr-decay-steps replaces it on the config's own schedule."""
+    text = LAUNCH.read_text()
+    assert "--lr-decay-steps" in text
+    assert re.search(r"decay_steps\s*=\s*a\.lr_decay_steps", text)
+    assert "lr_schedule" in text

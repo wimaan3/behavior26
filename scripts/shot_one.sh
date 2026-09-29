@@ -55,7 +55,8 @@ GATE_MAX_MEAN_S="${GATE_MAX_MEAN_S:-4.5}"   # 3.90 s GPU-bound + 15%, fixed in a
 GATE_ENFORCE="${GATE_ENFORCE:-1}"           # 1 = a NOGO stops the run and the pod
 MAX_HOURS="${MAX_HOURS:-75}"                # both arms at 3.9 s/step is ~65 h; per invocation
 SELF_STOP="${SELF_STOP:-1}"                 # 1 = the pod stops itself when this script ends
-CKPT_NEED_GB="${CKPT_NEED_GB:-45}"          # two arms' final checkpoints plus one in flight
+CKPT_NEED_GB="${CKPT_NEED_GB:-50}"          # peak: arm A final + arm B latest + one in flight, ~16 GB each
+VOL_QUOTA_GB="${VOL_QUOTA_GB:-150}"         # the volume's provisioned size; the API reports it, df cannot
 
 # --- where things live -------------------------------------------------------
 VOL="${VOL:-/workspace}"                    # the network volume: survives the pod
@@ -110,6 +111,15 @@ rm -f "$RUN/STATUS"
 
 # --- 0 preflight: everything that can fail cheaply, before anything expensive --
 stage 0_preflight
+# runpodctl is not guaranteed on this third-party image, and its sudo is password-gated,
+# so install to ~/.local/bin. RunPod supplies the pod-scoped key it uses; nothing here
+# writes a credential.
+if ! command -v runpodctl >/dev/null; then
+  mkdir -p "$HOME/.local/bin"
+  curl -fsSL -o "$HOME/.local/bin/runpodctl" \
+    https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 \
+    && chmod +x "$HOME/.local/bin/runpodctl"
+fi
 if [ "$SELF_STOP" = "1" ]; then
   [ -n "${RUNPOD_POD_ID:-}" ] || { SELF_STOP=0; fail "RUNPOD_POD_ID unset -- cannot stop this pod when done. \
 Run on a RunPod pod, or set SELF_STOP=0 knowingly."; }
@@ -117,9 +127,16 @@ Run on a RunPod pod, or set SELF_STOP=0 knowingly."; }
 this pod, so it could not stop it either. Set SELF_STOP=0 only if someone will stop it by hand."; }
 fi
 [ "$(stat -f -c %T "$VOL" 2>/dev/null)" != "overlayfs" ] || fail "$VOL is container disk, not the network volume"
-FREE_GB=$(df -BG --output=avail "$VOL" | tail -1 | tr -dc 0-9)
-echo "volume $VOL free ${FREE_GB} GB (need ${CKPT_NEED_GB})"
-[ "$FREE_GB" -ge "$CKPT_NEED_GB" ] || fail "only ${FREE_GB} GB free on $VOL; checkpoints need ~${CKPT_NEED_GB}"
+# NOT df: on a RunPod network volume df reports the whole shared cluster (439 TB free was
+# observed), so a df check passes on a volume with 11 GB left. du counts real blocks
+# against the quota we provisioned. It walks the evaluator env, so it takes minutes, once.
+echo "measuring volume usage with du (minutes)..."
+USED_GB=$(du -s --block-size=1G "$VOL" 2>/dev/null | cut -f1)
+[ -n "$USED_GB" ] || fail "du could not measure $VOL"
+FREE_GB=$(( VOL_QUOTA_GB - USED_GB ))
+echo "volume $VOL: ${USED_GB} GB used of ${VOL_QUOTA_GB} GB, ${FREE_GB} GB free (need ${CKPT_NEED_GB})"
+[ "$FREE_GB" -ge "$CKPT_NEED_GB" ] || fail "only ${FREE_GB} GB free on $VOL (${USED_GB} of ${VOL_QUOTA_GB} used); \
+checkpoints need ~${CKPT_NEED_GB}. Grow the volume and set VOL_QUOTA_GB to its new size."
 NPROC=$(nproc)
 [ "$WORKERS" -lt "$NPROC" ] || echo "WARNING: WORKERS=$WORKERS on a $NPROC-vCPU box"
 
@@ -201,7 +218,8 @@ trainer () {   # exp-name config [extra...]; extra args follow the shared ones
       --dataset-root $ROOT --repo-id "${TASKS[@]}" --protocol \
       --assets-base-dir $ASSETS --checkpoint-base-dir "$CKPT" \
       --num-train-steps $STEPS --batch-size "$BATCH" --num-workers "$WORKERS" --seed $SEED \
-      --save-interval $SAVE_EVERY --keep-period 0 --log-interval $LOG_EVERY "$@")
+      --save-interval $SAVE_EVERY --keep-period 0 --log-interval $LOG_EVERY \
+      --lr-decay-steps $STEPS "$@")
 }
 
 # --- 3 prove both arms before either trains -----------------------------------
