@@ -225,3 +225,44 @@ def test_it_records_a_manifest_of_what_was_run():
     for key in ('"steps"', '"lambda"', '"seed"', '"data_fingerprint"', '"norm_stats_sha"',
                 '"config_a"', '"config_b"', '"gate"', '"openpi"'):
         assert key in t, key
+
+
+# --- found preparing the first real launch, 2026-09-29 --------------------------------
+
+def test_volume_free_space_is_measured_with_du_against_the_quota_not_df():
+    """On a RunPod network volume `df` reports the whole shared VAST cluster (439 TB free
+    was observed), not our quota (HANDOFF "How much room is actually left"). The df check
+    would PASS on a volume with ~11 GB free, and training would die at its first 16 GB
+    checkpoint -- possibly filling the volume that holds the evaluator env."""
+    t = text()
+    pre = t[t.index("stage 0_preflight"):t.index("stage 0_setup")]
+    code = [l for l in pre.splitlines() if not l.lstrip().startswith("#")]
+    assert not any("df " in l for l in code), "df cannot see a network volume's quota"
+    assert "du " in pre and "VOL_QUOTA_GB" in pre
+    assert re.search(r'VOL_QUOTA_GB="\$\{VOL_QUOTA_GB:-\d+\}"', t)
+
+
+def test_checkpoint_space_need_covers_the_real_peak():
+    """Peak during arm B: arm A's final + arm B's latest + one in flight, ~16 GB each."""
+    m = re.search(r'CKPT_NEED_GB="\$\{CKPT_NEED_GB:-(\d+)\}"', text())
+    assert m and int(m.group(1)) >= 48
+
+
+def test_the_lr_schedule_decays_over_the_run_that_is_actually_trained():
+    """Both arm configs use CosineDecaySchedule with a FIXED decay_steps=30_000. A 10k run
+    would end with the LR still ~80% of peak, never annealed -- both arms weaker, the
+    effect harder to see. The decay must follow STEPS."""
+    t = text()
+    body = t[t.index("trainer () {"):t.index("stage 3_check_both_arms")]
+    assert "--lr-decay-steps $STEPS" in body, "in the SHARED call, so both arms get the same schedule"
+
+
+def test_runpodctl_is_installed_before_the_pod_checks_it_can_stop_itself():
+    """The training image is a third-party desktop image with password-gated sudo; runpodctl
+    is not guaranteed on it. Install to ~/.local/bin (no sudo) before the preflight check."""
+    t = text()
+    pre = t[t.index("stage 0_preflight"):t.index("stage 0_setup")]
+    assert "command -v runpodctl" in pre
+    assert pre.index("command -v runpodctl") < pre.index("runpodctl get pod")
+    code = "\n".join(l for l in pre.splitlines() if not l.lstrip().startswith("#"))
+    assert ".local/bin" in code and "sudo" not in code

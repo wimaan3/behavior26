@@ -74,6 +74,10 @@ def main() -> int:
     ap.add_argument("--keep-period", type=int, default=None,
                     help="checkpoints at step %% N are never deleted (openpi default 5000). 0 = keep "
                          "only the latest -- at 30k steps the default keeps six ~10-16 GB checkpoints")
+    ap.add_argument("--lr-decay-steps", type=int, default=None,
+                    help="replace decay_steps on the config's LR schedule. openpi's "
+                         "CosineDecaySchedule fixes it at 30_000 whatever num_train_steps is, so a "
+                         "shorter run ends un-annealed; pass the run length")
     ap.add_argument("--check-only", action="store_true",
                     help="build and validate the complete config (roots, norm stats, model "
                          "overrides), print CONFIG_OK and exit without training")
@@ -126,6 +130,15 @@ def main() -> int:
         num_workers=a.num_workers, wandb_enabled=a.wandb, overwrite=a.overwrite,
         resume=a.resume, seed=a.seed,
     )
+    if a.lr_decay_steps is not None:
+        if not hasattr(cfg.lr_schedule, "decay_steps"):
+            print(f"FAIL: --lr-decay-steps but {type(cfg.lr_schedule).__name__} has no decay_steps")
+            return 2
+        if a.lr_decay_steps <= getattr(cfg.lr_schedule, "warmup_steps", 0):
+            print(f"FAIL: --lr-decay-steps {a.lr_decay_steps} is inside the warmup")
+            return 2
+        cfg = dataclasses.replace(cfg, lr_schedule=dataclasses.replace(
+            cfg.lr_schedule, decay_steps=a.lr_decay_steps))
     if a.keep_period is not None:
         cfg = dataclasses.replace(cfg, keep_period=a.keep_period or None)
     if a.log_term_grads:
@@ -151,6 +164,7 @@ def main() -> int:
     print(f"term_grad_norms   {getattr(cfg, 'log_loss_term_grad_norms', None)}")
     print(f"progress_head     {getattr(cfg.model, 'progress_head', None)}")
     print(f"keep_period       {getattr(cfg, 'keep_period', None)}")
+    print(f"lr_schedule       {cfg.lr_schedule}")
     if not root or not pathlib.Path(root).exists():
         print(f"FAIL: dataset_root {root!r} does not exist")
         return 2
