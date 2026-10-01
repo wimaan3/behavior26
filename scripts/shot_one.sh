@@ -22,9 +22,13 @@
 # on container disk when missing (a new pod after an interruption), and the data is
 # checked against the fingerprint the run started with.
 #
-# THE POD STOPS ITSELF: on success, on failure, on a NOGO gate, and at MAX_HOURS. Its
-# lifetime must not depend on anyone watching it -- the 2026-09-16 loader sweep was
-# lost, and billed six unattended hours, because it did.
+# THE POD CANNOT STOP ITSELF. RunPod's injected per-pod key returns 403 for get/stop/
+# terminate on its own pod (verified 2026-09-30), and an account key on the rented box is
+# forbidden. So every exit path -- success, failure, NOGO gate, health stop, hours cap --
+# writes a TERMINAL line to $RUN/STATUS, and scripts/watchdog.sh, running on the owner's
+# laptop, terminates the pod when it sees one. The pod's lifetime must not depend on
+# anyone watching: the 2026-09-16 loader sweep was lost, and billed six unattended
+# hours, because it did.
 #
 # RESUMING: re-invoke on any pod with the volume. A finished arm is skipped; an
 # unfinished one continues from its last checkpoint on the volume.
@@ -54,7 +58,6 @@ GATE_STEP="${GATE_STEP:-300}"
 GATE_MAX_MEAN_S="${GATE_MAX_MEAN_S:-4.5}"   # 3.90 s GPU-bound + 15%, fixed in analysis/stall_gate.py
 GATE_ENFORCE="${GATE_ENFORCE:-1}"           # 1 = a NOGO stops the run and the pod
 MAX_HOURS="${MAX_HOURS:-75}"                # both arms at 3.9 s/step is ~65 h; per invocation
-SELF_STOP="${SELF_STOP:-1}"                 # 1 = the pod stops itself when this script ends
 RESUME_TEST="${RESUME_TEST:-1}"             # 1 = exercise --resume once, right after arm A's first checkpoint
 MAX_RETRIES="${MAX_RETRIES:-3}"             # a trainer CRASH resumes from its checkpoint this many times
 HEALTH_CHECK_STEP="${HEALTH_CHECK_STEP:-1000}"  # analysis/health_gate.py, calibrated on the rung logs
@@ -93,42 +96,23 @@ fail  () { if [ -f "$RUN/STATUS" ]; then echo "then FAILED_AT=${CUR}: $*" >> "$R
            else status "FAILED_AT=${CUR}: $*"; fi; exit 1; }
 TSTAMP='while IFS= read -r l; do printf "%s %s\n" "$(date +%s.%N)" "$l"; done'
 
-# --- the pod stops itself, whatever happens -----------------------------------
-self_stop () {
-  [ "$SELF_STOP" = "1" ] || { echo "SELF_STOP=0: leaving the pod running"; return; }
-  sync
-  echo "stopping pod ${RUNPOD_POD_ID} $(date -u +%FT%TZ)"
-  # A pod with a network volume may refuse `stop`; everything that matters is on the
-  # volume, so fall back to terminating it rather than leave it billing.
-  runpodctl stop pod "$RUNPOD_POD_ID" || runpodctl remove pod "$RUNPOD_POD_ID"
-}
+# --- every exit leaves a TERMINAL status for the laptop watchdog --------------------
 finish () {
   local rc=$?
   kill "${SUPERVISOR:-}" 2>/dev/null
   [ -f "$RUN/STATUS" ] || status "EXITED rc=$rc"
-  echo "SHOT1_EXIT rc=$rc after $(( ($(date +%s) - T_START) / 60 )) min; status: $(cat "$RUN/STATUS")"
-  self_stop
+  echo "TERMINAL $(date -u +%FT%TZ)" >> "$RUN/STATUS"
+  sync
+  echo "SHOT1_EXIT rc=$rc after $(( ($(date +%s) - T_START) / 60 )) min; status: $(tr '\n' ' ' < "$RUN/STATUS")"
+  echo "The pod is still billing: scripts/watchdog.sh on the laptop terminates it on TERMINAL."
 }
 trap finish EXIT
 rm -f "$RUN/STATUS"
 
 # --- 0 preflight: everything that can fail cheaply, before anything expensive --
 stage 0_preflight
-# runpodctl is not guaranteed on this third-party image, and its sudo is password-gated,
-# so install to ~/.local/bin. RunPod supplies the pod-scoped key it uses; nothing here
-# writes a credential.
-if ! command -v runpodctl >/dev/null; then
-  mkdir -p "$HOME/.local/bin"
-  curl -fsSL -o "$HOME/.local/bin/runpodctl" \
-    https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64 \
-    && chmod +x "$HOME/.local/bin/runpodctl"
-fi
-if [ "$SELF_STOP" = "1" ]; then
-  [ -n "${RUNPOD_POD_ID:-}" ] || { SELF_STOP=0; fail "RUNPOD_POD_ID unset -- cannot stop this pod when done. \
-Run on a RunPod pod, or set SELF_STOP=0 knowingly."; }
-  runpodctl get pod "$RUNPOD_POD_ID" >/dev/null 2>&1 || { SELF_STOP=0; fail "runpodctl cannot see \
-this pod, so it could not stop it either. Set SELF_STOP=0 only if someone will stop it by hand."; }
-fi
+[ -n "${RUNPOD_POD_ID:-}" ] || fail "RUNPOD_POD_ID unset -- the watchdog needs to know which pod to terminate"
+echo "$RUNPOD_POD_ID" > "$RUN/pod_id"
 [ "$(stat -f -c %T "$VOL" 2>/dev/null)" != "overlayfs" ] || fail "$VOL is container disk, not the network volume"
 # NOT df: on a RunPod network volume df reports the whole shared cluster (439 TB free was
 # observed), so a df check passes on a volume with 11 GB left. du counts real blocks

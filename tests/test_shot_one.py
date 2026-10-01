@@ -163,20 +163,6 @@ def test_a_resumed_run_refuses_data_that_changed():
 
 # --- the pod stops itself --------------------------------------------------------
 
-def test_the_pod_stops_itself_on_every_exit_path():
-    t = text()
-    assert "trap finish EXIT" in t
-    fin = t[t.index("finish () {"):t.index("trap finish EXIT")]
-    assert "self_stop" in fin
-    assert "runpodctl stop pod" in t
-
-
-def test_preflight_proves_the_pod_can_stop_itself_before_spending():
-    t = text()
-    pre = t[t.index("stage 0_preflight"):t.index("stage 0_setup")]
-    assert "RUNPOD_POD_ID" in pre and "runpodctl get pod" in pre
-
-
 def test_there_is_an_hours_cap():
     t = text()
     assert re.search(r'MAX_HOURS="\$\{MAX_HOURS:-\d+\}"', t)
@@ -257,19 +243,6 @@ def test_the_lr_schedule_decays_over_the_run_that_is_actually_trained():
     assert "--lr-decay-steps $STEPS" in body, "in the SHARED call, so both arms get the same schedule"
 
 
-def test_runpodctl_is_installed_before_the_pod_checks_it_can_stop_itself():
-    """The training image is a third-party desktop image with password-gated sudo; runpodctl
-    is not guaranteed on it. Install to ~/.local/bin (no sudo) before the preflight check."""
-    t = text()
-    pre = t[t.index("stage 0_preflight"):t.index("stage 0_setup")]
-    assert "command -v runpodctl" in pre
-    assert pre.index("command -v runpodctl") < pre.index("runpodctl get pod")
-    code = "\n".join(l for l in pre.splitlines() if not l.lstrip().startswith("#"))
-    assert ".local/bin" in code and "sudo" not in code
-
-
-# --- health, resume and resilience (plan dynamic-foraging-ember, 2026-09-30) ---------
-
 def _supervisor() -> str:
     t = text()
     return t[t.index("supervise () {"):t.index("supervise & SUPERVISOR")]
@@ -336,3 +309,31 @@ def test_the_manifest_records_the_box_and_every_verdict():
     man = t[t.index("stage 6_manifest"):]
     for key in ('"vcpus"', '"gpu"', '"resume_test"', '"health_armA"', '"health_armB"', '"gate"'):
         assert key in man, key
+
+
+# --- the pod CANNOT stop itself (verified 2026-09-30) -----------------------------------
+# RunPod's injected per-pod RUNPOD_API_KEY returns 403 for get, stop and terminate on its
+# own pod (runpodctl v1.14.15 and v2.14.0 both; RunPod docs and community reports agree).
+# The only in-pod fix is an account-level key on the rented box, which the project
+# forbids. So the pod writes a TERMINAL STATUS on every exit path and a watchdog on the
+# owner's laptop (scripts/watchdog.sh) terminates it. The earlier tests here asserted the
+# pod could stop itself; they were wrong and are replaced.
+
+def test_every_exit_path_leaves_a_terminal_status_for_the_watchdog():
+    t = text()
+    assert "trap finish EXIT" in t
+    fin = t[t.index("finish () {"):t.index("trap finish EXIT")]
+    assert 'status "EXITED rc=$rc"' in fin, "an exit with no recorded reason still leaves STATUS"
+    assert "TERMINAL" in fin, "the watchdog keys on one marker, not a list of reasons"
+
+
+def test_the_runner_does_not_pretend_the_pod_can_stop_itself():
+    code = "\n".join(code_lines())
+    assert "runpodctl stop pod" not in code and "runpodctl remove pod" not in code
+    assert "runpodctl get pod" not in code, "preflight must not require a permission that does not exist"
+
+
+def test_the_runner_names_its_pod_for_the_watchdog():
+    """The watchdog terminates exactly the pod the run is on -- recorded, not guessed."""
+    t = text()
+    assert "RUNPOD_POD_ID" in t and "$RUN/pod_id" in t
