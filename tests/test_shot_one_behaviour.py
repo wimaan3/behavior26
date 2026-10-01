@@ -54,6 +54,7 @@ RUN={run}; CKPT={run}/ck; STEPS=10; WORKERS=1; MAX_RETRIES=2; SCENARIO={scenario
 TSTAMP='cat'
 nvidia-smi () {{ echo 0,0; }}
 sleep () {{ command sleep 0.05; }}
+kill_trainer () {{ :; }}
 {FAKE}
 {pre}
 {_run_arm_source()}
@@ -226,3 +227,45 @@ def test_a_run_with_no_new_step_for_too_long_is_treated_as_hung():
     assert re.search(r'STALL_MINUTES="\$\{STALL_MINUTES:-\d+\}"', t)
     sup = t[t.index("supervise () {"):t.index("supervise & SUPERVISOR")]
     assert "STALL_MINUTES" in sup and "HUNG" in sup
+
+
+def test_a_fresh_launch_that_resumes_is_verified_too(tmp_path):
+    """Shot one's relaunch after the deadlock resumes arm A on a NEW pod from the step-1000
+    checkpoint on the volume -- a stronger resume test than the in-run kill. The pending
+    verification must see it: run_arm logs the restart marker whenever it resumes while
+    the resume test is unverified, and passes --resume."""
+    run = tmp_path / "run"
+    (run / "ck" / "cfgA" / "armA" / "1000").mkdir(parents=True)
+    rc, out, run = _run_existing(run, "ok", pre=f"date > {run}/resume_test.killed")
+    log = (run / "train_armA.log").read_text()
+    assert "RESUME_TEST_RESTART" in log
+    first = [l for l in log.splitlines() if l.startswith("call 1 args:")][0]
+    assert "--resume" in first
+    assert log.index("RESUME_TEST_RESTART") < log.index("call 1 args:")
+
+
+def test_no_marker_once_the_resume_test_has_a_verdict(tmp_path):
+    run = tmp_path / "run"
+    (run / "ck" / "cfgA" / "armA" / "1000").mkdir(parents=True)
+    pre = f"date > {run}/resume_test.killed; echo 'RESUME_TEST PASS' > {run}/resume_test.txt"
+    rc, out, run = _run_existing(run, "ok", pre=pre)
+    assert "RESUME_TEST_RESTART" not in (run / "train_armA.log").read_text()
+
+
+def _run_existing(run: Path, scenario: str, pre: str = ""):
+    """Like _run, but into a RUN dir the test prepared (a checkpoint already there)."""
+    script = f'''
+set -uo pipefail
+RUN={run}; CKPT={run}/ck; STEPS=10; WORKERS=1; MAX_RETRIES=2; SCENARIO={scenario}
+TSTAMP='cat'
+nvidia-smi () {{ echo 0,0; }}
+sleep () {{ command sleep 0.05; }}
+kill_trainer () {{ :; }}
+{FAKE}
+{pre}
+{_run_arm_source()}
+run_arm armA cfgA
+echo "RC=$?"
+'''
+    p = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=60)
+    return p.returncode, p.stdout + p.stderr, run

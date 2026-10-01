@@ -362,6 +362,12 @@ run_arm () {   # name, then the arm's config + extra args
     resume=""
     [ -d "$CKPT/$1/$name" ] && resume="--resume"
     echo "--- ARM $name $* steps=$STEPS workers=$WORKERS ${resume:-fresh} attempt $attempt $(date -u +%FT%TZ)"
+    # Any resume while the resume test is unverified is evidence for it -- including a
+    # fresh launch on a NEW pod resuming from the volume's checkpoint. Mark it so the
+    # supervisor checks that the first step logged after it is >= the checkpoint step.
+    if [ -n "$resume" ] && [ -f "$RUN/resume_test.killed" ] && [ ! -f "$RUN/resume_test.txt" ]; then
+      echo "$(date +%s) === RESUME_TEST_RESTART (resuming from checkpoint; verification pending)" >> "$RUN/train_$name.log"
+    fi
     # pipefail makes the subshell exit non-zero when the trainer does, so $? is the
     # trainer's own status, not the timestamper's. A failed run must not read as done.
     ( trainer "$name" "$@" $resume 2>&1 | eval "$TSTAMP" ) >> "$RUN/train_$name.log"
