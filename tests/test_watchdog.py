@@ -25,16 +25,21 @@ pytestmark = pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash
 
 
 def _env(tmp: Path, status: str, pod_exists: bool = True, deadline_in: int = 3600,
-         key_mode: int = 0o600, loops: int = 1, age: int = 60) -> dict:
+         key_mode: int = 0o600, loops: int = 1, age: int = 60, echo_noise: bool = False) -> dict:
     bin_ = tmp / "bin"
     bin_.mkdir()
-    # fake ssh: prints what a PTY session would, including the STATUS content
+    # fake ssh: reproduces RunPod's PTY proxy as observed on 2026-10-01 -- it ECHOES every
+    # command it is sent, wraps prompts in escape codes, and prints real output between the
+    # markers. `echo_noise` injects an echoed line containing TERMINAL before the markers:
+    # the watchdog must never act on echoed text.
+    status_lines = "\n".join(f"STATUS: {l}" for l in status.splitlines() if l)
     (bin_ / "ssh").write_text(f'''#!/usr/bin/env bash
-cat > /dev/null
-echo "__RPSTART__"
-printf '%s\\n' "{status}"
-echo "LOGAGE {age}"
-echo "__RPEND__"
+while IFS= read -r line; do printf '\\033[?2004h\\033]0;ubuntu@pod: ~\\007ubuntu@pod:~$ %s\\r\\n' "$line"; done
+{"echo 'echo TERMINAL decoy from an echoed command'" if echo_noise else ""}
+printf '\\033[?2004l__WDSTART__\\r\\n'
+printf '%s\\n' "{status_lines}"
+printf '\\033[?2004lLOGAGE {age}\\r\\n'
+echo "__WDEND__"
 ''')
     # fake runpodctl: records argv and whether the key arrived via env (never via argv)
     (bin_ / "runpodctl").write_text(f'''#!/usr/bin/env bash
@@ -138,3 +143,24 @@ def test_the_age_line_is_not_mistaken_for_status(tmp_path):
     _run(_env(tmp_path, "", age=60))
     log = (tmp_path / "wd.log").read_text()
     assert "LOGAGE" not in [l.split("ok: ")[-1].split()[0] for l in log.splitlines() if "ok: " in l]
+
+
+# --- PTY noise (found by `check` against the real pod, 2026-10-01) ------------------------
+
+def test_echoed_command_text_never_triggers_a_termination(tmp_path):
+    _run(_env(tmp_path, "", echo_noise=True, loops=2))
+    assert "pod delete" not in _calls(tmp_path)
+
+
+def test_the_age_is_read_through_escape_codes(tmp_path):
+    """The real proxy prefixed lines with escape codes; an anchored match then read the age
+    as blank and the silence backstop was quietly off."""
+    _run(_env(tmp_path, "", age=100 * 60))
+    assert "argv: pod delete POD" in _calls(tmp_path)
+
+
+def test_check_mode_reports_clean_status_not_terminal_noise(tmp_path):
+    p = _run(_env(tmp_path, "running fine"), "check")
+    log = (tmp_path / "wd.log").read_text()
+    assert "STATUS = running fine" in log, log
+    assert "stty" not in log and "\x1b" not in log

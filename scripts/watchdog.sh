@@ -52,16 +52,23 @@ pod_state () {
   return 2
 }
 
-# RunPod's SSH proxy refuses exec and forces a PTY, so commands go over stdin and the
-# answer is cut out between markers.
+# RunPod's SSH proxy refuses exec and forces a PTY that ECHOES every command and wraps
+# prompts in escape codes (seen in `check` against the real pod, 2026-10-01). So: the
+# markers are assembled at runtime from two halves (the echoed command text never contains
+# them), escape codes are stripped, and only lines tagged "STATUS: " or "LOGAGE <n>" count.
+# Echoed text can therefore never read as a verdict, and the age survives prompt noise.
 read_status () {
-  { printf '%s\n' 'stty -echo 2>/dev/null; PS1=""; echo __RPSTART__' \
-      "cat $RUN/STATUS 2>/dev/null" \
+  { printf '%s\n' 'stty -echo 2>/dev/null; PS1=""' \
+      "printf '%s%s\\n' __WD START__" \
+      "sed 's/^/STATUS: /' $RUN/STATUS 2>/dev/null" \
       "f=\$(ls -t $RUN/train_arm*.log 2>/dev/null | head -1); [ -n \"\$f\" ] && echo LOGAGE \$(( \$(date +%s) - \$(stat -c %Y \"\$f\") ))" \
-      'echo __RPEND__' 'exit'; } \
+      "printf '%s%s\\n' __WD END__" 'exit'; } \
     | timeout 90 ssh -tt -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 \
         -o ServerAliveInterval=15 -i "$SSH_KEY" "$SSH_USER@ssh.runpod.io" 2>/dev/null \
-    | tr -d '\r' | sed -n '/__RPSTART__/,/__RPEND__/p' | sed '1d;$d' | grep -v '^cat \|^echo __\|^f='
+    | tr -d '\r' \
+    | sed -e 's/\x1b\][^\x07]*\x07//g' -e 's/\x1b\[[0-9;?]*[a-zA-Z]//g' \
+    | sed -n '/^__WDSTART__$/,/^__WDEND__$/p' \
+    | grep -E '^(STATUS: |LOGAGE [0-9]+$)'
 }
 
 terminate () {
@@ -82,7 +89,7 @@ if [ "$MODE" = "check" ]; then
     *) log "check: could not reach the API with this key"; exit 1 ;;
   esac
   raw=$(read_status)
-  st=$(echo "$raw" | grep -v '^LOGAGE '); age=$(echo "$raw" | sed -n 's/^LOGAGE \([0-9]*\)$/\1/p' | tail -1)
+  st=$(echo "$raw" | sed -n 's/^STATUS: //p'); age=$(echo "$raw" | sed -n 's/^LOGAGE \([0-9]*\)$/\1/p' | tail -1)
   log "check: STATUS = ${st:-<none yet: run in progress>}; last training output ${age:-?} s ago"
   log "check: deadline $(date -u -d "@$DEADLINE_EPOCH" +%FT%TZ)"
   exit 0
@@ -95,7 +102,7 @@ while :; do
   if [ "$ps" -eq 1 ]; then log "pod $POD_ID is gone; nothing left to watch"; exit 0; fi
   raw=$(read_status)
   age=$(echo "$raw" | sed -n 's/^LOGAGE \([0-9]*\)$/\1/p' | tail -1)
-  st=$(echo "$raw" | grep -v '^LOGAGE ')
+  st=$(echo "$raw" | sed -n 's/^STATUS: //p')
   if echo "$st" | grep -q "TERMINAL"; then
     terminate "run ended: $(echo "$st" | head -1)" && exit 0
   elif [ "$(date +%s)" -ge "$DEADLINE_EPOCH" ]; then
