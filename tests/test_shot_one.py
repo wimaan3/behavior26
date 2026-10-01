@@ -257,7 +257,9 @@ def test_the_supervisor_runs_the_tested_health_gate_on_both_arms_and_it_can_stop
     sup = _supervisor()
     assert "analysis.health_gate" in sup
     assert "for arm in A B" in sup and "--arm $arm" in sup
-    assert "HEALTH_FAIL" in sup and "pkill -f train_b1k_rooted.py" in sup
+    # by process GROUP: killing the python by name left its workers holding the log pipe
+    # (the 14.5 h deadlock of 2026-10-01; see test_shot_one_behaviour.py)
+    assert "HEALTH_FAIL" in sup and "kill_trainer" in sup
 
 
 def test_the_resume_path_is_exercised_once_before_it_is_depended_on():

@@ -139,3 +139,90 @@ def test_the_resume_check_catches_a_restart_from_zero(tmp_path):
 def test_the_resume_check_waits_while_nothing_is_logged_after_the_restart(tmp_path):
     log = "1.0 \r\rStep 1003: action_loss=0.2\n1.2 === RESUME_TEST_RESTART\n1.3 loading model\n"
     assert _first_step_after_marker(tmp_path, log) == ""
+
+
+# --- the 14.5-hour deadlock of 2026-10-01 ---------------------------------------------
+# The resume test SIGTERM'd the trainer python. Its multiprocessing helpers (dataloader
+# workers, resource_tracker) survived, were re-parented to init, and kept the trainer's
+# stdout pipe open. The timestamping `while read` never saw EOF, run_arm never reached its
+# retry, and the pod idled for 14.5 h. The fake trainer above has no children, so it could
+# not catch this. These tests use a trainer that DOES spawn a child holding the pipe.
+
+def _fn(name: str) -> str:
+    start = SHOT.index(f"{name} () {{")
+    depth, i = 0, SHOT.index("{", start)
+    while True:
+        if SHOT[i] == "{":
+            depth += 1
+        elif SHOT[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return SHOT[start:i + 1]
+        i += 1
+
+
+def _pipeline_script(tmp: Path, then: str) -> str:
+    """The REAL trainer() with $PY replaced by a stub that spawns a long-lived child (as
+    the dataloader does) and then waits -- run through the same timestamp pipe as run_arm."""
+    stub = tmp / "fakepy"
+    stub.write_text("#!/usr/bin/env bash\nsleep 300 &\necho 'Step 1: action_loss=0.5'\nsleep 300\n")
+    stub.chmod(0o755)
+    (tmp / "b26" / "scripts").mkdir(parents=True)
+    return f'''
+set -uo pipefail
+RUN={tmp}; B26={tmp}/b26; PY={stub}; ROOT=r; ASSETS=a; CKPT=c; STEPS=10; BATCH=1; WORKERS=1
+SEED=0; SAVE_EVERY=5; LOG_EVERY=1; TASKS=(t); TSTAMP='while IFS= read -r l; do echo "$l"; done'
+{_fn("trainer")}
+{_fn("kill_trainer")}
+{_fn("reap_orphans") if "reap_orphans () {" in SHOT else ""}
+( trainer armA cfgA 2>&1 | eval "$TSTAMP" ) > {tmp}/out.log &
+PIPE=$!
+for i in $(seq 1 50); do [ -s {tmp}/trainer.pgid ] && grep -q "Step 1" {tmp}/out.log && break; sleep 0.1; done
+{then}
+for i in $(seq 1 100); do kill -0 $PIPE 2>/dev/null || {{ echo PIPELINE_ENDED; exit 0; }}; sleep 0.1; done
+echo PIPELINE_HUNG; kill -KILL -- -$(cat {tmp}/trainer.pgid) 2>/dev/null; exit 1
+'''
+
+
+def test_the_trainer_runs_as_its_own_process_group(tmp_path):
+    t = _fn("trainer")
+    assert 'echo $BASHPID > "$RUN/trainer.pgid"' in t and "exec setsid" in t
+
+
+def test_killing_the_trainer_takes_its_children_and_frees_the_pipe(tmp_path):
+    p = subprocess.run(["bash", "-c", _pipeline_script(tmp_path, "kill_trainer")],
+                       capture_output=True, text=True, timeout=60)
+    assert "PIPELINE_ENDED" in p.stdout, p.stdout + p.stderr
+
+
+def test_killing_only_the_leader_reproduces_the_deadlock(tmp_path):
+    """The control: what the old supervisor did (kill the python alone) leaves the child
+    holding the pipe, and the pipeline hangs. If this ever passes, the test above is not
+    testing anything."""
+    p = subprocess.run(["bash", "-c", _pipeline_script(tmp_path, 'kill -TERM $(cat ' + str(tmp_path) + '/trainer.pgid)')],
+                       capture_output=True, text=True, timeout=60)
+    assert "PIPELINE_HUNG" in p.stdout, p.stdout + p.stderr
+
+
+def test_orphans_of_a_trainer_that_died_on_its_own_are_reaped(tmp_path):
+    """A crash, not a kill: the leader exits, its child keeps the pipe. reap_orphans must
+    see a dead leader with live group members and kill the group."""
+    then = 'kill -KILL $(cat ' + str(tmp_path) + '/trainer.pgid); sleep 0.3; ORPHAN_GRACE_LOOPS=1; reap_orphans; reap_orphans'
+    p = subprocess.run(["bash", "-c", _pipeline_script(tmp_path, then)],
+                       capture_output=True, text=True, timeout=60)
+    assert "PIPELINE_ENDED" in p.stdout, p.stdout + p.stderr
+
+
+def test_the_supervisor_kills_by_group_everywhere_and_never_by_name():
+    sup = SHOT[SHOT.index("supervise () {"):SHOT.index("supervise & SUPERVISOR")]
+    code = "\n".join(l for l in sup.splitlines() if not l.lstrip().startswith("#"))
+    assert "pkill -f train_b1k_rooted.py" not in code
+    assert code.count("kill_trainer") >= 4, "cap, gate, health, resume test, stall"
+    assert "reap_orphans" in code
+
+
+def test_a_run_with_no_new_step_for_too_long_is_treated_as_hung():
+    t = SHOT
+    assert re.search(r'STALL_MINUTES="\$\{STALL_MINUTES:-\d+\}"', t)
+    sup = t[t.index("supervise () {"):t.index("supervise & SUPERVISOR")]
+    assert "STALL_MINUTES" in sup and "HUNG" in sup

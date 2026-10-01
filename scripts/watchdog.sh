@@ -24,6 +24,9 @@ DEADLINE_EPOCH="${DEADLINE_EPOCH:?set DEADLINE_EPOCH (unix time): the hard backs
 RUN="${RUN:-/workspace/shot1}"
 KEY_FILE="${KEY_FILE:-$HOME/.runpod/watchdog.key}"
 INTERVAL="${INTERVAL:-300}"
+# The pod's supervisor kills a hung trainer after 30 min of silence and resumes it. If the
+# run has been silent for 3x that, the supervisor itself is gone: stop the billing.
+STALL_MIN="${STALL_MIN:-90}"
 MAX_LOOPS="${MAX_LOOPS:-0}"                      # 0 = forever (tests set a bound)
 LOG="${LOG:-$HOME/.runpod/watchdog-$POD_ID.log}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519}"
@@ -53,10 +56,12 @@ pod_state () {
 # answer is cut out between markers.
 read_status () {
   { printf '%s\n' 'stty -echo 2>/dev/null; PS1=""; echo __RPSTART__' \
-      "cat $RUN/STATUS 2>/dev/null" 'echo __RPEND__' 'exit'; } \
+      "cat $RUN/STATUS 2>/dev/null" \
+      "f=\$(ls -t $RUN/train_arm*.log 2>/dev/null | head -1); [ -n \"\$f\" ] && echo LOGAGE \$(( \$(date +%s) - \$(stat -c %Y \"\$f\") ))" \
+      'echo __RPEND__' 'exit'; } \
     | timeout 90 ssh -tt -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 \
         -o ServerAliveInterval=15 -i "$SSH_KEY" "$SSH_USER@ssh.runpod.io" 2>/dev/null \
-    | tr -d '\r' | sed -n '/__RPSTART__/,/__RPEND__/p' | sed '1d;$d' | grep -v '^cat \|^echo __'
+    | tr -d '\r' | sed -n '/__RPSTART__/,/__RPEND__/p' | sed '1d;$d' | grep -v '^cat \|^echo __\|^f='
 }
 
 terminate () {
@@ -76,8 +81,9 @@ if [ "$MODE" = "check" ]; then
     1) log "check: pod $POD_ID is gone"; exit 1 ;;
     *) log "check: could not reach the API with this key"; exit 1 ;;
   esac
-  st=$(read_status)
-  log "check: STATUS = ${st:-<none yet: run in progress>}"
+  raw=$(read_status)
+  st=$(echo "$raw" | grep -v '^LOGAGE '); age=$(echo "$raw" | sed -n 's/^LOGAGE \([0-9]*\)$/\1/p' | tail -1)
+  log "check: STATUS = ${st:-<none yet: run in progress>}; last training output ${age:-?} s ago"
   log "check: deadline $(date -u -d "@$DEADLINE_EPOCH" +%FT%TZ)"
   exit 0
 fi
@@ -87,13 +93,17 @@ n=0
 while :; do
   pod_state; ps=$?
   if [ "$ps" -eq 1 ]; then log "pod $POD_ID is gone; nothing left to watch"; exit 0; fi
-  st=$(read_status)
+  raw=$(read_status)
+  age=$(echo "$raw" | sed -n 's/^LOGAGE \([0-9]*\)$/\1/p' | tail -1)
+  st=$(echo "$raw" | grep -v '^LOGAGE ')
   if echo "$st" | grep -q "TERMINAL"; then
     terminate "run ended: $(echo "$st" | head -1)" && exit 0
   elif [ "$(date +%s)" -ge "$DEADLINE_EPOCH" ]; then
     terminate "deadline backstop reached (STATUS: ${st:-none})" && exit 0
+  elif [ -n "$age" ] && [ "$age" -ge $(( STALL_MIN * 60 )) ]; then
+    terminate "run silent for $(( age / 60 )) min (> ${STALL_MIN}); the pod's own supervisor should have acted at 30" && exit 0
   else
-    log "ok: ${st:-running}"
+    log "ok: ${st:-running}; last output ${age:-?} s ago"
   fi
   n=$(( n + 1 ))
   [ "$MAX_LOOPS" -gt 0 ] && [ "$n" -ge "$MAX_LOOPS" ] && exit 0
