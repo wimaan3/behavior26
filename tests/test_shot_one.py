@@ -293,8 +293,9 @@ def test_the_restart_marker_is_written_before_the_resumed_trainer_logs_anything(
     """The supervisor verifies the resume by the first step logged AFTER the marker, so
     the marker must be written and then `continue` straight into the next attempt."""
     arm = _run_arm()
-    i = arm.index("RESUME_TEST_RESTART")
-    after = arm[i:].splitlines()[1].strip()
+    kill_branch = arm[arm.index('touch "$RUN/resume_test.restarted"'):]
+    i = kill_branch.index("RESUME_TEST_RESTART")
+    after = kill_branch[i:].splitlines()[1].strip()
     assert after == "continue", after
 
 
