@@ -337,3 +337,32 @@ def test_the_runner_names_its_pod_for_the_watchdog():
     """The watchdog terminates exactly the pod the run is on -- recorded, not guessed."""
     t = text()
     assert "RUNPOD_POD_ID" in t and "$RUN/pod_id" in t
+
+
+# --- the depth streams (measured 2026-10-01: 4.09 s/sample with them, 1.03 s without) ---
+
+def test_depth_streams_are_dropped_for_every_task_before_the_fingerprint():
+    t = text()
+    stage = t[t.index("stage 1_data"):t.index("stage 2_norm_stats")]
+    assert "drop_video_streams.py" in stage
+    build_loop_end = stage.index("done")              # the build loop skips prebuilt tasks...
+    assert stage.index("drop_video_streams.py") > build_loop_end, \
+        "...so the drop must run in its own loop, for prebuilt tasks too"
+    assert stage.index("drop_video_streams.py") < stage.index("data fingerprint")
+
+
+def test_the_real_dataset_is_checked_to_carry_exactly_the_streams_the_model_reads():
+    """On the pod, after the drop: LeRobot's video_keys must equal the three RGB keys the
+    b1k robot config maps, and one sample must load."""
+    t = text()
+    stage = t[t.index("stage 1_data"):t.index("stage 2_norm_stats")]
+    for k in ("observation.rgb.zed_link_camera_0", "observation.rgb.left_realsense_link_camera_0",
+              "observation.rgb.right_realsense_link_camera_0"):
+        assert k in stage
+    assert "video_keys" in stage and "STREAMS_OK" in stage
+
+
+def test_a_signal_kill_is_recorded_as_killed_not_as_success():
+    """Attempt 1 was stopped with SIGTERM and recorded `EXITED rc=0`, which reads as success."""
+    t = text()
+    assert re.search(r"trap .*KILLED.* TERM", t)

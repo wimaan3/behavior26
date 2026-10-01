@@ -107,6 +107,8 @@ finish () {
   echo "The pod is still billing: scripts/watchdog.sh on the laptop terminates it on TERMINAL."
 }
 trap finish EXIT
+# A signal must not read as success: attempt 1, stopped with SIGTERM, recorded "EXITED rc=0".
+trap '[ -f "$RUN/STATUS" ] || status "KILLED by signal"; exit 143' TERM INT HUP
 rm -f "$RUN/STATUS"
 
 # --- 0 preflight: everything that can fail cheaply, before anything expensive --
@@ -168,6 +170,30 @@ for T in "${TASKS[@]}"; do
       --drop-unlabelled 2>&1 | grep -E "dropped|compacted|FAIL" | tail -3
   [ -f "$ROOT/$T/meta/progress_filter.json" ] || fail "merge $T"
 done
+# Drop the depth streams the model never reads -- for EVERY task, including ones built on
+# an earlier attempt. LeRobot decodes every video feature in info.json for every sample;
+# measured 2026-10-01 on 15 real samples: 4.09 s/sample with all six streams, 1.03 s with
+# the three RGB ones. That decode cost WAS the training stall.
+for T in "${TASKS[@]}"; do
+  $PY $B26/scripts/drop_video_streams.py --root "$ROOT/$T" || fail "drop depth streams for $T"
+done
+# Prove it on the real data: the streams LeRobot will decode are exactly the three the b1k
+# robot config maps (openpi src/openpi/configs/robots/b1k.py), and a sample still loads.
+(cd $B26 && $PY - "$ROOT" "${TASKS[@]}" <<'PYEOF') || fail "dataset streams check"
+import sys
+from openpi.training import lerobot_compat as lc
+root, tasks = sys.argv[1], sys.argv[2:]
+want = {"observation.rgb.zed_link_camera_0", "observation.rgb.left_realsense_link_camera_0",
+        "observation.rgb.right_realsense_link_camera_0"}
+for t in tasks:
+    ds = lc.LeRobotDataset(repo_id=t, root=f"{root}/{t}", video_backend="pyav", tolerance_s=5e-4)
+    got = set(ds.meta.video_keys)
+    assert got == want, f"{t}: video_keys {sorted(got)} != {sorted(want)}"
+    item = ds[len(ds) // 2]
+    assert all(k in item for k in want), f"{t}: a decoded sample lacks an RGB stream"
+    print(f"STREAMS_OK {t}: {sorted(got)}")
+PYEOF
+
 # The fingerprint of what was kept. A resumed run on a new pod must train on exactly
 # the data the checkpoint was trained on.
 FP=$(for T in "${TASKS[@]}"; do sha256sum "$ROOT/$T/meta/progress_filter.json" | cut -c1-16; done | tr '\n' ' ')
