@@ -266,3 +266,73 @@ def test_runpodctl_is_installed_before_the_pod_checks_it_can_stop_itself():
     assert pre.index("command -v runpodctl") < pre.index("runpodctl get pod")
     code = "\n".join(l for l in pre.splitlines() if not l.lstrip().startswith("#"))
     assert ".local/bin" in code and "sudo" not in code
+
+
+# --- health, resume and resilience (plan dynamic-foraging-ember, 2026-09-30) ---------
+
+def _supervisor() -> str:
+    t = text()
+    return t[t.index("supervise () {"):t.index("supervise & SUPERVISOR")]
+
+
+def _run_arm() -> str:
+    t = text()
+    return t[t.index("run_arm () {"):t.index("stage 4_arm_A")]
+
+
+def test_the_supervisor_runs_the_tested_health_gate_on_both_arms_and_it_can_stop_the_run():
+    sup = _supervisor()
+    assert "analysis.health_gate" in sup
+    assert "for arm in A B" in sup and "--arm $arm" in sup
+    assert "HEALTH_FAIL" in sup and "pkill -f train_b1k_rooted.py" in sup
+
+
+def test_the_resume_path_is_exercised_once_before_it_is_depended_on():
+    """A 23-65 h run depends on --resume, which had never run. The supervisor kills
+    the trainer once, right after arm A's first checkpoint is FINALISED (orbax writes to a
+    tmp dir and renames it; killing mid-save could corrupt it). The restart's first logged
+    step must be >= that checkpoint's step, or the run stops: resume is broken."""
+    t, sup = text(), _supervisor()
+    assert re.search(r'RESUME_TEST="\$\{RESUME_TEST:-1\}"', t), "on by default"
+    assert "orbax-checkpoint-tmp" in sup, "wait for the checkpoint to be finalised"
+    assert "resume_test.killed" in sup
+    assert "RESUME_TEST_RESTART" in sup and "RESUME_BROKEN" in sup
+
+
+def test_a_crash_resumes_automatically_but_a_supervisor_stop_does_not():
+    arm = _run_arm()
+    assert re.search(r'MAX_RETRIES="\$\{MAX_RETRIES:-\d+\}"', text())
+    assert "while" in arm, "retry loop"
+    assert '[ -f "$RUN/STATUS" ]' in arm, "a deliberate stop (cap, gate, health) must not be retried"
+    assert "AUTO_RESUME" in arm
+
+
+def test_resume_is_decided_per_attempt_not_once():
+    """The first attempt starts fresh; every retry must see the checkpoint dir."""
+    arm = _run_arm()
+    loop = arm[arm.index("while"):]
+    assert "--resume" in loop
+
+
+def test_the_restart_marker_is_written_before_the_resumed_trainer_logs_anything():
+    """The supervisor verifies the resume by the first step logged AFTER the marker, so
+    the marker must be written and then `continue` straight into the next attempt."""
+    arm = _run_arm()
+    i = arm.index("RESUME_TEST_RESTART")
+    after = arm[i:].splitlines()[1].strip()
+    assert after == "continue", after
+
+
+def test_worker_count_follows_the_box():
+    """24 workers is the prediction; on a smaller box, oversubscribing the vCPUs would
+    make the loader slower, not faster. Auto = min(24, nproc - 3)."""
+    t = text()
+    assert re.search(r'WORKERS="\$\{WORKERS:-auto\}"', t)
+    assert "nproc" in t and "- 3" in t
+
+
+def test_the_manifest_records_the_box_and_every_verdict():
+    t = text()
+    man = t[t.index("stage 6_manifest"):]
+    for key in ('"vcpus"', '"gpu"', '"resume_test"', '"health_armA"', '"health_armB"', '"gate"'):
+        assert key in man, key

@@ -41,7 +41,7 @@ STEPS="${STEPS:-30000}"
 LAMBDA="${LAMBDA:-0.15}"
 SEED="${SEED:-42}"            # TrainConfig's own default; both arms share it
 BATCH="${BATCH:-32}"
-WORKERS="${WORKERS:-24}"      # rung 4's 8 stalled; see the gate below
+WORKERS="${WORKERS:-auto}"    # auto = min(24, nproc - 3); rung 4's 8 stalled, see the gate below
 SAVE_EVERY="${SAVE_EVERY:-1000}"
 LOG_EVERY="${LOG_EVERY:-1}"   # what rung 4 measured with; lets rung_report.stalls() read the run
 TASKS_CSV="${TASKS_CSV:-set_up_a_coffee_station_in_your_kitchen,putting_shoes_on_rack}"
@@ -55,6 +55,9 @@ GATE_MAX_MEAN_S="${GATE_MAX_MEAN_S:-4.5}"   # 3.90 s GPU-bound + 15%, fixed in a
 GATE_ENFORCE="${GATE_ENFORCE:-1}"           # 1 = a NOGO stops the run and the pod
 MAX_HOURS="${MAX_HOURS:-75}"                # both arms at 3.9 s/step is ~65 h; per invocation
 SELF_STOP="${SELF_STOP:-1}"                 # 1 = the pod stops itself when this script ends
+RESUME_TEST="${RESUME_TEST:-1}"             # 1 = exercise --resume once, right after arm A's first checkpoint
+MAX_RETRIES="${MAX_RETRIES:-3}"             # a trainer CRASH resumes from its checkpoint this many times
+HEALTH_CHECK_STEP="${HEALTH_CHECK_STEP:-1000}"  # analysis/health_gate.py, calibrated on the rung logs
 CKPT_NEED_GB="${CKPT_NEED_GB:-50}"          # peak: arm A final + arm B latest + one in flight, ~16 GB each
 VOL_QUOTA_GB="${VOL_QUOTA_GB:-150}"         # the volume's provisioned size; the API reports it, df cannot
 
@@ -138,7 +141,12 @@ echo "volume $VOL: ${USED_GB} GB used of ${VOL_QUOTA_GB} GB, ${FREE_GB} GB free 
 [ "$FREE_GB" -ge "$CKPT_NEED_GB" ] || fail "only ${FREE_GB} GB free on $VOL (${USED_GB} of ${VOL_QUOTA_GB} used); \
 checkpoints need ~${CKPT_NEED_GB}. Grow the volume and set VOL_QUOTA_GB to its new size."
 NPROC=$(nproc)
+# 24 is the loader-fix prediction; on a smaller box, oversubscribing the vCPUs makes the
+# loader slower, not faster, so leave 3 for the trainer process and the supervisor.
+if [ "$WORKERS" = "auto" ]; then WORKERS=$(( NPROC - 3 < 24 ? NPROC - 3 : 24 )); fi
+echo "vCPUs $NPROC -> $WORKERS dataloader workers"
 [ "$WORKERS" -lt "$NPROC" ] || echo "WARNING: WORKERS=$WORKERS on a $NPROC-vCPU box"
+GPU_NAME=$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null | head -1)
 
 stage 0_setup
 command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1
@@ -233,20 +241,56 @@ grep -E "^(config|progress_head|progress_key|progress_weight|norm_stats loaded)"
 # --- supervisor: the hours cap and the step-GATE_STEP loader gate ------------------
 supervise () {
   local deadline=$(( T_START + MAX_HOURS * 3600 ))
+  local ckA="$CKPT/$CFG_A/armA"
   while sleep 60; do
     if [ "$(date +%s)" -ge "$deadline" ]; then
       status "CAP_HIT after ${MAX_HOURS} h"; pkill -f train_b1k_rooted.py; return
     fi
+    # speed: the step-GATE_STEP loader gate, arm A only
     if [ ! -f "$RUN/gate.txt" ] && [ -f "$RUN/train_armA.log" ]; then
       (cd $B26 && $PY -m analysis.stall_gate "$RUN/train_armA.log" --gate-step $GATE_STEP \
           --max-mean-s $GATE_MAX_MEAN_S) > "$RUN/gate.try" 2>&1
       case $? in
-        0) mv "$RUN/gate.try" "$RUN/gate.txt"; echo "$(cat "$RUN/gate.txt")" ;;
-        1) mv "$RUN/gate.try" "$RUN/gate.txt"; echo "$(cat "$RUN/gate.txt")"
+        0) mv "$RUN/gate.try" "$RUN/gate.txt"; cat "$RUN/gate.txt" ;;
+        1) mv "$RUN/gate.try" "$RUN/gate.txt"; cat "$RUN/gate.txt"
            if [ "$GATE_ENFORCE" = "1" ]; then
              status "GATE_NOGO $(cat "$RUN/gate.txt")"; pkill -f train_b1k_rooted.py; return
            fi ;;
       esac
+    fi
+    # health: NaN at any time; loss falling (and Branch 0 for arm B) at HEALTH_CHECK_STEP
+    local arm
+    for arm in A B; do
+      [ -f "$RUN/train_arm$arm.log" ] || continue
+      [ -f "$RUN/arm$arm.done" ] && continue
+      (cd $B26 && $PY -m analysis.health_gate "$RUN/train_arm$arm.log" --arm $arm \
+          --check-step $HEALTH_CHECK_STEP) > "$RUN/health.try" 2>&1
+      case $? in
+        0) [ -f "$RUN/health_arm$arm.txt" ] || { mv "$RUN/health.try" "$RUN/health_arm$arm.txt"; cat "$RUN/health_arm$arm.txt"; } ;;
+        1) mv "$RUN/health.try" "$RUN/health_arm$arm.txt"; cat "$RUN/health_arm$arm.txt"
+           status "HEALTH_FAIL $(cat "$RUN/health_arm$arm.txt")"; pkill -f train_b1k_rooted.py; return ;;
+      esac
+    done
+    # resume: exercise it ONCE, right after arm A's first checkpoint is finalised.
+    # orbax writes into a *.orbax-checkpoint-tmp-* dir and renames it when complete;
+    # killing mid-save could corrupt the only checkpoint.
+    if [ "$RESUME_TEST" = "1" ] && [ ! -f "$RUN/resume_test.killed" ] && [ -d "$ckA/$SAVE_EVERY" ] \
+       && ! ls -d "$ckA"/*orbax-checkpoint-tmp* >/dev/null 2>&1; then
+      echo "RESUME_TEST: checkpoint $SAVE_EVERY finalised; killing the trainer once $(date -u +%FT%TZ)"
+      date -u +%FT%TZ > "$RUN/resume_test.killed"; pkill -f train_b1k_rooted.py
+    fi
+    if [ -f "$RUN/resume_test.killed" ] && [ ! -f "$RUN/resume_test.txt" ] && [ -f "$RUN/train_armA.log" ]; then
+      local first
+      first=$(tr '\r' '\n' < "$RUN/train_armA.log" | awk '/RESUME_TEST_RESTART/{f=1; next}
+              f && match($0, /Step [0-9]+:/) {print substr($0, RSTART+5, RLENGTH-6); exit}')
+      if [ -n "$first" ]; then
+        if [ "$first" -ge "$SAVE_EVERY" ]; then
+          echo "RESUME_TEST PASS: restarted at step $first (checkpoint $SAVE_EVERY)" | tee "$RUN/resume_test.txt"
+        else
+          echo "RESUME_TEST FAIL: restarted at step $first, not from checkpoint $SAVE_EVERY" | tee "$RUN/resume_test.txt"
+          status "RESUME_BROKEN $(cat "$RUN/resume_test.txt")"; pkill -f train_b1k_rooted.py; return
+        fi
+      fi
     fi
   done
 }
@@ -256,18 +300,34 @@ supervise & SUPERVISOR=$!
 run_arm () {   # name, then the arm's config + extra args
   local name="$1"; shift
   if [ -f "$RUN/$name.done" ]; then echo "ALREADY_DONE $name ($(cat "$RUN/$name.done"))"; return 0; fi
-  local resume=""
-  [ -d "$CKPT/$1/$name" ] && resume="--resume"
-  echo "--- ARM $name $* steps=$STEPS workers=$WORKERS ${resume:-fresh} $(date -u +%FT%TZ)"
   ( while :; do echo "$(date +%s),$(nvidia-smi --query-gpu=utilization.gpu,memory.used \
       --format=csv,noheader,nounits | tr -d ' ')" >> "$RUN/gpu_$name.csv"; sleep 30; done ) &
-  local sampler=$!
-  # pipefail makes the subshell exit non-zero when the trainer does, so $? is the
-  # trainer's own status, not the timestamper's. A failed run must not read as done.
-  ( trainer "$name" "$@" $resume 2>&1 | eval "$TSTAMP" ) >> "$RUN/train_$name.log"
-  local rc=$?
+  local sampler=$! attempt=0 rc=1 resume
+  while :; do
+    # Decided per attempt: the first starts fresh; a retry sees the checkpoint dir (openpi
+    # starts fresh itself if the dir holds no checkpoint yet).
+    resume=""
+    [ -d "$CKPT/$1/$name" ] && resume="--resume"
+    echo "--- ARM $name $* steps=$STEPS workers=$WORKERS ${resume:-fresh} attempt $attempt $(date -u +%FT%TZ)"
+    # pipefail makes the subshell exit non-zero when the trainer does, so $? is the
+    # trainer's own status, not the timestamper's. A failed run must not read as done.
+    ( trainer "$name" "$@" $resume 2>&1 | eval "$TSTAMP" ) >> "$RUN/train_$name.log"
+    rc=$?
+    echo "ARM_${name}_RC=$rc last $(tr '\r' '\n' < "$RUN/train_$name.log" | grep -o 'Step [0-9]*' | tail -1)"
+    [ "$rc" -eq 0 ] && break
+    # A deliberate stop (cap, gate, health, broken resume) wrote STATUS first: never retry it.
+    [ -f "$RUN/STATUS" ] && break
+    if [ -f "$RUN/resume_test.killed" ] && [ ! -f "$RUN/resume_test.restarted" ]; then
+      touch "$RUN/resume_test.restarted"
+      echo "$(date +%s) === RESUME_TEST_RESTART (deliberate kill; resuming from checkpoint)" >> "$RUN/train_$name.log"
+      continue
+    fi
+    attempt=$(( attempt + 1 ))
+    [ "$attempt" -le "$MAX_RETRIES" ] || break
+    echo "$(date +%s) === AUTO_RESUME attempt $attempt/$MAX_RETRIES after rc=$rc" >> "$RUN/train_$name.log"
+    sleep 30
+  done
   kill $sampler 2>/dev/null; wait $sampler 2>/dev/null
-  echo "ARM_${name}_RC=$rc last $(tr '\r' '\n' < "$RUN/train_$name.log" | grep -o 'Step [0-9]*' | tail -1)"
   [ "$rc" -eq 0 ] || return 1
   date -u +%FT%TZ > "$RUN/$name.done"
 }
@@ -287,6 +347,11 @@ cat > "$RUN/manifest.json" <<EOF
   "seed": $SEED,
   "batch_size": $BATCH,
   "workers": $WORKERS,
+  "vcpus": $NPROC,
+  "gpu": "$GPU_NAME",
+  "resume_test": "$(cat "$RUN/resume_test.txt" 2>/dev/null)",
+  "health_armA": "$(cat "$RUN/health_armA.txt" 2>/dev/null)",
+  "health_armB": "$(cat "$RUN/health_armB.txt" 2>/dev/null)",
   "config_a": "$CFG_A",
   "config_b": "$CFG_B",
   "tasks": "$TASKS_CSV",
