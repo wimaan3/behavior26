@@ -25,7 +25,7 @@ pytestmark = pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash
 
 
 def _env(tmp: Path, status: str, pod_exists: bool = True, deadline_in: int = 3600,
-         key_mode: int = 0o600, loops: int = 1) -> dict:
+         key_mode: int = 0o600, loops: int = 1, age: int = 60) -> dict:
     bin_ = tmp / "bin"
     bin_.mkdir()
     # fake ssh: prints what a PTY session would, including the STATUS content
@@ -33,6 +33,7 @@ def _env(tmp: Path, status: str, pod_exists: bool = True, deadline_in: int = 360
 cat > /dev/null
 echo "__RPSTART__"
 printf '%s\\n' "{status}"
+echo "LOGAGE {age}"
 echo "__RPEND__"
 ''')
     # fake runpodctl: records argv and whether the key arrived via env (never via argv)
@@ -113,3 +114,27 @@ def test_check_mode_proves_access_but_never_terminates(tmp_path):
     assert p.returncode == 0, p.stdout + p.stderr
     assert "argv: pod get POD" in _calls(tmp_path)
     assert "pod delete" not in _calls(tmp_path)
+
+
+# --- the progress backstop (2026-10-01: a deadlocked run wrote nothing for 14.5 h) -------
+
+def test_a_run_silent_for_longer_than_the_stall_limit_is_terminated(tmp_path):
+    """The pod's own supervisor kills a hung trainer after 30 min and resumes. If the
+    supervisor itself is dead, nothing on the pod notices; at 90 min of silence the
+    watchdog stops the billing."""
+    _run(_env(tmp_path, "", age=100 * 60))
+    calls = _calls(tmp_path)
+    assert "argv: pod delete POD" in calls
+    assert "silent" in (tmp_path / "wd.log").read_text().lower()
+
+
+def test_a_run_that_is_writing_is_left_alone(tmp_path):
+    _run(_env(tmp_path, "", age=120, loops=2))
+    assert "pod delete" not in _calls(tmp_path)
+
+
+def test_the_age_line_is_not_mistaken_for_status(tmp_path):
+    """LOGAGE shares the SSH output with STATUS; it must never read as a run verdict."""
+    _run(_env(tmp_path, "", age=60))
+    log = (tmp_path / "wd.log").read_text()
+    assert "LOGAGE" not in [l.split("ok: ")[-1].split()[0] for l in log.splitlines() if "ok: " in l]

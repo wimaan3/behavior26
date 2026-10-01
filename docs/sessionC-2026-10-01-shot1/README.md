@@ -77,3 +77,38 @@ GATE GO mean 3.68 s/step over steps 50..300 <= 4.50
 Steady at 3.67–3.68 s/step from step 68 to 345, with no stalls. At this rate each arm takes
 ~10.3 h; both arms finish ~22:30 UTC on 1 Oct, ≈ $16 of pod time, inside the 26 h cap.
 Next: the resume test at arm A's first checkpoint (step 1000), and the health gate.
+
+### Health gate at step 1000: PASS
+
+```
+HEALTH PASS arm A: action_loss 0.7042 -> 0.1695 (z = 15.4)
+```
+
+### The resume test found a deadlock, and the run sat idle for 14.5 hours
+
+At 02:15:31 UTC the supervisor killed the trainer once, as designed, right after
+checkpoint 1000 was finalised. The python died, but **its multiprocessing helpers (two
+dataloader workers and the resource tracker) survived**. They were re-parented to init and
+kept the trainer's stdout pipe open. The timestamping `while read` sat in `pipe_read`
+waiting for an EOF that never came, so `run_arm` never reached its retry. The GPU idled at
+0% until 16:49 UTC. Nothing noticed: the laptop slept, the laptop watchdog had no key yet,
+and the pod had no stall detection.
+
+The runner's control-flow tests used a fake trainer with no children, so they couldn't
+catch this.
+
+**Cost:** pod `id5ngeyyeldrjk` total **$11.81**, of which ~$10.70 was the idle 14.5 h.
+Arm A's step-1000 checkpoint is safe on the volume.
+
+**Fix**, with executed tests that use a trainer that does spawn a child holding the pipe:
+- The trainer runs as its own process group (`exec setsid`, so pid = pgid, recorded).
+  `kill_trainer` kills the whole group. Every kill in the supervisor now uses it.
+- `reap_orphans`: if the trainer dies on its own but its group lives on, kill the group.
+- Stall killer on the pod: no trainer output for `STALL_MINUTES` (30) → kill the group,
+  and `run_arm` auto-resumes from the last checkpoint.
+- Laptop watchdog backstop: no training output for 90 min → terminate the pod.
+- The control test, killing only the leader, reproduces the hang locally, so the fix's
+  test is known to exercise the real bug.
+
+The signal trap added earlier worked: the stopped run recorded `KILLED by signal`, then
+`TERMINAL`.

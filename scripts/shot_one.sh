@@ -61,6 +61,7 @@ MAX_HOURS="${MAX_HOURS:-75}"                # both arms at 3.9 s/step is ~65 h; 
 RESUME_TEST="${RESUME_TEST:-1}"             # 1 = exercise --resume once, right after arm A's first checkpoint
 MAX_RETRIES="${MAX_RETRIES:-3}"             # a trainer CRASH resumes from its checkpoint this many times
 HEALTH_CHECK_STEP="${HEALTH_CHECK_STEP:-1000}"  # analysis/health_gate.py, calibrated on the rung logs
+STALL_MINUTES="${STALL_MINUTES:-30}"        # no trainer output for this long = hung: kill the group, auto-resume
 CKPT_NEED_GB="${CKPT_NEED_GB:-50}"          # peak: arm A final + arm B latest + one in flight, ~16 GB each
 VOL_QUOTA_GB="${VOL_QUOTA_GB:-150}"         # the volume's provisioned size; the API reports it, df cannot
 
@@ -231,13 +232,42 @@ ARM_B=( "$CFG_B" --progress-key progress --progress-loss-weight "$LAMBDA" )
 
 trainer () {   # exp-name config [extra...]; extra args follow the shared ones
   local name="$1" cfg="$2"; shift 2
-  (cd $B26 && $PY -u scripts/train_b1k_rooted.py \
+  # Its own process group (exec setsid keeps the pid, so pid = pgid), recorded for
+  # kill_trainer: killing the python alone left its dataloader workers holding this
+  # function's output pipe -- the 14.5-hour deadlock of 2026-10-01.
+  (cd $B26 && echo $BASHPID > "$RUN/trainer.pgid" && exec setsid $PY -u scripts/train_b1k_rooted.py \
       --config "$cfg" --exp-name "$name" \
       --dataset-root $ROOT --repo-id "${TASKS[@]}" --protocol \
       --assets-base-dir $ASSETS --checkpoint-base-dir "$CKPT" \
       --num-train-steps $STEPS --batch-size "$BATCH" --num-workers "$WORKERS" --seed $SEED \
       --save-interval $SAVE_EVERY --keep-period 0 --log-interval $LOG_EVERY \
       --lr-decay-steps $STEPS "$@")
+}
+
+# Kill the trainer AND everything it spawned. The pipe it writes to only reaches EOF when
+# every holder is gone; a surviving worker means run_arm waits forever.
+kill_trainer () {
+  local g i; g=$(cat "$RUN/trainer.pgid" 2>/dev/null)
+  [ -n "$g" ] || return 0
+  kill -TERM -- "-$g" 2>/dev/null
+  for i in $(seq 1 30); do pgrep -g "$g" >/dev/null 2>&1 || return 0; sleep 1; done
+  kill -KILL -- "-$g" 2>/dev/null
+  return 0
+}
+
+# A trainer that died on its own (crash, OOM) can leave the same orphans. If the group
+# leader is gone but the group is not, for ORPHAN_GRACE_LOOPS supervisor passes, kill it.
+reap_orphans () {
+  local g; g=$(cat "$RUN/trainer.pgid" 2>/dev/null)
+  if [ -n "$g" ] && ! kill -0 "$g" 2>/dev/null && pgrep -g "$g" >/dev/null 2>&1; then
+    ORPHAN_SEEN=$(( ${ORPHAN_SEEN:-0} + 1 ))
+    if [ "$ORPHAN_SEEN" -ge "${ORPHAN_GRACE_LOOPS:-2}" ]; then
+      echo "REAP: trainer $g is gone but its process group lives on, holding the log pipe; killing it"
+      kill -KILL -- "-$g" 2>/dev/null; ORPHAN_SEEN=0
+    fi
+  else
+    ORPHAN_SEEN=0
+  fi
 }
 
 # --- 3 prove both arms before either trains -----------------------------------
@@ -253,8 +283,21 @@ supervise () {
   local deadline=$(( T_START + MAX_HOURS * 3600 ))
   local ckA="$CKPT/$CFG_A/armA"
   while sleep 60; do
+    reap_orphans
+    # hung: a trainer group is alive but has written nothing for STALL_MINUTES. Kill the
+    # group; run_arm sees a crash and resumes from the last checkpoint. (No STATUS: a hang
+    # is retried, not a verdict.) Without this, 2026-10-01 idled 14.5 h.
+    local g live
+    g=$(cat "$RUN/trainer.pgid" 2>/dev/null); live=""
+    [ -f "$RUN/train_armA.log" ] && [ ! -f "$RUN/armA.done" ] && live="$RUN/train_armA.log"
+    [ -z "$live" ] && [ -f "$RUN/train_armB.log" ] && [ ! -f "$RUN/armB.done" ] && live="$RUN/train_armB.log"
+    if [ -n "$g" ] && [ -n "$live" ] && pgrep -g "$g" >/dev/null 2>&1 \
+       && [ $(( $(date +%s) - $(stat -c %Y "$live") )) -ge $(( STALL_MINUTES * 60 )) ]; then
+      echo "HUNG: no output in $(basename "$live") for ${STALL_MINUTES} min; killing the trainer group to resume $(date -u +%FT%TZ)"
+      kill_trainer
+    fi
     if [ "$(date +%s)" -ge "$deadline" ]; then
-      status "CAP_HIT after ${MAX_HOURS} h"; pkill -f train_b1k_rooted.py; return
+      status "CAP_HIT after ${MAX_HOURS} h"; kill_trainer; return
     fi
     # speed: the step-GATE_STEP loader gate, arm A only
     if [ ! -f "$RUN/gate.txt" ] && [ -f "$RUN/train_armA.log" ]; then
@@ -264,7 +307,7 @@ supervise () {
         0) mv "$RUN/gate.try" "$RUN/gate.txt"; cat "$RUN/gate.txt" ;;
         1) mv "$RUN/gate.try" "$RUN/gate.txt"; cat "$RUN/gate.txt"
            if [ "$GATE_ENFORCE" = "1" ]; then
-             status "GATE_NOGO $(cat "$RUN/gate.txt")"; pkill -f train_b1k_rooted.py; return
+             status "GATE_NOGO $(cat "$RUN/gate.txt")"; kill_trainer; return
            fi ;;
       esac
     fi
@@ -278,7 +321,7 @@ supervise () {
       case $? in
         0) [ -f "$RUN/health_arm$arm.txt" ] || { mv "$RUN/health.try" "$RUN/health_arm$arm.txt"; cat "$RUN/health_arm$arm.txt"; } ;;
         1) mv "$RUN/health.try" "$RUN/health_arm$arm.txt"; cat "$RUN/health_arm$arm.txt"
-           status "HEALTH_FAIL $(cat "$RUN/health_arm$arm.txt")"; pkill -f train_b1k_rooted.py; return ;;
+           status "HEALTH_FAIL $(cat "$RUN/health_arm$arm.txt")"; kill_trainer; return ;;
       esac
     done
     # resume: exercise it ONCE, right after arm A's first checkpoint is finalised.
@@ -287,7 +330,7 @@ supervise () {
     if [ "$RESUME_TEST" = "1" ] && [ ! -f "$RUN/resume_test.killed" ] && [ -d "$ckA/$SAVE_EVERY" ] \
        && ! ls -d "$ckA"/*orbax-checkpoint-tmp* >/dev/null 2>&1; then
       echo "RESUME_TEST: checkpoint $SAVE_EVERY finalised; killing the trainer once $(date -u +%FT%TZ)"
-      date -u +%FT%TZ > "$RUN/resume_test.killed"; pkill -f train_b1k_rooted.py
+      date -u +%FT%TZ > "$RUN/resume_test.killed"; kill_trainer
     fi
     if [ -f "$RUN/resume_test.killed" ] && [ ! -f "$RUN/resume_test.txt" ] && [ -f "$RUN/train_armA.log" ]; then
       local first
@@ -298,7 +341,7 @@ supervise () {
           echo "RESUME_TEST PASS: restarted at step $first (checkpoint $SAVE_EVERY)" | tee "$RUN/resume_test.txt"
         else
           echo "RESUME_TEST FAIL: restarted at step $first, not from checkpoint $SAVE_EVERY" | tee "$RUN/resume_test.txt"
-          status "RESUME_BROKEN $(cat "$RUN/resume_test.txt")"; pkill -f train_b1k_rooted.py; return
+          status "RESUME_BROKEN $(cat "$RUN/resume_test.txt")"; kill_trainer; return
         fi
       fi
     fi
@@ -323,6 +366,7 @@ run_arm () {   # name, then the arm's config + extra args
     # trainer's own status, not the timestamper's. A failed run must not read as done.
     ( trainer "$name" "$@" $resume 2>&1 | eval "$TSTAMP" ) >> "$RUN/train_$name.log"
     rc=$?
+    kill_trainer      # nothing of this attempt may survive into the next (GPU memory, the pipe)
     echo "ARM_${name}_RC=$rc last $(tr '\r' '\n' < "$RUN/train_$name.log" | grep -o 'Step [0-9]*' | tail -1)"
     [ "$rc" -eq 0 ] && break
     # A deliberate stop (cap, gate, health, broken resume) wrote STATUS first: never retry it.
