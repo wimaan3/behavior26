@@ -112,3 +112,25 @@ Arm A's step-1000 checkpoint is safe on the volume.
 
 The signal trap added earlier worked: the stopped run recorded `KILLED by signal`, then
 `TERMINAL`.
+
+## Attempt 3: relaunch on a fresh pod, resuming arm A
+
+Pod `5h33bvuxn9tx74` (RTX PRO 4500; 23 usable vCPUs, so 20 workers; 251 GB RAM). It was
+requested with `minVcpuCountPerGpu: 16` because stock for 24 was gone. Launched 19:24 UTC
+on `031923d`, `STEPS=10000 MAX_HOURS=23`.
+
+- Volume: 150 GB used of 200 (the step-1000 checkpoint is ~9 GB, smaller than the 16 GB
+  estimate). Peak during arm B is ~168 GB.
+- Data rebuilt on the new pod; **fingerprint `8a7853e2ea95d1ca cf9b6e5ec1b01a79` matches**
+  the run the checkpoint came from. Depth dropped, `STREAMS_OK` on both tasks.
+- Arm A started with `--resume`.
+
+### Resume test: PASS, across pods
+
+```
+RESUME_TEST PASS: restarted at step 1001 (checkpoint 1000)
+```
+
+The first step logged on the new pod is 1001, so training continued from the volume's
+checkpoint rather than restarting. Back at ~3.7 s/step. Arm A should finish ~04:50 UTC on
+2 Oct, and arm B ~15:10 UTC.
