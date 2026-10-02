@@ -1,0 +1,16 @@
+tasks             ['set_up_a_coffee_station_in_your_kitchen', 'putting_shoes_on_rack'] (MultiLeRobotDataset)
+config            pi05_b1k_frozen_vlm_progress
+exp_name          armB
+dataset_root      /opt/merged
+repo_id           ['set_up_a_coffee_station_in_your_kitchen', 'putting_shoes_on_rack']
+assets_dir        /workspace/shot1/assets/pi05_b1k_frozen_vlm_progress
+norm_stats loaded True
+checkpoint_dir    /workspace/shot1/checkpoints/pi05_b1k_frozen_vlm_progress/armB
+progress_key      progress
+progress_weight   0.15
+weight_loader     CheckpointWeightLoader(params_path='gs://openpi-assets/checkpoints/pi05_base/params', missing_regex='.*(lora|progress).*')
+term_grad_norms   False
+progress_head     True
+keep_period       None
+lr_schedule       CosineDecaySchedule(warmup_steps=1000, peak_lr=2.5e-05, decay_steps=10000, decay_lr=2.5e-06)
+CONFIG_OK pi05_b1k_frozen_vlm_progress armB

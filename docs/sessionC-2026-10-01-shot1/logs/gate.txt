@@ -1,0 +1,1 @@
+GATE GO mean 3.68 s/step over steps 50..300 <= 4.50

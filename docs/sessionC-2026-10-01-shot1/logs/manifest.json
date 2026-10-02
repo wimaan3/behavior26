@@ -1,0 +1,22 @@
+{
+  "finished_utc": "2026-10-02T16:16:32Z",
+  "steps": 10000,
+  "lambda": 0.15,
+  "seed": 42,
+  "batch_size": 32,
+  "workers": 20,
+  "vcpus": 23,
+  "gpu": "NVIDIA RTX PRO 4500 Blackwell, 32623 MiB",
+  "resume_test": "RESUME_TEST PASS: restarted at step 1001 (checkpoint 1000)",
+  "health_armA": "HEALTH PASS arm A: action_loss 0.7042 -> 0.1695 (z = 15.4)",
+  "health_armB": "HEALTH PASS arm B: action_loss 0.7045 -> 0.1704 (z = 15.4); progress_loss 0.6944 -> 0.6209 (z = 21.1)",
+  "config_a": "pi05_b1k_frozen_vlm",
+  "config_b": "pi05_b1k_frozen_vlm_progress",
+  "tasks": "set_up_a_coffee_station_in_your_kitchen,putting_shoes_on_rack",
+  "data_fingerprint": "8a7853e2ea95d1ca cf9b6e5ec1b01a79 ",
+  "norm_stats_sha": "d9dd9b98d20dda32",
+  "gate": "GATE GO mean 3.68 s/step over steps 50..300 <= 4.50",
+  "openpi": "0cc8e35",
+  "behavior26": "031923d",
+  "checkpoints": "/workspace/shot1/checkpoints"
+}

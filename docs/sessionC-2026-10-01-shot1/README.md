@@ -134,3 +134,52 @@ RESUME_TEST PASS: restarted at step 1001 (checkpoint 1000)
 The first step logged on the new pod is 1001, so training continued from the volume's
 checkpoint rather than restarting. Back at ~3.7 s/step. Arm A should finish ~04:50 UTC on
 2 Oct, and arm B ~15:10 UTC.
+
+## Result: both arms trained to 10,000 steps
+
+Arm A finished 05:13 UTC, arm B 16:16 UTC on 2 Oct. The laptop watchdog saw `TERMINAL`
+and terminated the pod at 16:21:34, five minutes later. Logs are in [`logs/`](logs/);
+the manifest is [`logs/manifest.json`](logs/manifest.json).
+
+| | Arm A (control) | Arm B (progress head, λ 0.15) |
+|---|---|---|
+| Config | `pi05_b1k_frozen_vlm` | `pi05_b1k_frozen_vlm_progress` |
+| Steps, non-finite values | 10,000, 0 | 10,000, 0 |
+| Health at step 1000 | action 0.704 → 0.170 (z = 15.4) | action 0.705 → 0.170 (z = 15.4); **progress 0.694 → 0.621 (z = 21.1)** |
+| Action loss, last 1000 (mean / median) | 0.1147 / 0.0965 | 0.1144 / 0.0984 |
+| Progress loss, last 1000 | — | **0.563** (chance: ln 2 = 0.693) |
+
+Shared by both arms: data fingerprint `8a7853e2ea95d1ca cf9b6e5ec1b01a79`, norm stats
+`d9dd9b98d20dda32`, seed 42, batch 32, LR decay over 10,000 steps, openpi `0cc8e35`.
+
+### What the training logs do and don't say
+
+- **The progress head learned.** Its loss fell well below chance and plateaued around step 7000.
+- **Action loss, end of training:** B − A = −0.0003, 95% CI [−0.0060, +0.0053] (last
+  1000 steps, unpaired). No measurable difference.
+- **Action loss, first 1000 steps, exactly paired** (same seed, identical batches): B − A =
+  **+0.0009, 95% CI [+0.0004, +0.0014]**. By the rule pre-registered on 2026-09-15
+  ("degraded = interval entirely above 0"), that window **counts as degraded**. It is ~0.5% of
+  the loss, and it is not distinguishable by the end. It's reported here as the rule
+  requires, not explained away.
+- After arm A's resume at step 1000, its data order restarted, so later steps are compared
+  as windows of the same distribution, not batch-for-batch.
+- **Training loss cannot say whether the head improves task success.** Only evaluation in
+  the simulator can.
+
+### Backups: three copies of the trained models
+
+| Copy | Where | Verified |
+|---|---|---|
+| 1 | RunPod volume `96mu3d0s32`, `/workspace/shot1/checkpoints/` | — |
+| 2 | Laptop `~/behavior26-checkpoints/arm{A,B}/9999` (8.8 GB each) | sha256 of every file matches the pod: A 29/29, B 30/30 |
+| 3 | Per-file checksums in git: [`logs/checkpoint_armA_9999.sha256`](logs/checkpoint_armA_9999.sha256), [`armB`](logs/checkpoint_armB_9999.sha256) | — |
+
+Copied with `runpodctl send/receive` through a $0.06/h CPU pod. CPU pods have no direct
+SSH. One send failed on a transient TLS timeout fetching croc's relay list and succeeded
+on retry. Each checkpoint carries its own `assets/…/norm_stats.json`, which
+`serve_baseline.sh` requires before serving.
+
+### Cost
+
+Since the 30 Sep top-up: $29.08 to the end of training, plus ~$0.06 for the pull pod.
