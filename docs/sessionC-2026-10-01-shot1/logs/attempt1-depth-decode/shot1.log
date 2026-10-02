@@ -1,0 +1,40 @@
+
+=== STAGE 0_preflight 2026-10-01T00:13:53Z
+measuring volume usage with du (minutes)...
+volume /workspace: 141 GB used of 200 GB, 59 GB free (need 50)
+vCPUs 23 -> 20 dataloader workers
+
+=== STAGE 0_setup 2026-10-01T00:16:41Z
+ + zipp==3.22.0
+    scripts/apply_openpi_patches.sh --reverse
+jax 0.5.3 [CudaDevice(id=0)]
+
+=== STAGE 1_data 2026-10-01T00:17:13Z
+episodes 200, frames 1253243 -> /opt/tasks/set_up_a_coffee_station_in_your_kitchen
+==> compacted: 199 episodes, 1247890 frames, dense episode_index and index
+==> dropped 1 episode(s) with unlabelled frames: [111]
+episodes 200, frames 1545229 -> /opt/tasks/putting_shoes_on_rack
+==> compacted: 195 episodes, 1503533 frames, dense episode_index and index
+==> dropped 5 episode(s) with unlabelled frames: [14, 55, 72, 77, 156]
+data fingerprint 8a7853e2ea95d1ca cf9b6e5ec1b01a79 
+
+=== STAGE 2_norm_stats 2026-10-01T00:19:13Z
+
+=== STAGE 3_check_both_arms 2026-10-01T00:32:21Z
+/workspace/shot1/check_armA.log:config            pi05_b1k_frozen_vlm
+/workspace/shot1/check_armA.log:norm_stats loaded True
+/workspace/shot1/check_armA.log:progress_key      None
+/workspace/shot1/check_armA.log:progress_weight   0.0
+/workspace/shot1/check_armA.log:progress_head     False
+/workspace/shot1/check_armB.log:config            pi05_b1k_frozen_vlm_progress
+/workspace/shot1/check_armB.log:norm_stats loaded True
+/workspace/shot1/check_armB.log:progress_key      progress
+/workspace/shot1/check_armB.log:progress_weight   0.15
+/workspace/shot1/check_armB.log:progress_head     True
+
+=== STAGE 4_arm_A 2026-10-01T00:32:34Z
+--- ARM armA pi05_b1k_frozen_vlm steps=10000 workers=20 fresh attempt 0 2026-10-01T00:32:34Z
+STATUS EXITED rc=0
+Terminated                 ( trainer "$name" "$@" $resume 2>&1 | eval "$TSTAMP" ) >> "$RUN/train_$name.log"
+SHOT1_EXIT rc=0 after 46 min; status: EXITED rc=0 2026-10-01T01:00:41Z TERMINAL 2026-10-01T01:00:41Z 
+The pod is still billing: scripts/watchdog.sh on the laptop terminates it on TERMINAL.
