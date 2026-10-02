@@ -4,7 +4,7 @@
 [`docs/RUNPOD-FINDINGS.md`](docs/RUNPOD-FINDINGS.md). Detailed evidence lives in
 the dated `docs/session*` folders it links to. Updated with every milestone.
 
-*Last updated: 2026-10-01 · Deadline: **16 Oct 2026** (15 days) · Spend: **$37.26** ($25.00 to 18 Sep + $12.26 since the 30 Sep top-up) · Pods running: **none***
+*Last updated: 2026-10-02 · Deadline: **16 Oct 2026** (14 days) · Spend: **~$54.14** ($25.00 to 18 Sep + $29.14 since the 30 Sep top-up) · Pods running: **none***
 
 ## Deliverables
 
@@ -19,26 +19,19 @@ the dated `docs/session*` folders it links to. Updated with every milestone.
 | 7 | Session B rungs 2–5 — head learns, λ, steps/s, k | ✅ **done** — Branch 0 LEARNING, action loss NOT_DEGRADED | `docs/sessionB-2026-09-16-rung2-5/` |
 | 8 | Noise floor σ_w (§2: 12 instances × 6 repeats) | 🔴 **not started** — protocol says before the first A/B | `AB_PROTOCOL.md` §2 |
 | 9 | Decide k and λ | 🟡 λ ≈ **0.14–0.15** for a 20% gradient share; k still open (labels, not throughput) | `docs/sessionB-2026-09-16-rung2-5/RUNG2-5.md` |
-| 10 | Shot one: train arm A and arm B | 🟡 **in progress**: arm A passed the speed gate (3.68 s/step) and the health gate (z = 15.4); step-1000 checkpoint saved on the volume. Paused after a runner deadlock (fixed); waiting on ~$10 of funding to finish both arms at 10k steps | `docs/sessionC-2026-10-01-shot1/` |
+| 10 | Shot one: train arm A and arm B | ✅ **done**: both arms 10,000 steps, both health-gated; progress head learned (0.694 → 0.563). Checkpoints on the volume **and** the laptop, sha256-verified | `docs/sessionC-2026-10-01-shot1/` |
 | 11 | Evaluate both arms, paired ΔQ (`analysis/compare.py`) | ⏳ blocked on 10 | — |
 | 12 | Partial submission (2 tasks × 20 public instances) | ⏳ blocked on 10 | `submission/` |
 | 13 | Write-up | ⏳ ongoing in `docs/` | — |
 
 ## Next actions, in order
 
-1. **Owner:** add ~$10 to RunPod, save the watchdog key (`~/.runpod/watchdog.key`, mode
-   600), and keep Windows awake for the ~20 h run.
-2. **Relaunch shot one** on a fresh RTX PRO 4500: arm A resumes from its step-1000
-   checkpoint (this also verifies resume across pods), then arm B, both to 10,000 steps.
-   Start `scripts/watchdog.sh` as a systemd user service first.
-3. **Pull both final checkpoints off RunPod** to the laptop, sha256-verified.
-4. **Evaluate both arms** (paired ΔQ), needs ~$13 more. Then the noise floor, submission and write-up.
-
-What changed on 2026-10-01 (details in `docs/sessionC-2026-10-01-shot1/README.md`):
-- the stall was **depth-video decoding** (4.09 → 1.03 s/sample once dropped), not worker count;
-- the pod **cannot stop itself** (403), so a laptop watchdog does it;
-- killing the trainer **deadlocked the runner** for 14.5 h. Fixed with process-group kills,
-  an orphan reaper and stall detection on the pod and the laptop.
+1. **Evaluate both arms** in the simulator, paired ΔQ (`analysis/compare.py`), on coffee
+   and shoes. Record video of every attempt; make side-by-side clips. Needs ~$13 of RunPod
+   funding (the balance after shot one is a few dollars).
+2. **σ_w noise floor** (~$3) to size how many repeats the comparison needs.
+3. **Partial submission** and **write-up**.
+4. **Owner:** revoke the watchdog API key in the RunPod console (training is over).
 
 ## Open decisions for the project owner
 
