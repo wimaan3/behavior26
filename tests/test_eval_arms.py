@@ -167,3 +167,26 @@ def test_the_served_prompt_is_checked_against_the_training_prompt_before_the_sim
     t = text()
     smoke = t[t.index("stage 2_smoke"):t.index("stage 3_eval")]
     assert "TASK_REGISTRY" in smoke and "PROMPTS_OK" in smoke
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
+def test_the_evaluator_receives_every_argument(tmp_path):
+    """The second eval pod died on "the following arguments are required: --task-name":
+    the launch used bash -c '... && shift && exec python ... "$@"' "$VOL" --task-name ...,
+    and in bash -c the first extra argument is $0, so `shift` discarded --task-name. This
+    runs the REAL launch block with python replaced by a stub that prints what it got."""
+    t = text()
+    start = t.rindex("\n", 0, t.index("setsid bash -c")) + 1     # the whole line, prefix included
+    end = t.index("--write-video --headless", start) + len("--write-video --headless")
+    block = t[start:end]
+    (tmp_path / "env.sh").write_text('python () { echo "ARGS: $*"; }\n')
+    script = f'''
+VOL="{tmp_path}"; TASK=t1; MODE=train; ROLLOUTS=1; WRAPPER=w; SCR="{tmp_path}"; ARM=A
+INSTANCES=(10 11)
+{block} 2>&1
+'''
+    script = script.replace("exec python", "python")
+    p = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=30)
+    out = p.stdout + p.stderr
+    assert "ARGS: -m omnigibson.eval.eval --task-name t1" in out, out
+    assert "--instance-indices 10 11" in out and "--write-video --headless" in out
