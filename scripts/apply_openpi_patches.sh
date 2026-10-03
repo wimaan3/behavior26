@@ -23,7 +23,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PATCH_DIR="${REPO_ROOT}/training/patches"
+PATCH_DIR="${PATCH_DIR:-${REPO_ROOT}/training/patches}"
 OPENPI_ROOT="${OPENPI_ROOT:-$(cd "${REPO_ROOT}/.." && pwd)/openpi}"
 
 # The upstream commit these patches were generated against.
@@ -65,7 +65,8 @@ log()  { printf '\033[1m==> %s\033[0m\n' "$*"; }
 #
 # COMPAT is applied in EVERY writing mode. CONTRIB is never applied on its own.
 mapfile -t COMPAT_PATCHES  < <(find "$PATCH_DIR" -name '0001-*.patch' | sort)
-mapfile -t CONTRIB_PATCHES < <(find "$PATCH_DIR" -name '0002-*.patch' | sort)
+# 0002 the progress head and configs; 0003+ further additions (0003: our tasks' prompts).
+mapfile -t CONTRIB_PATCHES < <(find "$PATCH_DIR" -name '000[2-9]-*.patch' | sort)
 [ "${#COMPAT_PATCHES[@]}" -gt 0 ] || die "no compatibility patch in ${PATCH_DIR}"
 
 if [ "$COMPAT_ONLY" = "1" ]; then
@@ -102,34 +103,33 @@ if [ "$MODE" = "reverse" ]; then
   exit 0
 fi
 
-if [ "$ALL_APPLIED" = 1 ]; then
-  log "already applied -- nothing to do"
-  [ "$MODE" = "check" ] && exit 0
-  exit 0
-fi
-
-# Refuse to patch over unrelated local edits: `git apply` would happily interleave
-# them and the result would be neither version.
-if ! git diff --quiet; then
-  git diff --stat >&2
-  die "openpi has uncommitted changes (above). Commit or stash them first --
-    applying on top would mix them with ours and neither could be reversed."
-fi
-
+# One patch at a time: a checkout that already has some patches (a pod that ran an older
+# copy of this script, before 0003 existed) takes only the missing ones. The old
+# all-or-nothing check saw the earlier patches as "uncommitted changes" and refused.
+TO_APPLY=()
 for p in "${PATCHES[@]}"; do
+  if git apply --reverse --check "$p" 2>/dev/null; then
+    log "already applied: $(basename "$p")"
+    continue
+  fi
   git apply --check "$p" || die "$(basename "$p") does not apply to this checkout.
-    The fork has moved. Re-derive the patch against ${HEAD_SHA} rather than
-    forcing it: freeze_vlm_filter depends on exact parameter paths, and a
-    half-applied patch trains the wrong parameters without erroring."
+    The fork has moved, or the file was edited locally. Re-derive the patch against
+    ${HEAD_SHA} rather than forcing it: freeze_vlm_filter depends on exact parameter
+    paths, and a half-applied patch trains the wrong parameters without erroring."
+  TO_APPLY+=( "$p" )
 done
 
+if [ "${#TO_APPLY[@]}" -eq 0 ]; then
+  log "already applied -- nothing to do"
+  exit 0
+fi
 if [ "$MODE" = "check" ]; then
-  log "all ${#PATCHES[@]} patch(es) apply cleanly. Nothing written (--check)."
+  log "${#TO_APPLY[@]} patch(es) would apply cleanly. Nothing written (--check)."
   exit 0
 fi
 
-for p in "${PATCHES[@]}"; do log "applying $(basename "$p")"; git apply "$p"; done
-
+for p in "${TO_APPLY[@]}"; do log "applying $(basename "$p")"; git apply "$p"; done
+PATCHES=( "${TO_APPLY[@]}" )
 log "applied ${#PATCHES[@]} patch(es) to ${OPENPI_ROOT}"
 git -C "$OPENPI_ROOT" diff --stat
 cat <<'NOTES'
