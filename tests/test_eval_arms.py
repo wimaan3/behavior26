@@ -157,3 +157,13 @@ def test_the_installer_can_skip_the_released_baseline_download():
     assert 'SKIP_BASELINE' in inst
     i = inst.index("STAGE 4")
     assert "SKIP_BASELINE" in inst[i - 200:i + 600]
+
+
+def test_the_served_prompt_is_checked_against_the_training_prompt_before_the_simulator():
+    """The first eval pod's servers died on KeyError: TASK_REGISTRY lacked our tasks. And a
+    registered-but-wrong prompt would not crash at all -- it would quietly handicap both
+    arms. Check, before Isaac Sim, that each task's registry prompt is the task name the
+    arms were trained on (prompt_from_task + tasks_from_metadata)."""
+    t = text()
+    smoke = t[t.index("stage 2_smoke"):t.index("stage 3_eval")]
+    assert "TASK_REGISTRY" in smoke and "PROMPTS_OK" in smoke

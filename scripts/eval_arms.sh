@@ -130,6 +130,17 @@ echo "ffmpeg: ${FFMPEG:-none -- full-size videos will be copied while the budget
 
 # --- 2 smoke: each checkpoint answers one real inference, before Isaac Sim -------------
 stage 2_smoke
+# The server takes each task's prompt from TASK_REGISTRY (patch 0003 adds ours). The arms
+# were trained with prompt_from_task=True, i.e. on the task NAME from meta/tasks.parquet;
+# a different prompt would not crash, it would quietly handicap both arms.
+$PY - "${TASKS[@]}" <<'PYEOF' || fail "served prompts do not match the training prompts"
+import sys
+from openpi.configs.tasks import TASK_REGISTRY
+for t in sys.argv[1:]:
+    got = TASK_REGISTRY.get("b1k", {}).get(t)
+    assert got == t, f"{t}: registry prompt {got!r}, trained on {t!r}"
+print("PROMPTS_OK", sys.argv[1:])
+PYEOF
 for spec in "A|$CFG_A|$CKPT_A" "B|$CFG_B|$CKPT_B"; do
   IFS='|' read -r arm cfg ckpt <<< "$spec"
   XLA_PYTHON_CLIENT_PREALLOCATE=false $PY - "$cfg" "$ckpt" "$ASSET_ID" <<'PYEOF' || fail "arm $arm cannot serve"

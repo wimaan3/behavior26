@@ -1,0 +1,17 @@
+diff --git a/src/openpi/configs/tasks/b1k.py b/src/openpi/configs/tasks/b1k.py
+index 193c4e7..b0dfc6f 100644
+--- a/src/openpi/configs/tasks/b1k.py
++++ b/src/openpi/configs/tasks/b1k.py
+@@ -3,6 +3,12 @@ from . import TASK_REGISTRY
+ # i3l task prompts
+ TASKS = {
+     "turning_on_radio": "Turn on the radio receiver that's on the table in the living room.",
++    # behavior26: the EXACT prompts our arms were trained with. Training used
++    # prompt_from_task=True, and tasks_from_metadata maps task_index to the task NAME in
++    # the dataset's meta/tasks.parquet -- not a sentence. Serving any other text would
++    # give the policy a prompt it never saw.
++    "set_up_a_coffee_station_in_your_kitchen": "set_up_a_coffee_station_in_your_kitchen",
++    "putting_shoes_on_rack": "putting_shoes_on_rack",
+ }
+ 
+ # Register in global registry
