@@ -164,3 +164,12 @@ def test_check_mode_reports_clean_status_not_terminal_noise(tmp_path):
     log = (tmp_path / "wd.log").read_text()
     assert "STATUS = running fine" in log, log
     assert "stty" not in log and "\x1b" not in log
+
+
+def test_the_silence_check_can_watch_evaluation_logs_too():
+    """Evaluation writes evaluator_arm*.log, not train_arm*.log. With the glob fixed to
+    training logs the 90-minute backstop would read no age during evaluation and never
+    fire."""
+    t = WD.read_text()
+    assert 'LOG_GLOB="${LOG_GLOB:-train_arm*.log}"' in t
+    assert "$RUN/$LOG_GLOB" in t or "$RUN/${LOG_GLOB}" in t

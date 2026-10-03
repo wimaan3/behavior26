@@ -27,6 +27,9 @@ INTERVAL="${INTERVAL:-300}"
 # The pod's supervisor kills a hung trainer after 30 min of silence and resumes it. If the
 # run has been silent for 3x that, the supervisor itself is gone: stop the billing.
 STALL_MIN="${STALL_MIN:-90}"
+# Which logs prove the run is alive: training writes train_arm*.log, evaluation
+# (scripts/eval_arms.sh) writes evaluator_arm*.log.
+LOG_GLOB="${LOG_GLOB:-train_arm*.log}"
 MAX_LOOPS="${MAX_LOOPS:-0}"                      # 0 = forever (tests set a bound)
 LOG="${LOG:-$HOME/.runpod/watchdog-$POD_ID.log}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519}"
@@ -61,7 +64,7 @@ read_status () {
   { printf '%s\n' 'stty -echo 2>/dev/null; PS1=""' \
       "printf '%s%s\\n' __WD START__" \
       "sed 's/^/STATUS: /' $RUN/STATUS 2>/dev/null" \
-      "f=\$(ls -t $RUN/train_arm*.log 2>/dev/null | head -1); [ -n \"\$f\" ] && echo LOGAGE \$(( \$(date +%s) - \$(stat -c %Y \"\$f\") ))" \
+      "f=\$(ls -t $RUN/$LOG_GLOB 2>/dev/null | head -1); [ -n \"\$f\" ] && echo LOGAGE \$(( \$(date +%s) - \$(stat -c %Y \"\$f\") ))" \
       "printf '%s%s\\n' __WD END__" 'exit'; } \
     | timeout 90 ssh -tt -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 \
         -o ServerAliveInterval=15 -i "$SSH_KEY" "$SSH_USER@ssh.runpod.io" 2>/dev/null \
