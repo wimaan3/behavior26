@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+#
+# EVALUATE shot one: arm A (control) vs arm B (progress head), PAIRED, on the frozen dev
+# subset -- configs/experiments/001-dev-loop.yaml is the single source of truth for the
+# tasks, the training instances, the mode and the rollout count.
+#
+# What can quietly turn into a wrong RESULT here, and what stops it:
+#   - an unnormalised policy        -> both checkpoints' EXACT stats file checked first;
+#                                      ASSET_ID passed to the server (both tasks' stats
+#                                      live under the first task's id)
+#   - arm B unservable              -> the full patch set (0002 declares the head), and
+#                                      one real inference per checkpoint BEFORE Isaac Sim
+#   - arms on different instances   -> one shared evaluator call, instances from the config
+#   - a test-set instance           -> any id >= 301 is refused
+#   - the previous arm still serving-> servers run in their own process group, killed
+#                                      whole, and port 8000 must be silent before the next
+#   - money running out midway      -> task-major order: both arms of a task back to back,
+#                                      so what finishes is complete PAIRS; done markers
+#                                      let a re-invocation resume
+#
+# Results (JSON) go to the volume. Videos: written full-size to container disk, then a
+# compact 640-px copy of each goes to the volume while there is room (VIDEO_KEEP_FREE_GB).
+# Every exit writes TERMINAL to $OUT/STATUS; the laptop watchdog terminates the pod.
+#
+set -uo pipefail
+
+CFG_A=pi05_b1k_frozen_vlm
+CFG_B=pi05_b1k_frozen_vlm_progress
+CKPT_A="${CKPT_A:-/workspace/shot1/checkpoints/$CFG_A/armA/9999}"
+CKPT_B="${CKPT_B:-/workspace/shot1/checkpoints/$CFG_B/armB/9999}"
+# shot one trained both tasks as one dataset; openpi filed the one stats file under the
+# first task's id. Serving either task must point there.
+ASSET_ID="${ASSET_ID:-set_up_a_coffee_station_in_your_kitchen}"
+EXPERIMENT="${EXPERIMENT:-configs/experiments/001-dev-loop.yaml}"
+MAX_HOURS="${MAX_HOURS:-20}"
+STALL_MINUTES="${STALL_MINUTES:-45}"          # evaluator silent this long = hung
+VIDEO_KEEP_FREE_GB="${VIDEO_KEEP_FREE_GB:-10}"
+VOL_QUOTA_GB="${VOL_QUOTA_GB:-200}"
+
+VOL="${VOL:-/workspace}"
+OUT="${OUT:-/workspace/eval1}"
+SCR=/opt/eval_scratch                          # container disk: full-size videos
+B26=/opt/behavior26
+OPENPI_ROOT=/opt/openpi
+PY=$OPENPI_ROOT/.venv/bin/python
+export OPENPI_ROOT PATH="${HOME}/.local/bin:${PATH}"
+
+mkdir -p "$OUT" "$SCR" || { echo "cannot write $OUT -- is the volume mounted?"; exit 1; }
+exec > >(tee -a "$OUT/eval.log") 2>&1
+T_START=$(date +%s)
+CUR=init
+stage () { echo; echo "=== STAGE $1 $(date -u +%FT%TZ)"; CUR="$1"; }
+status () { echo "$1 $(date -u +%FT%TZ)" > "$OUT/STATUS"; echo "STATUS $1"; }
+fail  () { if [ -f "$OUT/STATUS" ]; then echo "then FAILED_AT=${CUR}: $*" >> "$OUT/STATUS"
+           else status "FAILED_AT=${CUR}: $*"; fi; exit 1; }
+
+SERVER_PG=""; EVAL_PG=""
+kill_group () { local g="$1"; [ -n "$g" ] || return 0
+  kill -TERM -- "-$g" 2>/dev/null
+  local i; for i in $(seq 1 30); do pgrep -g "$g" >/dev/null 2>&1 || return 0; sleep 1; done
+  kill -KILL -- "-$g" 2>/dev/null; return 0; }
+finish () {
+  local rc=$?
+  kill "${SUPERVISOR:-}" 2>/dev/null
+  kill_group "$EVAL_PG"; kill_group "$SERVER_PG"
+  [ -f "$OUT/STATUS" ] || status "EXITED rc=$rc"
+  echo "TERMINAL $(date -u +%FT%TZ)" >> "$OUT/STATUS"
+  sync
+  echo "EVAL_EXIT rc=$rc after $(( ($(date +%s) - T_START) / 60 )) min: $(tr '\n' ' ' < "$OUT/STATUS")"
+}
+trap finish EXIT
+trap '[ -f "$OUT/STATUS" ] || status "KILLED by signal"; exit 143' TERM INT HUP
+rm -f "$OUT/STATUS"
+
+# The frozen experiment, read -- not copied -- so the script cannot drift from it.
+read_config () {
+  local vals
+  vals=$($PY - "$B26/$EXPERIMENT" <<'PYEOF'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+print(" ".join(d["tasks"]))
+print(d["mode"])
+print(" ".join(str(i) for i in d["instances"]))
+print(d["num_rollouts"])
+print(d["env_wrapper"])
+PYEOF
+) || return 1
+  read -r -a TASKS <<< "$(sed -n 1p <<< "$vals")"
+  MODE=$(sed -n 2p <<< "$vals")
+  read -r -a INSTANCES <<< "$(sed -n 3p <<< "$vals")"
+  ROLLOUTS=$(sed -n 4p <<< "$vals")
+  WRAPPER=$(sed -n 5p <<< "$vals")
+}
+
+# --- 0 preflight ---------------------------------------------------------------
+stage 0_preflight
+[ -n "${RUNPOD_POD_ID:-}" ] || fail "RUNPOD_POD_ID unset -- the watchdog needs to know which pod to stop"
+echo "$RUNPOD_POD_ID" > "$OUT/pod_id"
+[ "$(stat -f -c %T "$VOL" 2>/dev/null)" != "overlayfs" ] || fail "$VOL is container disk, not the network volume"
+[ -f "$VOL/env.sh" ] || fail "no $VOL/env.sh -- the simulator env is not on this volume"
+for c in "$CKPT_A" "$CKPT_B"; do
+  [ -d "$c/params" ] || fail "no checkpoint at $c"
+  [ -f "$c/assets/$ASSET_ID/norm_stats.json" ] || fail "no $c/assets/$ASSET_ID/norm_stats.json -- \
+it would be served UNNORMALISED. Present: $(ls "$c/assets" 2>/dev/null | tr '\n' ' ')"
+done
+echo "measuring volume usage with du (minutes)..."
+USED_GB=$(du -s --block-size=1G "$VOL" 2>/dev/null | cut -f1)
+FREE_GB=$(( VOL_QUOTA_GB - USED_GB )); VIDEO_BUDGET_MB=$(( (FREE_GB - VIDEO_KEEP_FREE_GB) * 1024 ))
+echo "volume: ${USED_GB} GB used of ${VOL_QUOTA_GB}, ${FREE_GB} GB free; video budget ${VIDEO_BUDGET_MB} MB"
+
+# --- 1 setup -------------------------------------------------------------------
+stage 1_setup
+[ -d $B26/.git ] || git clone -q https://github.com/wimaan3/behavior26.git $B26 || fail clone
+git -C $B26 fetch -q origin main && git -C $B26 checkout -q origin/main || fail "behavior26 checkout"
+if [ ! -x "$PY" ]; then
+  SKIP_BASELINE=1 OPENPI_ROOT=$OPENPI_ROOT bash $B26/scripts/install_openpi.sh 2>&1 | tail -3
+  [ -x "$PY" ] || fail "openpi install"
+fi
+# The FULL set: patch 0002 declares the progress-head config arm B was trained under.
+OPENPI_ROOT=$OPENPI_ROOT bash $B26/scripts/apply_openpi_patches.sh 2>&1 | tail -2
+read_config || fail "cannot read $EXPERIMENT"
+for i in "${INSTANCES[@]}"; do
+  [ "$i" -lt 301 ] || fail "instance $i is a TEST instance (>= 301); refusing -- that is tuning on the leaderboard"
+done
+[ "$MODE" = "train" ] || fail "mode $MODE: this A/B runs on training instances only"
+EXPECTED=$(( ${#INSTANCES[@]} * ROLLOUTS ))
+echo "tasks ${TASKS[*]} | mode $MODE | ${#INSTANCES[@]} instances (${INSTANCES[0]}..${INSTANCES[-1]}) x $ROLLOUTS = $EXPECTED rollouts per arm per task"
+FFMPEG=$(command -v ffmpeg || $PY -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())' 2>/dev/null || true)
+echo "ffmpeg: ${FFMPEG:-none -- full-size videos will be copied while the budget allows}"
+
+# --- 2 smoke: each checkpoint answers one real inference, before Isaac Sim -------------
+stage 2_smoke
+for spec in "A|$CFG_A|$CKPT_A" "B|$CFG_B|$CKPT_B"; do
+  IFS='|' read -r arm cfg ckpt <<< "$spec"
+  XLA_PYTHON_CLIENT_PREALLOCATE=false $PY - "$cfg" "$ckpt" "$ASSET_ID" <<'PYEOF' || fail "arm $arm cannot serve"
+import dataclasses, sys
+import numpy as np
+from openpi.training import config as _config
+from openpi.policies import policy_config as _policy_config
+from openpi.policies.b1k_policy import make_b1k_example
+name, ckpt, asset_id = sys.argv[1:4]
+cfg = _config.get_config(name)
+# exactly what serve_b1k.py does before create_trained_policy
+cfg = dataclasses.replace(cfg, data=dataclasses.replace(cfg.data, repo_id=asset_id, robot_config_name="b1k/R1Pro"))
+policy = _policy_config.create_trained_policy(cfg, ckpt, default_prompt="smoke test")
+out = policy.infer(make_b1k_example())
+a = np.asarray(out["actions"])
+assert a.size and np.isfinite(a).all(), f"non-finite actions {a.shape}"
+print(f"SMOKE_OK {name}: actions {a.shape}, |a| max {np.abs(a).max():.3f}")
+PYEOF
+done
+
+# --- supervisor: hours cap, and a hung evaluator --------------------------------------
+supervise () {
+  local deadline=$(( T_START + MAX_HOURS * 3600 ))
+  while sleep 60; do
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+      status "CAP_HIT after ${MAX_HOURS} h"; kill_group "$(cat "$OUT/eval.pg" 2>/dev/null)"; return
+    fi
+    local g log; g=$(cat "$OUT/eval.pg" 2>/dev/null); log=$(cat "$OUT/eval.current" 2>/dev/null)
+    if [ -n "$g" ] && [ -f "$log" ] && pgrep -g "$g" >/dev/null 2>&1 \
+       && [ $(( $(date +%s) - $(stat -c %Y "$log") )) -ge $(( STALL_MINUTES * 60 )) ]; then
+      echo "HUNG: evaluator silent for ${STALL_MINUTES} min; killing it $(date -u +%FT%TZ)"
+      kill_group "$g"
+    fi
+  done
+}
+supervise & SUPERVISOR=$!
+
+# --- 3 evaluation: task-major, both arms back to back ----------------------------------
+stage 3_eval
+compact_videos () {   # $1 = source dir, $2 = destination dir on the volume
+  mkdir -p "$2"; local v out mb
+  for v in $(find "$1" -name '*.mp4' | sort); do
+    [ "$VIDEO_BUDGET_MB" -gt 0 ] || { echo "video budget spent; leaving $(basename "$v") on container disk"; continue; }
+    out="$2/$(basename "$v")"
+    if [ -n "$FFMPEG" ]; then
+      "$FFMPEG" -nostdin -loglevel error -y -i "$v" -vf "scale=640:-2" -c:v libx264 -preset veryfast \
+        -crf 30 -an "$out" || cp "$v" "$out"
+    else
+      cp "$v" "$out"
+    fi
+    mb=$(( $(stat -c %s "$out") / 1048576 + 1 )); VIDEO_BUDGET_MB=$(( VIDEO_BUDGET_MB - mb ))
+  done
+}
+FAILED_UNITS=0
+for TASK in "${TASKS[@]}"; do
+  for ARM in A B; do
+    if [ "$ARM" = A ]; then CFG=$CFG_A; CKPT=$CKPT_A; else CFG=$CFG_B; CKPT=$CKPT_B; fi
+    UNIT="$OUT/arm$ARM/$TASK"; JSON="$OUT/arm$ARM/json"
+    if [ -f "$UNIT.done" ]; then echo "ALREADY_DONE arm $ARM $TASK"; continue; fi
+    echo "--- UNIT arm $ARM ($CFG) on $TASK $(date -u +%FT%TZ)"
+    mkdir -p "$JSON"; rm -f "$JSON/${TASK}"_*.json; rm -rf "$SCR/arm$ARM/$TASK"
+
+    # the previous arm's server must be gone, or this unit would talk to it
+    if curl -sf -m 3 http://127.0.0.1:8000/healthz >/dev/null 2>&1; then
+      fail "port 8000 still answering before arm $ARM $TASK -- the previous server is still serving"
+    fi
+    setsid nohup env CONFIG="$CFG" CKPT="$CKPT" TASK="$TASK" ASSET_ID="$ASSET_ID" PORT=8000 \
+      XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.35 \
+      bash $B26/scripts/serve_baseline.sh > "$OUT/serve_arm${ARM}_${TASK}.log" 2>&1 < /dev/null &
+    SERVER_PG=$!
+    if ! bash $B26/scripts/wait_for_policy_server.sh; then
+      tail -20 "$OUT/serve_arm${ARM}_${TASK}.log"; kill_group "$SERVER_PG"; SERVER_PG=""
+      FAILED_UNITS=$(( FAILED_UNITS + 1 )); continue
+    fi
+
+    LOG="$OUT/evaluator_arm${ARM}_${TASK}.log"; echo "$LOG" > "$OUT/eval.current"
+    setsid bash -c 'source "$0/env.sh" && shift && exec python -m omnigibson.eval.eval "$@"' "$VOL" \
+      --task-name "$TASK" --host 127.0.0.1 --port 8000 --mode "$MODE" \
+      --instance-indices "${INSTANCES[@]}" --num-rollouts "$ROLLOUTS" \
+      --env-wrapper "$WRAPPER" --output-dir "$SCR/arm$ARM/$TASK" \
+      --write-video --headless > "$LOG" 2>&1 < /dev/null &
+    EVAL_PG=$!; echo "$EVAL_PG" > "$OUT/eval.pg"
+    wait "$EVAL_PG"; rc=$?
+    rm -f "$OUT/eval.pg"; EVAL_PG=""
+    kill_group "$SERVER_PG"; SERVER_PG=""
+
+    cp "$SCR/arm$ARM/$TASK"/json/*.json "$JSON/" 2>/dev/null
+    n=$(ls "$JSON/${TASK}"_*.json 2>/dev/null | wc -l)
+    echo "UNIT arm $ARM $TASK: evaluator rc=$rc, $n of $EXPECTED rollouts"
+    compact_videos "$SCR/arm$ARM/$TASK" "$OUT/arm$ARM/videos/$TASK"
+    if [ -f "$OUT/STATUS" ]; then exit 1; fi              # the cap fired: stop here
+    if [ "$n" -eq "$EXPECTED" ]; then date -u +%FT%TZ > "$UNIT.done"
+    else FAILED_UNITS=$(( FAILED_UNITS + 1 )); echo "UNIT arm $ARM $TASK INCOMPLETE -- re-invoke to redo it"; fi
+  done
+done
+
+# --- 4 the paired comparison -----------------------------------------------------------
+stage 4_compare
+(cd $B26 && $PY -m analysis.compare "$OUT/armA" "$OUT/armB" --per-instance --csv "$OUT/paired.csv") \
+  | tee "$OUT/compare.txt" || echo "compare.py failed (see above)"
+if [ "$FAILED_UNITS" -gt 0 ]; then status "PARTIAL: $FAILED_UNITS unit(s) incomplete; re-invoke to finish"
+else status "DONE"; fi
