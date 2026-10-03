@@ -137,13 +137,21 @@ import dataclasses, sys
 import numpy as np
 from openpi.training import config as _config
 from openpi.policies import policy_config as _policy_config
-from openpi.policies.b1k_policy import make_b1k_example
 name, ckpt, asset_id = sys.argv[1:4]
 cfg = _config.get_config(name)
 # exactly what serve_b1k.py does before create_trained_policy
 cfg = dataclasses.replace(cfg, data=dataclasses.replace(cfg.data, repo_id=asset_id, robot_config_name="b1k/R1Pro"))
 policy = _policy_config.create_trained_policy(cfg, ckpt, default_prompt="smoke test")
-out = policy.infer(make_b1k_example())
+# Build the input from the SAME robot config the policy's B1KInputs uses. openpi's
+# make_b1k_example is stale: a 23-number state, while B1KInputs indexes the full proprio
+# vector at the config's positions (53+), and cameras are keyed by the config's names.
+data_config = cfg.data.create(cfg.assets_dirs, cfg.model)
+rc = next(t.robot_config for t in data_config.data_transforms.inputs if getattr(t, "robot_config", None) is not None)
+n = 1 + max(int(np.max(p.indices)) for p in rc.proprio)
+obs = {"observation/state": np.zeros(n, np.float32), "prompt": "smoke test"}
+for cam in rc.observations:
+    obs[f"observation/{cam}"] = np.zeros((240, 240, 3), np.uint8)
+out = policy.infer(obs)
 a = np.asarray(out["actions"])
 assert a.size and np.isfinite(a).all(), f"non-finite actions {a.shape}"
 print(f"SMOKE_OK {name}: actions {a.shape}, |a| max {np.abs(a).max():.3f}")
