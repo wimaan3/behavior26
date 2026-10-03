@@ -225,7 +225,10 @@ for TASK in "${TASKS[@]}"; do
     fi
 
     LOG="$OUT/evaluator_arm${ARM}_${TASK}.log"; echo "$LOG" > "$OUT/eval.current"
-    setsid bash -c 'source "$0/env.sh" && shift && exec python -m omnigibson.eval.eval "$@"' "$VOL" \
+    # bash -c's first extra argument becomes $0 and is NOT in "$@"; the env path travels in
+    # an environment variable so every evaluator argument reaches "$@" intact. (A `shift`
+    # here once discarded --task-name and failed all four units.)
+    VOLENV="$VOL/env.sh" setsid bash -c 'source "$VOLENV" && exec python -m omnigibson.eval.eval "$@"' evaluator \
       --task-name "$TASK" --host 127.0.0.1 --port 8000 --mode "$MODE" \
       --instance-indices "${INSTANCES[@]}" --num-rollouts "$ROLLOUTS" \
       --env-wrapper "$WRAPPER" --output-dir "$SCR/arm$ARM/$TASK" \
