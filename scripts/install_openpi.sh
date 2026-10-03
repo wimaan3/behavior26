@@ -52,7 +52,11 @@ GIT_LFS_SKIP_SMUDGE=1 uv pip install -q gdown 2>&1 | tail -2
 
 say "STAGE 4: baseline checkpoint"
 mkdir -p "${CKPT_ROOT}"
-if [ -z "$(ls -A "${CKPT_ROOT}" 2>/dev/null)" ]; then
+# SKIP_BASELINE=1: evaluating our own arms needs openpi, not the released checkpoint,
+# whose Google-Drive download is slow and would abort the install if it failed.
+if [ "${SKIP_BASELINE:-0}" = "1" ]; then
+  say "SKIP_BASELINE=1: not downloading the released checkpoint"
+elif [ -z "$(ls -A "${CKPT_ROOT}" 2>/dev/null)" ]; then
   # Google Drive, so gdown rather than curl: large files need the confirm-token
   # handshake that a plain GET does not do (you get an HTML warning page instead,
   # which then fails to untar with a misleading "not in gzip format").
