@@ -249,3 +249,28 @@ def test_serve_refuses_a_checkpoint_with_no_norm_stats_in_it():
     serve = (REPO / "scripts" / "serve_baseline.sh").read_text()
     assert "assets" in serve and "norm_stats" in serve, "check the stats are there before serving"
     assert "--policy.assets_base_dir" not in serve, "no such flag exists on Checkpoint"
+
+
+def test_serve_looks_up_norm_stats_under_an_explicit_asset_id():
+    """openpi reads <checkpoint>/assets/<repo_id>/norm_stats.json, and serve_b1k sets
+    repo_id from --repo-id. shot one trained on coffee + shoes as one MultiLeRobotDataset,
+    so ONE stats file covers both tasks -- filed under the FIRST task's id. Serving the
+    shoes task with --repo-id putting_shoes_on_rack would look in a folder that does not
+    exist. ASSET_ID decouples the stats location from the task being evaluated."""
+    serve = (REPO / "scripts" / "serve_baseline.sh").read_text()
+    assert re.search(r'^ASSET_ID="\$\{ASSET_ID:-\$\{TASK\}\}"', serve, re.M)
+    assert '--repo-id "${ASSET_ID}"' in serve
+
+
+def test_serve_checks_the_exact_stats_file_it_will_load():
+    """The old guard passed if ANY norm_stats.json existed -- it would have passed the
+    shoes case above and served unnormalised."""
+    serve = (REPO / "scripts" / "serve_baseline.sh").read_text()
+    assert '"${CKPT}/assets/${ASSET_ID}/norm_stats.json"' in serve
+    code = [l for l in serve.splitlines() if not l.lstrip().startswith("#")]
+    assert not any("find \"${CKPT}/assets\" -name norm_stats.json" in l for l in code)
+
+
+def test_serve_reports_the_config_after_setting_it():
+    serve = (REPO / "scripts" / "serve_baseline.sh").read_text()
+    assert serve.index('CONFIG="${CONFIG:-') < serve.index('echo "config:')
