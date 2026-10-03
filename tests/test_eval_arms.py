@@ -92,7 +92,12 @@ def test_each_checkpoint_answers_one_real_inference_before_the_simulator_starts(
     smoke = t.index("stage 2_smoke")
     assert smoke < t.index("stage 3_eval")
     body = t[smoke:t.index("stage 3_eval")]
-    assert "create_trained_policy" in body and "make_b1k_example" in body and "SMOKE_OK" in body
+    assert "create_trained_policy" in body and "SMOKE_OK" in body
+    # NOT openpi's make_b1k_example: it carries a 23-number state, but B1KInputs indexes
+    # the full proprio vector at the robot config's positions (53+). The first eval pod
+    # failed its smoke test on exactly that -- a wrong input, not a broken checkpoint.
+    assert "make_b1k_example()" not in body
+    assert "robot_config" in body and ".proprio" in body and ".observations" in body
 
 
 def test_the_server_is_killed_by_process_group_between_units():
