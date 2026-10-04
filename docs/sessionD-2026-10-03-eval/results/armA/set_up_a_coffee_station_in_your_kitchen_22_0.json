@@ -1,0 +1,25 @@
+{
+  "task": "set_up_a_coffee_station_in_your_kitchen",
+  "instance_id": 22,
+  "rollout_id": 0,
+  "steps": 9400,
+  "success": false,
+  "agent_distance": {
+    "base": 24.655792302158865,
+    "left": 57.06346499812025,
+    "right": 55.76176732820841
+  },
+  "normalized_agent_distance": {
+    "base": 0.7040779621784854,
+    "left": 0.16764141470054655,
+    "right": 0.19219620384195482
+  },
+  "q_score": {
+    "final": 0.0
+  },
+  "time": {
+    "simulator_steps": 9400,
+    "simulator_time": 313.3333333333333,
+    "normalized_time": 0.6666186170212766
+  }
+}

@@ -4,7 +4,7 @@
 [`docs/RUNPOD-FINDINGS.md`](docs/RUNPOD-FINDINGS.md). Detailed evidence lives in
 the dated `docs/session*` folders it links to. Updated with every milestone.
 
-*Last updated: 2026-10-02 · Deadline: **16 Oct 2026** (14 days) · Spend: **~$54.14** ($25.00 to 18 Sep + $29.14 since the 30 Sep top-up) · Pods running: **none***
+*Last updated: 2026-10-04 · Deadline: **16 Oct 2026** (12 days) · Spend: **~$72** · RunPod balance: **~$2** · Pods running: **none***
 
 ## Deliverables
 
@@ -20,18 +20,18 @@ the dated `docs/session*` folders it links to. Updated with every milestone.
 | 8 | Noise floor σ_w (§2: 12 instances × 6 repeats) | 🔴 **not started** — protocol says before the first A/B | `AB_PROTOCOL.md` §2 |
 | 9 | Decide k and λ | 🟡 λ ≈ **0.14–0.15** for a 20% gradient share; k still open (labels, not throughput) | `docs/sessionB-2026-09-16-rung2-5/RUNG2-5.md` |
 | 10 | Shot one: train arm A and arm B | ✅ **done**: both arms 10,000 steps, both health-gated; progress head learned (0.694 → 0.563). Checkpoints on the volume **and** the laptop, sha256-verified | `docs/sessionC-2026-10-01-shot1/` |
-| 11 | Evaluate both arms, paired ΔQ (`analysis/compare.py`) | ⏳ blocked on 10 | — |
+| 11 | Evaluate both arms, paired ΔQ | 🟡 **partial**: pipeline proven end to end; coffee at the floor (A 0/13, B 0/3, all Q=0); shoes arm A mean Q 0.042 (4/12 nonzero); **arm B shoes not run**, so no A/B yet | `docs/sessionD-2026-10-03-eval/` |
 | 12 | Partial submission (2 tasks × 20 public instances) | ⏳ blocked on 10 | `submission/` |
 | 13 | Write-up | ⏳ ongoing in `docs/` | — |
 
 ## Next actions, in order
 
-1. **Evaluate both arms** in the simulator, paired ΔQ (`analysis/compare.py`), on coffee
-   and shoes. Record video of every attempt; make side-by-side clips. Needs ~$13 of RunPod
-   funding (the balance after shot one is a few dollars).
-2. **σ_w noise floor** (~$3) to size how many repeats the comparison needs.
-3. **Partial submission** and **write-up**.
-4. **Owner:** revoke the watchdog API key in the RunPod console (training is over).
+1. **Arm B on shoes, instances 10–21** (the 12 arm A already has): ~10.5 h ≈ **$8**. That is
+   the real paired comparison. It needs funding, plus two runner changes first (an
+   instance/task override, and re-invoking after a mid-unit simulator crash).
+2. Write-up: methods, the pipeline findings, and whatever the shoes pair shows.
+3. Submission is not worthwhile at this budget (ceiling Q = 0.020).
+4. **Owner:** revoke the watchdog API key in the RunPod console.
 
 ## Open decisions for the project owner
 

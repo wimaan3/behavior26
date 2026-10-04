@@ -1,0 +1,9 @@
+usage: eval.py [-h] --task-name TASK_NAME [--host HOST] [--port PORT]
+               [--robot-config ROBOT_CONFIG]
+               [--instance-indices INSTANCE_INDICES [INSTANCE_INDICES ...]]
+               [--mode {train,public_test,hidden_test}]
+               [--num-rollouts NUM_ROLLOUTS] [--max-steps MAX_STEPS]
+               [--env-wrapper ENV_WRAPPER] [--policy {websocket,local}]
+               [--output-dir OUTPUT_DIR] [--write-video | --no-write-video]
+               [--video-fps VIDEO_FPS] [--headless | --no-headless]
+eval.py: error: the following arguments are required: --task-name
