@@ -1,0 +1,145 @@
+
+=== STAGE 0_preflight 2026-10-03T16:51:54Z
+measuring volume usage with du (minutes)...
+volume: 159 GB used of 200, 41 GB free; video budget 31744 MB
+
+=== STAGE 1_setup 2026-10-03T16:53:46Z
+/opt/baseline
+total: 0
+INSTALL_EXIT=0
+==> undo
+    scripts/apply_openpi_patches.sh --reverse
+tasks set_up_a_coffee_station_in_your_kitchen putting_shoes_on_rack | mode train | 27 instances (10..36) x 1 = 27 rollouts per arm per task
+ffmpeg: /usr/bin/ffmpeg
+
+=== STAGE 2_smoke 2026-10-03T16:54:20Z
+Traceback (most recent call last):
+  File "<stdin>", line 11, in <module>
+  File "/opt/openpi/src/openpi/policies/policy.py", line 71, in infer
+    inputs = self._input_transform(inputs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/openpi/src/openpi/transforms.py", line 70, in __call__
+    data = transform(data)
+           ^^^^^^^^^^^^^^^
+  File "/opt/openpi/src/openpi/policies/b1k_policy.py", line 64, in __call__
+    state = extract_state_from_proprio(proprio_data, self.robot_config)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/openpi/src/openpi/policies/b1k_policy.py", line 40, in extract_state_from_proprio
+    state.append(proprio_data[..., proprio.indices])
+                 ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+IndexError: index 53 is out of bounds for axis 0 with size 23
+STATUS FAILED_AT=2_smoke: arm A cannot serve
+EVAL_EXIT rc=1 after 2 min: FAILED_AT=2_smoke: arm A cannot serve 2026-10-03T16:54:39Z TERMINAL 2026-10-03T16:54:39Z 
+
+=== STAGE 0_preflight 2026-10-03T16:56:24Z
+measuring volume usage with du (minutes)...
+volume: 159 GB used of 200, 41 GB free; video budget 31744 MB
+
+=== STAGE 1_setup 2026-10-03T16:58:09Z
+[1m==> already applied -- nothing to do[0m
+tasks set_up_a_coffee_station_in_your_kitchen putting_shoes_on_rack | mode train | 27 instances (10..36) x 1 = 27 rollouts per arm per task
+ffmpeg: /usr/bin/ffmpeg
+
+=== STAGE 2_smoke 2026-10-03T16:58:09Z
+SMOKE_OK pi05_b1k_frozen_vlm: actions (32, 23), |a| max 1.031
+SMOKE_OK pi05_b1k_frozen_vlm_progress: actions (32, 23), |a| max 1.021
+
+=== STAGE 3_eval 2026-10-03T16:59:02Z
+--- UNIT arm A (pi05_b1k_frozen_vlm) on set_up_a_coffee_station_in_your_kitchen 2026-10-03T16:59:02Z
+SERVER_DIED after 60s (no process matching serve_b1k|serve_baseline)
+checkpoint: /workspace/shot1/checkpoints/pi05_b1k_frozen_vlm/armA/9999
+config: pi05_b1k_frozen_vlm  task: set_up_a_coffee_station_in_your_kitchen  norm stats: assets/set_up_a_coffee_station_in_your_kitchen
+Uninstalled 1 package in 16ms
+Installed 1 package in 24ms
+Traceback (most recent call last):
+  File "/opt/openpi/scripts/b1k/serve_b1k.py", line 92, in <module>
+    main(tyro.cli(Args))
+  File "/opt/openpi/scripts/b1k/serve_b1k.py", line 47, in main
+    task_prompt = TASK_REGISTRY[task_bucket][task_name]
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'set_up_a_coffee_station_in_your_kitchen'
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on set_up_a_coffee_station_in_your_kitchen 2026-10-03T17:00:02Z
+SERVER_DIED after 60s (no process matching serve_b1k|serve_baseline)
+checkpoint: /workspace/shot1/checkpoints/pi05_b1k_frozen_vlm_progress/armB/9999
+config: pi05_b1k_frozen_vlm_progress  task: set_up_a_coffee_station_in_your_kitchen  norm stats: assets/set_up_a_coffee_station_in_your_kitchen
+Traceback (most recent call last):
+  File "/opt/openpi/scripts/b1k/serve_b1k.py", line 92, in <module>
+    main(tyro.cli(Args))
+  File "/opt/openpi/scripts/b1k/serve_b1k.py", line 47, in main
+    task_prompt = TASK_REGISTRY[task_bucket][task_name]
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'set_up_a_coffee_station_in_your_kitchen'
+--- UNIT arm A (pi05_b1k_frozen_vlm) on putting_shoes_on_rack 2026-10-03T17:01:03Z
+SERVER_DIED after 60s (no process matching serve_b1k|serve_baseline)
+checkpoint: /workspace/shot1/checkpoints/pi05_b1k_frozen_vlm/armA/9999
+config: pi05_b1k_frozen_vlm  task: putting_shoes_on_rack  norm stats: assets/set_up_a_coffee_station_in_your_kitchen
+Traceback (most recent call last):
+  File "/opt/openpi/scripts/b1k/serve_b1k.py", line 92, in <module>
+    main(tyro.cli(Args))
+  File "/opt/openpi/scripts/b1k/serve_b1k.py", line 47, in main
+    task_prompt = TASK_REGISTRY[task_bucket][task_name]
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'putting_shoes_on_rack'
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on putting_shoes_on_rack 2026-10-03T17:02:03Z
+SERVER_DIED after 60s (no process matching serve_b1k|serve_baseline)
+checkpoint: /workspace/shot1/checkpoints/pi05_b1k_frozen_vlm_progress/armB/9999
+config: pi05_b1k_frozen_vlm_progress  task: putting_shoes_on_rack  norm stats: assets/set_up_a_coffee_station_in_your_kitchen
+Traceback (most recent call last):
+  File "/opt/openpi/scripts/b1k/serve_b1k.py", line 92, in <module>
+    main(tyro.cli(Args))
+  File "/opt/openpi/scripts/b1k/serve_b1k.py", line 47, in main
+    task_prompt = TASK_REGISTRY[task_bucket][task_name]
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'putting_shoes_on_rack'
+
+=== STAGE 4_compare 2026-10-03T17:03:03Z
+no rollout JSONs found under /workspace/eval1/armA/json
+compare.py failed (see above)
+STATUS PARTIAL: 4 unit(s) incomplete; re-invoke to finish
+EVAL_EXIT rc=0 after 6 min: PARTIAL: 4 unit(s) incomplete; re-invoke to finish 2026-10-03T17:03:03Z TERMINAL 2026-10-03T17:03:03Z 
+
+=== STAGE 0_preflight 2026-10-03T17:17:21Z
+measuring volume usage with du (minutes)...
+volume: 159 GB used of 200, 41 GB free; video budget 31744 MB
+
+=== STAGE 1_setup 2026-10-03T17:20:16Z
+/opt/baseline
+total: 0
+INSTALL_EXIT=0
+==> undo
+    scripts/apply_openpi_patches.sh --reverse
+tasks set_up_a_coffee_station_in_your_kitchen putting_shoes_on_rack | mode train | 27 instances (10..36) x 1 = 27 rollouts per arm per task
+ffmpeg: /usr/bin/ffmpeg
+
+=== STAGE 2_smoke 2026-10-03T17:21:08Z
+PROMPTS_OK ['set_up_a_coffee_station_in_your_kitchen', 'putting_shoes_on_rack']
+SMOKE_OK pi05_b1k_frozen_vlm: actions (32, 23), |a| max 1.031
+SMOKE_OK pi05_b1k_frozen_vlm_progress: actions (32, 23), |a| max 1.020
+
+=== STAGE 3_eval 2026-10-03T17:23:27Z
+--- UNIT arm A (pi05_b1k_frozen_vlm) on set_up_a_coffee_station_in_your_kitchen 2026-10-03T17:23:27Z
+SERVER_UP after 20s
+UNIT arm A set_up_a_coffee_station_in_your_kitchen: evaluator rc=2, 0 of 27 rollouts
+find: ‘/opt/eval_scratch/armA/set_up_a_coffee_station_in_your_kitchen’: No such file or directory
+UNIT arm A set_up_a_coffee_station_in_your_kitchen INCOMPLETE -- re-invoke to redo it
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on set_up_a_coffee_station_in_your_kitchen 2026-10-03T17:28:52Z
+SERVER_UP after 20s
+UNIT arm B set_up_a_coffee_station_in_your_kitchen: evaluator rc=2, 0 of 27 rollouts
+find: ‘/opt/eval_scratch/armB/set_up_a_coffee_station_in_your_kitchen’: No such file or directory
+UNIT arm B set_up_a_coffee_station_in_your_kitchen INCOMPLETE -- re-invoke to redo it
+--- UNIT arm A (pi05_b1k_frozen_vlm) on putting_shoes_on_rack 2026-10-03T17:33:15Z
+SERVER_UP after 20s
+UNIT arm A putting_shoes_on_rack: evaluator rc=2, 0 of 27 rollouts
+find: ‘/opt/eval_scratch/armA/putting_shoes_on_rack’: No such file or directory
+UNIT arm A putting_shoes_on_rack INCOMPLETE -- re-invoke to redo it
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on putting_shoes_on_rack 2026-10-03T17:37:29Z
+SERVER_UP after 20s
+UNIT arm B putting_shoes_on_rack: evaluator rc=2, 0 of 27 rollouts
+find: ‘/opt/eval_scratch/armB/putting_shoes_on_rack’: No such file or directory
+UNIT arm B putting_shoes_on_rack INCOMPLETE -- re-invoke to redo it
+
+=== STAGE 4_compare 2026-10-03T17:41:48Z
+no rollout JSONs found under /workspace/eval1/armA/json
+compare.py failed (see above)
+STATUS PARTIAL: 4 unit(s) incomplete; re-invoke to finish
+EVAL_EXIT rc=0 after 24 min: PARTIAL: 4 unit(s) incomplete; re-invoke to finish 2026-10-03T17:41:49Z TERMINAL 2026-10-03T17:41:49Z 

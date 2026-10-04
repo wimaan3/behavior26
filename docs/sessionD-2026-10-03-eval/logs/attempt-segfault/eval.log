@@ -1,0 +1,26 @@
+
+=== STAGE 0_preflight 2026-10-03T17:54:33Z
+measuring volume usage with du (minutes)...
+volume: 159 GB used of 200, 41 GB free; video budget 31744 MB
+
+=== STAGE 1_setup 2026-10-03T17:57:18Z
+[1m==> already applied: 0003-task-prompts-for-our-tasks.patch[0m
+[1m==> already applied -- nothing to do[0m
+tasks set_up_a_coffee_station_in_your_kitchen putting_shoes_on_rack | mode train | 27 instances (10..36) x 1 = 27 rollouts per arm per task
+ffmpeg: /usr/bin/ffmpeg
+
+=== STAGE 2_smoke 2026-10-03T17:57:19Z
+PROMPTS_OK ['set_up_a_coffee_station_in_your_kitchen', 'putting_shoes_on_rack']
+SMOKE_OK pi05_b1k_frozen_vlm: actions (32, 23), |a| max 1.031
+SMOKE_OK pi05_b1k_frozen_vlm_progress: actions (32, 23), |a| max 1.019
+
+=== STAGE 3_eval 2026-10-03T17:59:00Z
+--- UNIT arm A (pi05_b1k_frozen_vlm) on set_up_a_coffee_station_in_your_kitchen 2026-10-03T17:59:00Z
+SERVER_UP after 20s
+/opt/behavior26/scripts/eval_arms.sh: line 237: 11653 Segmentation fault         (core dumped) VOLENV="$VOL/env.sh" setsid bash -c 'source "$VOLENV" && exec python -m omnigibson.eval.eval "$@"' evaluator --task-name "$TASK" --host 127.0.0.1 --port 8000 --mode "$MODE" --instance-indices "${INSTANCES[@]}" --num-rollouts "$ROLLOUTS" --env-wrapper "$WRAPPER" --output-dir "$SCR/arm$ARM/$TASK" --write-video --headless > "$LOG" 2>&1 < /dev/null
+UNIT arm A set_up_a_coffee_station_in_your_kitchen: evaluator rc=139, 0 of 27 rollouts
+UNIT arm A set_up_a_coffee_station_in_your_kitchen INCOMPLETE -- re-invoke to redo it
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on set_up_a_coffee_station_in_your_kitchen 2026-10-03T18:05:14Z
+SERVER_UP after 20s
+STATUS KILLED by signal
+EVAL_EXIT rc=143 after 11 min: KILLED by signal 2026-10-03T18:05:47Z TERMINAL 2026-10-03T18:05:49Z 

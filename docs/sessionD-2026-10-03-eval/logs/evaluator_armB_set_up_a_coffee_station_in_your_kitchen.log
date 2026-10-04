@@ -1,0 +1,1254 @@
+INFO:__main__:Seeded Python, NumPy, and Torch with seed=0
+INFO:__main__:Resolved train instance ids for set_up_a_coffee_station_in_your_kitchen: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]
+[0m[00:01:33.633] [INFO] [omnigibson.eval.evaluator] Setting timeout to be 1.5x the average length of human demos: 9399[0m
+[0m[00:01:33.640] [INFO] [omnigibson.simulator] ----- Starting OmniGibson. This will take 10-30 seconds... -----[0m
+DEBUG:asyncio:Using selector: EpollSelector
+[Info] [carb] Logging to file: /home/ubuntu/og-appdata/local/logs/Kit/OmniGibson/3.9/kit_20261004_032645.log
+[1.012s] [ext: omni.kit.async_engine-0.0.3] startup
+[7.178s] [ext: omni.metrics.core-0.0.3] startup
+[7.201s] [ext: omni.client.lib-1.1.0] startup
+[7.711s] [ext: omni.blobkey-1.1.2] startup
+[7.726s] [ext: omni.stats-1.0.1] startup
+[7.756s] [ext: omni.datastore-0.0.0] startup
+[8.025s] [ext: omni.client-1.3.0] startup
+[8.204s] [ext: omni.ujitso.default-1.0.0] startup
+[8.253s] [ext: omni.hsscclient-1.1.2] startup
+[8.370s] [ext: omni.gpu_foundation.shadercache.vulkan-1.0.0] startup
+[8.447s] [ext: omni.assets.plugins-0.0.0] startup
+[8.521s] [ext: omni.gpu_foundation-0.0.0] startup
+[9.127s] [ext: carb.windowing.plugins-1.0.0] startup
+[9.229s] [ext: omni.kit.renderer.init-0.0.0] startup
+
+|---------------------------------------------------------------------------------------------|
+| Driver Version: 580.159.03    | Graphics API: Vulkan
+|=============================================================================================|
+| GPU | Name                             | Active | LDA | GPU Memory | Vendor-ID | LUID       |
+|     |                                  |        |     |            | Device-ID | UUID       |
+|     |                                  |        |     |            | Bus-ID    |            |
+|---------------------------------------------------------------------------------------------|
+| 0   | NVIDIA GeForce RTX 4090          | Yes: 0 |     | 24810   MB | 10de      | 0          |
+|     |                                  |        |     |            | 2684      | c1b9e2cf.. |
+|     |                                  |        |     |            | 1         |            |
+|=============================================================================================|
+| OS: 26.04.1 LTS (Resolute Raccoon) ubuntu, Version: 26.04.1, Kernel: 6.8.0-111-generic
+| XServer Vendor: XLibre, XServer Version: 12502002
+| Processor: AMD EPYC 7352 24-Core Processor
+| Bare Metal Cores: 24 | Bare Metal Logical Cores: 48
+| Core Usage Quota: 13.6
+|---------------------------------------------------------------------------------------------|
+| Total Memory (MB): 79154 | Free Memory: 56152
+| Total Page/Swap (MB): 0 | Free Page/Swap: 0
+|---------------------------------------------------------------------------------------------|
+[14.768s] [ext: omni.materialx.libs-1.0.7] startup
+[14.932s] [ext: omni.kit.loop-isaac-1.3.7] startup
+[14.967s] [ext: omni.kit.test-2.0.1] startup
+[15.629s] [ext: omni.usd.config-1.0.6] startup
+[16.149s] [ext: omni.gpucompute.plugins-0.0.0] startup
+[16.180s] [ext: omni.usd.libs-1.0.1] startup
+[18.603s] [ext: omni.kit.telemetry-0.5.2] startup
+[18.803s] [ext: omni.mdl-56.0.3] startup
+[19.021s] [ext: omni.iray.libs-0.0.0] startup
+[19.763s] [ext: omni.mdl.neuraylib-0.2.12] startup
+[19.865s] [ext: omni.kit.usd.mdl-1.1.5] startup
+[21.577s] [ext: omni.kit.pipapi-0.0.0] startup
+[21.606s] [ext: omni.appwindow-1.1.10] startup
+[21.640s] [ext: omni.kit.renderer.core-1.1.0] startup
+[21.811s] [ext: omni.kit.renderer.capture-0.0.0] startup
+[21.878s] [ext: omni.kit.renderer.imgui-2.0.5] startup
+[22.728s] [ext: omni.ui-2.27.1] startup
+[22.952s] [ext: omni.kit.mainwindow-1.0.3] startup
+[23.002s] [ext: carb.audio-0.1.0] startup
+[23.105s] [ext: omni.uiaudio-1.0.0] startup
+[23.138s] [ext: omni.kit.uiapp-0.0.0] startup
+[23.138s] [ext: omni.usd.schema.metrics.assembler-107.3.1] startup
+[23.308s] [ext: omni.usd.schema.audio-0.0.0] startup
+[23.368s] [ext: omni.usd_resolver-1.0.0] startup
+[23.476s] [ext: omni.usd.core-1.5.3] startup
+[23.541s] [ext: omni.usd.schema.omni_lens_distortion-0.0.0] startup
+[23.840s] [ext: omni.usd.schema.anim-0.0.0] startup
+[24.144s] [ext: omni.usd.schema.geospatial-0.0.0] startup
+[24.214s] [ext: omni.usd.schema.semantics-0.0.0] startup
+[24.265s] [ext: omni.kit.actions.core-1.0.0] startup
+[24.340s] [ext: omni.activity.core-1.0.3] startup
+[24.376s] [ext: omni.kit.commands-1.4.10] startup
+[24.533s] [ext: usdrt.scenegraph-7.6.1] startup
+[25.175s] [ext: omni.resourcemonitor-107.0.1] startup
+[25.245s] [ext: omni.kit.audiodeviceenum-1.0.2] startup
+[25.294s] [ext: omni.hydra.usdrt_delegate-7.5.1] startup
+[25.447s] [ext: omni.kit.usd_undo-0.1.8] startup
+[25.468s] [ext: omni.kit.window.popup_dialog-2.0.24] startup
+[25.566s] [ext: omni.graph.exec-0.9.6] startup
+[25.579s] [ext: omni.timeline-1.0.14] startup
+[25.625s] [ext: omni.kit.widget.nucleus_connector-2.0.1] startup
+[25.677s] [ext: omni.kit.exec.core-0.13.4] startup
+[25.744s] [ext: omni.hydra.scene_delegate-0.3.4] startup
+[25.822s] [ext: omni.usd-1.13.10] startup
+[26.150s] [ext: omni.kit.asset_converter-5.0.17] startup
+2026-10-04T03:27:11Z [25,992ms] [Error] [omni.ext._impl._internal] Failed to import python module asset_converter_native_bindings from /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353. Error: libxml2.so.2: cannot open shared object file: No such file or directory. Traceback:
+Traceback (most recent call last):
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py", line 196, in _custom_importer
+    return _import_public(ext_module.path, ext_module.name, reload_enabled)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py", line 103, in _import_public
+    module = import_module(module_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/custom_importer.py", line 85, in import_module
+    return importlib.import_module(name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/asset_converter_native_bindings/__init__.py", line 42, in <module>
+    ctypes.CDLL(os.path.join(os.path.dirname(__file__), "libs/libomniverse_asset_converter.so"))
+  File "/workspace/envs/behavior/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libxml2.so.2: cannot open shared object file: No such file or directory
+
+2026-10-04T03:27:11Z [25,993ms] [Error] [carb.scripting-python.plugin] Exception: Extension python module: 'asset_converter_native_bindings' in '/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353' failed to load.
+
+At:
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py(222): startup
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py(337): startup_extension
+  PythonExtension.cpp::startup()(2): <module>
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(534): _start_app
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(270): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py(262): _launch_app
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py(372): _launch_simulator
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/envs/env_base.py(100): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/utils/python_utils.py(92): wrapper
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py(175): load_env
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py(102): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py(151): main
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py(208): <module>
+  <frozen runpy>(88): _run_code
+  <frozen runpy>(198): _run_module_as_main
+
+2026-10-04T03:27:11Z [25,993ms] [Error] [omni.ext.plugin] [ext: omni.kit.asset_converter-5.0.17] Failed to startup python extension.
+DEBUG:AutoNode:Defining data type 'any' as 'Any'
+DEBUG:AutoNode:Defining data type 'bool' as 'Bool' and array 'BoolArray
+DEBUG:AutoNode:Defining data type 'bundle' as 'Bundle'
+DEBUG:AutoNode:Defining data type 'colord[3]' as 'Color3d' and array 'Color3dArray
+DEBUG:AutoNode:Defining data type 'colorf[3]' as 'Color3f' and array 'Color3fArray
+DEBUG:AutoNode:Defining data type 'colorh[3]' as 'Color3h' and array 'Color3hArray
+DEBUG:AutoNode:Defining data type 'colord[4]' as 'Color4d' and array 'Color4dArray
+DEBUG:AutoNode:Defining data type 'colorf[4]' as 'Color4f' and array 'Color4fArray
+DEBUG:AutoNode:Defining data type 'colorh[4]' as 'Color4h' and array 'Color4hArray
+DEBUG:AutoNode:Defining data type 'double' as 'Double' and array 'DoubleArray
+DEBUG:AutoNode:Defining data type 'double[2]' as 'Double2' and array 'Double2Array
+DEBUG:AutoNode:Defining data type 'double[3]' as 'Double3' and array 'Double3Array
+DEBUG:AutoNode:Defining data type 'double[4]' as 'Double4' and array 'Double4Array
+DEBUG:AutoNode:Defining data type 'execution' as 'Execution'
+DEBUG:AutoNode:Defining data type 'float' as 'Float' and array 'FloatArray
+DEBUG:AutoNode:Defining data type 'float[2]' as 'Float2' and array 'Float2Array
+DEBUG:AutoNode:Defining data type 'float[3]' as 'Float3' and array 'Float3Array
+DEBUG:AutoNode:Defining data type 'float[4]' as 'Float4' and array 'Float4Array
+DEBUG:AutoNode:Defining data type 'frame[4]' as 'Frame' and array 'FrameArray
+DEBUG:AutoNode:Defining data type 'half' as 'Half' and array 'HalfArray
+DEBUG:AutoNode:Defining data type 'half[2]' as 'Half2' and array 'Half2Array
+DEBUG:AutoNode:Defining data type 'half[3]' as 'Half3' and array 'Half3Array
+DEBUG:AutoNode:Defining data type 'half[4]' as 'Half4' and array 'Half4Array
+DEBUG:AutoNode:Defining data type 'int' as 'Int' and array 'IntArray
+DEBUG:AutoNode:Defining data type 'int[2]' as 'Int2' and array 'Int2Array
+DEBUG:AutoNode:Defining data type 'int[3]' as 'Int3' and array 'Int3Array
+DEBUG:AutoNode:Defining data type 'int[4]' as 'Int4' and array 'Int4Array
+DEBUG:AutoNode:Defining data type 'int64' as 'Int64' and array 'Int64Array
+DEBUG:AutoNode:Defining data type 'matrixd[2]' as 'Matrix2d' and array 'Matrix2dArray
+DEBUG:AutoNode:Defining data type 'matrixd[3]' as 'Matrix3d' and array 'Matrix3dArray
+DEBUG:AutoNode:Defining data type 'matrixd[4]' as 'Matrix4d' and array 'Matrix4dArray
+DEBUG:AutoNode:Defining data type 'normald[3]' as 'Normal3d' and array 'Normal3dArray
+DEBUG:AutoNode:Defining data type 'normalf[3]' as 'Normal3f' and array 'Normal3fArray
+DEBUG:AutoNode:Defining data type 'normalh[3]' as 'Normal3h' and array 'Normal3hArray
+DEBUG:AutoNode:Defining data type 'objectId' as 'ObjectId' and array 'ObjectIdArray
+DEBUG:AutoNode:Defining data type 'path' as 'Path'
+DEBUG:AutoNode:Defining data type 'pointd[3]' as 'Point3d' and array 'Point3dArray
+DEBUG:AutoNode:Defining data type 'pointf[3]' as 'Point3f' and array 'Point3fArray
+DEBUG:AutoNode:Defining data type 'pointh[3]' as 'Point3h' and array 'Point3hArray
+DEBUG:AutoNode:Defining data type 'quatd[4]' as 'Quatd' and array 'QuatdArray
+DEBUG:AutoNode:Defining data type 'quatf[4]' as 'Quatf' and array 'QuatfArray
+DEBUG:AutoNode:Defining data type 'quath[4]' as 'Quath' and array 'QuathArray
+DEBUG:AutoNode:Defining data type 'string' as 'String'
+DEBUG:AutoNode:Defining data type 'target' as 'Target'
+DEBUG:AutoNode:Defining data type 'texcoordd[2]' as 'TexCoord2d' and array 'TexCoord2dArray
+DEBUG:AutoNode:Defining data type 'texcoordf[2]' as 'TexCoord2f' and array 'TexCoord2fArray
+DEBUG:AutoNode:Defining data type 'texcoordh[2]' as 'TexCoord2h' and array 'TexCoord2hArray
+DEBUG:AutoNode:Defining data type 'texcoordd[3]' as 'TexCoord3d' and array 'TexCoord3dArray
+DEBUG:AutoNode:Defining data type 'texcoordf[3]' as 'TexCoord3f' and array 'TexCoord3fArray
+DEBUG:AutoNode:Defining data type 'texcoordh[3]' as 'TexCoord3h' and array 'TexCoord3hArray
+DEBUG:AutoNode:Defining data type 'timecode' as 'Timecode' and array 'TimecodeArray
+DEBUG:AutoNode:Defining data type 'token' as 'Token' and array 'TokenArray
+DEBUG:AutoNode:Defining data type 'uchar' as 'UChar' and array 'UCharArray
+DEBUG:AutoNode:Defining data type 'uint' as 'UInt' and array 'UIntArray
+DEBUG:AutoNode:Defining data type 'uint64' as 'UInt64' and array 'UInt64Array
+DEBUG:AutoNode:Defining data type 'vectord[3]' as 'Vector3d' and array 'Vector3dArray
+DEBUG:AutoNode:Defining data type 'vectorf[3]' as 'Vector3f' and array 'Vector3fArray
+DEBUG:AutoNode:Defining data type 'vectorh[3]' as 'Vector3h' and array 'Vector3hArray
+[26.788s] [ext: omni.usd.schema.isaac-3.0.5] startup
+[26.789s] [ext: omni.usd.schema.omnigraph-1.0.0] startup
+[26.872s] [ext: isaacsim.robot.schema-3.6.0] startup
+[27.021s] [ext: omni.usd.schema.omniscripting-1.0.0] startup
+[27.113s] [ext: omni.usd.schema.flow-107.1.1] startup
+[27.133s] [ext: omni.usd.schema.omni_sensors-0.0.0] startup
+[27.155s] [ext: omni.usd.schema.physx-107.3.26] startup
+[27.965s] [ext: omni.inspect-1.0.2] startup
+[28.016s] [ext: omni.kit.notification_manager-1.0.10] startup
+[28.080s] [ext: omni.graph.core-2.184.5] startup
+[28.231s] [ext: isaacsim.core.deprecation_manager-0.2.7] startup
+[28.254s] [ext: omni.usd.schema.render_settings.rtx-0.0.0] startup
+[28.302s] [ext: omni.anim.graph.schema-107.3.3] startup
+[28.415s] [ext: omni.anim.navigation.schema-107.3.3] startup
+[28.470s] [ext: omni.kit.widget.path_field-2.0.11] startup
+[28.517s] [ext: omni.kit.viewport.legacy_gizmos-1.0.19] startup
+[28.557s] [ext: omni.kit.widget.browser_bar-2.0.10] startup
+[28.602s] [ext: omni.kit.clipboard-1.0.5] startup
+[28.626s] [ext: omni.kit.usd.layers-2.2.11] startup
+[28.835s] [ext: omni.ui.scene-1.11.5] startup
+[28.939s] [ext: omni.index.libs-380600.8087.0] startup
+[28.939s] [ext: omni.kit.viewport.scene_camera_model-1.0.6] startup
+[28.990s] [ext: omni.index-1.0.1] startup
+[29.047s] [ext: omni.hydra.rtx.shadercache.vulkan-1.0.0] startup
+[29.117s] [ext: omni.kit.widget.options_menu-1.1.6] startup
+[29.242s] [ext: omni.volume-0.5.2] startup
+[29.372s] [ext: omni.ujitso.client-0.0.0] startup
+[29.419s] [ext: omni.kit.helper.file_utils-0.1.9] startup
+[29.453s] [ext: omni.kit.menu.core-1.1.2] startup
+[29.475s] [ext: omni.hydra.rtx-1.0.0] startup
+2026-10-04T03:27:15Z [29,965ms] [Warning] [omni.log] Source: omni.hydra was already registered.
+[31.065s] [ext: omni.kit.widget.options_button-1.0.3] startup
+[31.099s] [ext: omni.kit.widget.filebrowser-2.12.3] startup
+[31.261s] [ext: omni.kit.widget.context_menu-1.2.5] startup
+[31.308s] [ext: omni.kit.hydra_texture-1.4.6] startup
+[31.408s] [ext: omni.kit.window.filepicker-2.13.4] startup
+[31.878s] [ext: omni.kit.menu.utils-2.0.5] startup
+[32.105s] [ext: omni.kit.context_menu-1.8.6] startup
+[32.166s] [ext: omni.kit.widget.viewport-107.1.3] startup
+[32.294s] [ext: omni.kit.viewport.registry-104.0.6] startup
+[32.313s] [ext: omni.kit.window.file_importer-1.1.18] startup
+[32.349s] [ext: omni.kit.raycast.query-1.1.0] startup
+[32.431s] [ext: omni.kit.material.library-2.0.7] startup
+[32.569s] [ext: omni.kit.window.drop_support-1.0.5] startup
+[32.600s] [ext: omni.hydra.engine.stats-1.0.3] startup
+[32.638s] [ext: omni.kit.viewport.window-107.2.0] startup
+[32.968s] [ext: omni.kit.widget.zoombar-1.0.6] startup
+[33.015s] [ext: omni.kit.widget.searchfield-1.1.8] startup
+[33.063s] [ext: omni.kit.widget.filter-1.1.4] startup
+[33.101s] [ext: omni.kit.window.file_exporter-1.0.33] startup
+[33.124s] [ext: omni.kit.hotkeys.core-1.3.10] startup
+[33.126s] [ext: omni.kit.browser.core-2.3.13] startup
+[33.303s] [ext: omni.kit.stage_template.core-1.1.22] startup
+[33.325s] [ext: omni.kit.widget.stage-3.1.4] startup
+[33.666s] [ext: omni.kit.browser.folder.core-1.10.9] startup
+[33.878s] [ext: omni.kit.window.file-2.0.5] startup
+[34.025s] [ext: omni.kit.window.content_browser_registry-0.0.6] startup
+[34.045s] [ext: omni.kit.widget.prompt-1.0.7] startup
+[34.070s] [ext: omni.kit.usd.collect-2.4.5] startup
+[34.137s] [ext: omni.graph.tools-1.79.2] startup
+[34.975s] [ext: omni.kit.window.content_browser-3.1.3] startup
+[35.194s] [ext: omni.kit.usdz_export-1.0.9] startup
+[35.238s] [ext: omni.graph.action_core-1.1.7] startup
+[35.305s] [ext: omni.graph-1.141.2] startup
+[36.145s] [ext: omni.kit.widget.stage_icons-1.0.8] startup
+[36.173s] [ext: omni.kit.tool.asset_importer-4.3.2] startup
+2026-10-04T03:27:21Z [35,989ms] [Error] [omni.ext._impl._internal] Failed to import python module omni.kit.tool.asset_importer from /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3. Error: libxml2.so.2: cannot open shared object file: No such file or directory. Traceback:
+Traceback (most recent call last):
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py", line 196, in _custom_importer
+    return _import_public(ext_module.path, ext_module.name, reload_enabled)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py", line 103, in _import_public
+    module = import_module(module_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/custom_importer.py", line 85, in import_module
+    return importlib.import_module(name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3/omni/kit/tool/asset_importer/__init__.py", line 1, in <module>
+    from .extension import AssetImporterExtension, is_supported_format, register_importer, remove_importer
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3/omni/kit/tool/asset_importer/extension.py", line 29, in <module>
+    from .builtin_importer import BuiltinImporter
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3/omni/kit/tool/asset_importer/builtin_importer.py", line 8, in <module>
+    import omni.kit.asset_converter as asset_converter
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/__init__.py", line 1, in <module>
+    from .impl import *
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/impl/__init__.py", line 2, in <module>
+    from .extension import AssetImporterExtension, get_instance
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/impl/extension.py", line 23, in <module>
+    from ..native_bindings import *
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/native_bindings/__init__.py", line 9, in <module>
+    from asset_converter_native_bindings import OmniAssetConverter
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/asset_converter_native_bindings/__init__.py", line 42, in <module>
+    ctypes.CDLL(os.path.join(os.path.dirname(__file__), "libs/libomniverse_asset_converter.so"))
+  File "/workspace/envs/behavior/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libxml2.so.2: cannot open shared object file: No such file or directory
+
+2026-10-04T03:27:21Z [35,990ms] [Error] [carb.scripting-python.plugin] Exception: Extension python module: 'omni.kit.tool.asset_importer' in '/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3' failed to load.
+
+At:
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py(222): startup
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py(337): startup_extension
+  PythonExtension.cpp::startup()(2): <module>
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(534): _start_app
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(270): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py(262): _launch_app
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py(372): _launch_simulator
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/envs/env_base.py(100): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/utils/python_utils.py(92): wrapper
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py(175): load_env
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py(102): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py(151): main
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py(208): <module>
+  <frozen runpy>(88): _run_code
+  <frozen runpy>(198): _run_module_as_main
+
+2026-10-04T03:27:21Z [35,990ms] [Error] [omni.ext.plugin] [ext: omni.kit.tool.asset_importer-4.3.2] Failed to startup python extension.
+[36.814s] [ext: omni.graph.action_nodes-1.50.4] startup
+[36.974s] [ext: omni.kit.window.stage-2.6.1] startup
+[37.055s] [ext: omni.kit.widget.searchable_combobox-1.0.6] startup
+[37.104s] [ext: omni.graph.action-1.130.0] startup
+[37.117s] [ext: omni.kit.menu.stage-1.2.7] startup
+[37.147s] [ext: omni.kit.widget.settings-1.2.6] startup
+[37.204s] [ext: omni.kit.viewport.utility-1.1.2] startup
+[37.220s] [ext: omni.kit.property.adapter.core-1.0.2] startup
+[37.355s] [ext: omni.kit.window.preferences-1.8.0] startup
+[37.605s] [ext: omni.kit.viewport.actions-107.0.2] startup
+[37.652s] [ext: omni.kit.widget.highlight_label-1.0.3] startup
+[37.696s] [ext: omni.kit.property.adapter.usd-1.0.2] startup
+[37.743s] [ext: omni.kit.viewport.menubar.core-107.2.1] startup
+[38.328s] [ext: omni.kit.property.adapter.fabric-1.0.3] startup
+[38.395s] [ext: omni.kit.viewport.menubar.display-107.0.3] startup
+[38.430s] [ext: omni.kit.window.property-1.12.1] startup
+[38.534s] [ext: omni.ui_query-1.1.8] startup
+[38.556s] [ext: omni.kit.property.usd-4.5.12] startup
+[38.820s] [ext: omni.kit.menu.create-2.0.1] startup
+[38.855s] [ext: isaacsim.core.version-2.0.6] startup
+[38.893s] [ext: omni.kit.ui_test-1.3.7] startup
+[38.956s] [ext: omni.kit.scripting-107.3.2] startup
+[39.117s] [ext: omni.convexdecomposition-107.3.26] startup
+[39.182s] [ext: isaacsim.storage.native-1.5.1] startup
+[39.245s] [ext: omni.kit.widget.toolbar-2.0.1] startup
+[39.606s] [ext: omni.kit.manipulator.transform-107.0.0] startup
+[39.752s] [ext: omni.kvdb-107.3.26] startup
+[39.818s] [ext: omni.usdphysics-107.3.26] startup
+[39.873s] [ext: omni.physx.foundation-107.3.26] startup
+[39.985s] [ext: omni.localcache-107.3.26] startup
+[40.044s] [ext: omni.kit.window.extensions-1.4.27] startup
+[40.253s] [ext: omni.physx.cooking-107.3.26] startup
+[40.344s] [ext: omni.kit.manipulator.viewport-107.0.1] startup
+[40.383s] [ext: omni.physx-107.3.26] startup
+[40.629s] [ext: omni.graph.visualization.nodes-2.1.3] startup
+[40.807s] [ext: isaacsim.replicator.behavior-1.1.16] startup
+[40.832s] [ext: omni.kit.tool.collect-2.2.18] startup
+[40.908s] [ext: omni.kit.manipulator.tool.snap-1.5.13] startup
+[41.080s] [ext: omni.kit.manipulator.selector-1.1.3] startup
+[41.132s] [ext: isaacsim.gui.components-1.2.1] startup
+[41.230s] [ext: isaacsim.examples.browser-0.2.1] startup
+[41.315s] [ext: isaacsim.asset.importer.urdf-2.4.30] startup
+2026-10-04T03:27:26Z [40,971ms] [Error] [carb] [Plugin: libisaacsim.asset.importer.urdf.plugin.so] Could not load the dynamic library from /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.urdf/bin/libisaacsim.asset.importer.urdf.plugin.so. Error: libomniverse_asset_converter.so: cannot open shared object file: No such file or directory (Additional information may be available by running the process with the LD_DEBUG environment variable set)
+2026-10-04T03:27:26Z [40,972ms] [Warning] [carb] Potential plugin preload failed: /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.urdf/bin/libisaacsim.asset.importer.urdf.plugin.so
+2026-10-04T03:27:26Z [40,972ms] [Error] [omni.ext.plugin] [ext: isaacsim.asset.importer.urdf-2.4.30] failed to load native plugin: /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.urdf/bin/libisaacsim.asset.importer.urdf.plugin.so
+2026-10-04T03:27:27Z [41,180ms] [Error] [omni.ext._impl._internal] Failed to import python module isaacsim.asset.importer.urdf from /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.urdf. Error: libxml2.so.2: cannot open shared object file: No such file or directory. Traceback:
+Traceback (most recent call last):
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py", line 196, in _custom_importer
+    return _import_public(ext_module.path, ext_module.name, reload_enabled)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py", line 103, in _import_public
+    module = import_module(module_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/custom_importer.py", line 85, in import_module
+    return importlib.import_module(name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.urdf/isaacsim/asset/importer/urdf/__init__.py", line 17, in <module>
+    from .impl.extension import *
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.urdf/isaacsim/asset/importer/urdf/impl/extension.py", line 28, in <module>
+    import omni.kit.tool.asset_importer as ai
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3/omni/kit/tool/asset_importer/__init__.py", line 1, in <module>
+    from .extension import AssetImporterExtension, is_supported_format, register_importer, remove_importer
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3/omni/kit/tool/asset_importer/extension.py", line 29, in <module>
+    from .builtin_importer import BuiltinImporter
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3/omni/kit/tool/asset_importer/builtin_importer.py", line 8, in <module>
+    import omni.kit.asset_converter as asset_converter
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/__init__.py", line 1, in <module>
+    from .impl import *
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/impl/__init__.py", line 2, in <module>
+    from .extension import AssetImporterExtension, get_instance
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/impl/extension.py", line 23, in <module>
+    from ..native_bindings import *
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/native_bindings/__init__.py", line 9, in <module>
+    from asset_converter_native_bindings import OmniAssetConverter
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/asset_converter_native_bindings/__init__.py", line 42, in <module>
+    ctypes.CDLL(os.path.join(os.path.dirname(__file__), "libs/libomniverse_asset_converter.so"))
+  File "/workspace/envs/behavior/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libxml2.so.2: cannot open shared object file: No such file or directory
+
+2026-10-04T03:27:27Z [41,181ms] [Error] [carb.scripting-python.plugin] Exception: Extension python module: 'isaacsim.asset.importer.urdf' in '/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.urdf' failed to load.
+
+At:
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py(222): startup
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py(337): startup_extension
+  PythonExtension.cpp::startup()(2): <module>
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(534): _start_app
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(270): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py(262): _launch_app
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py(372): _launch_simulator
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/envs/env_base.py(100): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/utils/python_utils.py(92): wrapper
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py(175): load_env
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py(102): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py(151): main
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py(208): <module>
+  <frozen runpy>(88): _run_code
+  <frozen runpy>(198): _run_module_as_main
+
+2026-10-04T03:27:27Z [41,181ms] [Error] [omni.ext.plugin] [ext: isaacsim.asset.importer.urdf-2.4.30] Failed to startup python extension.
+[42.037s] [ext: omni.kit.viewport.manipulator.transform-107.0.4] startup
+[42.143s] [ext: omni.kit.primitive.mesh-1.0.17] startup
+2026-10-04T03:27:27Z [41,807ms] [Error] [omni.graph.core._impl.extension] OGN node registration completed with errors: libxml2.so.2: cannot open shared object file: No such file or directory
+[42.317s] [ext: omni.kit.manipulator.prim.core-107.0.8] startup
+[42.524s] [ext: omni.fabric.commands-1.1.6] startup
+[42.610s] [ext: omni.kit.manipulator.prim.usd-107.0.3] startup
+[42.641s] [ext: omni.kit.manipulator.prim.fabric-107.0.4] startup
+[42.680s] [ext: omni.kit.widget.layers-1.8.6] startup
+[43.119s] [ext: omni.kit.manipulator.selection-106.0.1] startup
+[43.163s] [ext: omni.kit.manipulator.prim-107.0.0] startup
+[43.164s] [ext: omni.debugdraw-0.1.4] startup
+[43.229s] [ext: omni.physics-107.3.26] startup
+[43.307s] [ext: omni.usdphysics.ui-107.3.26] startup
+[43.575s] [ext: omni.physx.commands-107.3.26] startup
+[43.646s] [ext: omni.physics.stageupdate-107.3.26] startup
+[43.738s] [ext: omni.kit.window.toolbar-2.0.0] startup
+[43.773s] [ext: omni.physx.ui-107.3.26] startup
+[44.264s] [ext: omni.kit.widget.graph-2.0.0] startup
+[44.451s] [ext: omni.physx.supportui-107.3.26] startup
+[44.713s] [ext: omni.kit.graph.delegate.default-1.2.3] startup
+[44.748s] [ext: omni.kit.numpy.common-0.1.3] startup
+[44.771s] [ext: omni.usd.metrics.assembler-107.3.1] startup
+[44.862s] [ext: omni.physics.physx-107.3.26] startup
+2026-10-04T03:27:30Z [44,518ms] [Warning] [carb] Acquiring non optional plugin interface which is not listed as dependency: [omni::physx::IPhysxBenchmarks v1.0] (plugin: <default plugin>), by client: omni.physics.physx.plugin. Add it to CARB_PLUGIN_IMPL_DEPS() macro of a client.
+[44.905s] [ext: omni.physics.tensors-107.3.26] startup
+[45.004s] [ext: omni.warp.core-1.8.2] startup
+[45.706s] [ext: omni.usd.metrics.assembler.physics-107.3.26] startup
+[45.756s] [ext: omni.isaac.dynamic_control-2.0.7] startup
+2026-10-04T03:27:31Z [45,488ms] [Warning] [omni.isaac.dynamic_control] omni.isaac.dynamic_control is deprecated as of Isaac Sim 4.5. No action is needed from end-users.
+[45.874s] [ext: omni.physx.tensors-107.3.26] startup
+[45.941s] [ext: isaacsim.core.utils-3.5.1] startup
+[46.019s] [ext: omni.graph.image.core-0.6.1] startup
+[46.035s] [ext: isaacsim.core.simulation_manager-1.4.4] startup
+[47.019s] [ext: omni.graph.image.nodes-1.3.1] startup
+[47.042s] [ext: omni.kit.stage_templates-2.0.0] startup
+[47.110s] [ext: isaacsim.core.prims-0.6.1] startup
+[47.453s] [ext: omni.syntheticdata-0.6.13] startup
+[47.690s] [ext: isaacsim.core.api-4.8.0] startup
+[48.154s] [ext: omni.videoencoding-0.1.2] startup
+[48.221s] [ext: isaacsim.core.experimental.utils-0.3.0] startup
+[48.319s] [ext: omni.kit.graph.editor.core-1.5.3] startup
+[48.424s] [ext: omni.kit.graph.usd.commands-1.3.1] startup
+[48.447s] [ext: isaacsim.simulation_app-2.12.2] startup
+[48.449s] [ext: omni.graph.ui_nodes-1.50.5] startup
+[48.536s] [ext: omni.graph.nodes-1.170.10] startup
+[49.198s] [ext: omni.kit.widget.material_preview-1.0.16] startup
+[49.252s] [ext: isaacsim.test.docstring-1.1.0] startup
+[49.324s] [ext: omni.isaac.kit-2.0.6] startup
+2026-10-04T03:27:34Z [48,962ms] [Warning] [omni.isaac.kit] omni.isaac.kit has been deprecated in favor of isaacsim.simulation_app. Please update your code accordingly.
+[49.344s] [ext: isaacsim.robot_motion.lula-4.0.8] startup
+[49.556s] [ext: omni.warp-1.8.2] startup
+[49.681s] [ext: omni.kit.window.material_graph-1.9.1] startup
+[49.912s] [ext: omni.graph.scriptnode-1.50.0] startup
+[49.945s] [ext: isaacsim.robot_motion.motion_generation-8.0.26] startup
+[50.242s] [ext: isaacsim.core.experimental.prims-0.8.1] startup
+[50.701s] [ext: omni.replicator.core-1.12.27] startup
+2026-10-04T03:27:36Z [50,552ms] [Warning] [pxr.Semantics] pxr.Semantics is deprecated - please use Semantics instead
+2026-10-04T03:27:41Z [55,792ms] [Warning] [omni.graph.core.plugin] Found duplicate of category 'Replicator' - was 'Annotators', adding 'Fabric Reader'
+2026-10-04T03:27:41Z [55,792ms] [Warning] [omni.graph.core.plugin] Category 'Replicator' not accepted on node type 'omni.replicator.core.FabricReader' in extension 'omni.replicator.core'
+2026-10-04T03:27:41Z [55,822ms] [Warning] [omni.replicator.core.scripts.extension] No material configuration file, adding configuration to material settings directly.
+[56.218s] [ext: isaacsim.robot_motion.lula_test_widget-1.0.12] startup
+[56.274s] [ext: isaacsim.robot.surface_gripper-3.3.1] startup
+[56.366s] [ext: isaacsim.core.nodes-3.4.3] startup
+[56.509s] [ext: omni.isaac.lula_test_widget-1.0.6] startup
+2026-10-04T03:27:42Z [56,143ms] [Warning] [omni.isaac.lula_test_widget] omni.isaac.lula_test_widget has been deprecated in favor of isaacsim.robot_motion.lula_test_widget. Please update your code accordingly.
+[56.524s] [ext: isaacsim.robot.manipulators-3.3.6] startup
+[56.620s] [ext: isaacsim.core.experimental.objects-0.4.0] startup
+[56.874s] [ext: isaacsim.core.experimental.materials-0.4.0] startup
+[57.024s] [ext: isaacsim.core.throttling-2.2.2] startup
+[57.105s] [ext: isaacsim.robot.manipulators.examples-1.1.2] startup
+[57.127s] [ext: omni.flowusd-107.1.8] startup
+2026-10-04T03:27:42Z [56,823ms] [Warning] [omni.stageupdate.plugin] Deprecated: direct use of IStageUpdate callbacks is deprecated. Use IStageUpdate::getStageUpdate instead.
+[57.262s] [ext: isaacsim.cortex.framework-1.0.12] startup
+[57.281s] [ext: omni.isaac.core_nodes-2.0.6] startup
+2026-10-04T03:27:42Z [56,949ms] [Warning] [omni.isaac.core_nodes] omni.isaac.core_nodes has been deprecated in favor of isaacsim.core.nodes. Please update your code accordingly.
+[57.334s] [ext: omni.isaac.cortex-1.0.5] startup
+2026-10-04T03:27:42Z [56,976ms] [Warning] [omni.isaac.cortex] omni.isaac.cortex has been deprecated in favor of isaacsim.cortex.framework. Please update your code accordingly.
+[57.352s] [ext: omni.anim.curve.core-1.3.1] startup
+[57.645s] [ext: omni.isaac.franka-1.0.7] startup
+2026-10-04T03:27:43Z [57,283ms] [Warning] [omni.isaac.franka] omni.isaac.franka has been deprecated in favor of isaacsim.robot.manipulators.examples.franka. Please update your code accordingly.
+2026-10-04T03:27:43Z [57,293ms] [Warning] [omni.isaac.franka.franka] omni.isaac.franka has been deprecated in favor of isaacsim.robot.manipulators.examples.franka. Please update your code accordingly.
+2026-10-04T03:27:43Z [57,460ms] [Warning] [omni.isaac.franka.kinematics_solver] omni.isaac.franka has been deprecated in favor of isaacsim.robot.manipulators.examples.franka. Please update your code accordingly.
+[57.836s] [ext: omni.kit.viewport.menubar.camera-107.0.6] startup
+[58.009s] [ext: omni.isaac.lula-4.0.6] startup
+2026-10-04T03:27:43Z [57,647ms] [Warning] [omni.isaac.lula] omni.isaac.lula has been deprecated in favor of isaacsim.robot_motion.lula. Please update your code accordingly.
+[58.031s] [ext: omni.kit.selection-0.1.6] startup
+[58.062s] [ext: omni.kit.viewport.menubar.settings-107.0.3] startup
+[58.248s] [ext: omni.isaac.manipulators-3.0.7] startup
+2026-10-04T03:27:43Z [57,899ms] [Warning] [omni.isaac.manipulators] omni.isaac.manipulators has been deprecated in favor of isaacsim.robot.manipulators. Please update your code accordingly.
+2026-10-04T03:27:43Z [57,924ms] [Warning] [omni.isaac.manipulators.controllers] omni.isaac.manipulators has been deprecated in favor of isaacsim.robot.manipulators. Please update your code accordingly.
+2026-10-04T03:27:43Z [57,950ms] [Warning] [omni.isaac.manipulators.controllers.pick_place_controller] omni.isaac.manipulators has been deprecated in favor of isaacsim.robot.manipulators. Please update your code accordingly.
+2026-10-04T03:27:43Z [57,986ms] [Warning] [omni.isaac.manipulators.controllers.stacking_controller] omni.isaac.manipulators has been deprecated in favor of isaacsim.robot.manipulators. Please update your code accordingly.
+2026-10-04T03:27:43Z [57,996ms] [Warning] [omni.isaac.manipulators.grippers] omni.isaac.manipulators has been deprecated in favor of isaacsim.robot.manipulators. Please update your code accordingly.
+2026-10-04T03:27:43Z [58,006ms] [Warning] [omni.isaac.manipulators.grippers.gripper] omni.isaac.manipulators has been deprecated in favor of isaacsim.robot.manipulators. Please update your code accordingly.
+2026-10-04T03:27:43Z [58,022ms] [Warning] [omni.isaac.manipulators.grippers.parallel_gripper] omni.isaac.manipulators has been deprecated in favor of isaacsim.robot.manipulators. Please update your code accordingly.
+2026-10-04T03:27:43Z [58,030ms] [Warning] [omni.isaac.manipulators.grippers.surface_gripper] omni.isaac.manipulators has been deprecated in favor of isaacsim.robot.manipulators. Please update your code accordingly.
+2026-10-04T03:27:43Z [58,040ms] [Warning] [omni.isaac.manipulators.manipulators] omni.isaac.manipulators has been deprecated in favor of isaacsim.robot.manipulators. Please update your code accordingly.
+2026-10-04T03:27:43Z [58,047ms] [Warning] [omni.isaac.manipulators.manipulators.single_manipulator] omni.isaac.manipulators has been deprecated in favor of isaacsim.robot.manipulators. Please update your code accordingly.
+[58.434s] [ext: isaacsim.gui.menu-2.4.4] startup
+[58.665s] [ext: isaacsim.sensors.physics-0.4.3] startup
+[58.894s] [ext: isaacsim.asset.browser-1.3.23] startup
+[59.006s] [ext: omni.isaac.menu-1.0.6] startup
+2026-10-04T03:27:44Z [58,647ms] [Warning] [omni.isaac.menu] omni.isaac.menu has been deprecated in favor of isaacsim.gui.menu. Please update your code accordingly.
+[59.037s] [ext: isaacsim.robot.policy.examples-4.1.11] startup
+[59.117s] [ext: omni.isaac.motion_generation-8.0.7] startup
+2026-10-04T03:27:44Z [58,764ms] [Warning] [omni.isaac.motion_generation] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,775ms] [Warning] [omni.isaac.motion_generation.articulation_kinematics_solver] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,789ms] [Warning] [omni.isaac.motion_generation.articulation_motion_policy] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,801ms] [Warning] [omni.isaac.motion_generation.articulation_trajectory] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,822ms] [Warning] [omni.isaac.motion_generation.kinematics_interface] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,842ms] [Warning] [omni.isaac.motion_generation.lula] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,860ms] [Warning] [omni.isaac.motion_generation.lula.kinematics] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,870ms] [Warning] [omni.isaac.motion_generation.lula.motion_policies] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,884ms] [Warning] [omni.isaac.motion_generation.lula.path_planners] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,907ms] [Warning] [omni.isaac.motion_generation.lula.trajectory_generator] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,925ms] [Warning] [omni.isaac.motion_generation.motion_policy_controller] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,970ms] [Warning] [omni.isaac.motion_generation.motion_policy_interface] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,984ms] [Warning] [omni.isaac.motion_generation.path_planner_visualizer] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [58,991ms] [Warning] [omni.isaac.motion_generation.path_planning_interface] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [59,000ms] [Warning] [omni.isaac.motion_generation.trajectory] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+2026-10-04T03:27:44Z [59,019ms] [Warning] [omni.isaac.motion_generation.world_interface] omni.isaac.motion_generation has been deprecated in favor of isaacsim.robot_motion.motion_generation. Please update your code accordingly.
+[59.406s] [ext: omni.isaac.asset_browser-1.0.6] startup
+2026-10-04T03:27:44Z [59,048ms] [Warning] [omni.isaac.asset_browser] omni.isaac.asset_browser has been deprecated in favor of isaacsim.asset.browser. Please update your code accordingly.
+[59.442s] [ext: omni.isaac.nucleus-1.0.6] startup
+2026-10-04T03:27:44Z [59,091ms] [Warning] [omni.isaac.nucleus] omni.isaac.nucleus has been deprecated in favor of isaacsim.storage.native. Please update your code accordingly.
+2026-10-04T03:27:45Z [59,124ms] [Warning] [omni.isaac.nucleus.nucleus] omni.isaac.nucleus.nucleus has been deprecated in favor of isaacsim.storage.native. Please update your code accordingly.
+[59.505s] [ext: omni.isaac.quadruped-3.0.7] startup
+2026-10-04T03:27:45Z [59,154ms] [Warning] [omni.isaac.quadruped] omni.isaac.quadruped has been deprecated in favor of isaacsim.robot.policy.examples. Please update your code accordingly.
+[59.544s] [ext: omni.isaac.assets_check-0.3.13] startup
+2026-10-04T03:27:45Z [59,185ms] [Warning] [omni.isaac.assets_check] omni.isaac.assets_check has been deprecated in favor of isaacsim.asset.browser. Please update your code accordingly.
+[59.561s] [ext: isaacsim.gui.content_browser-0.1.11] startup
+[59.651s] [ext: omni.isaac.utils-2.0.6] startup
+[59.713s] [ext: isaacsim.robot.wheeled_robots-4.0.24] startup
+[60.110s] [ext: isaacsim.app.about-2.0.11] startup
+[60.153s] [ext: omni.isaac.version-2.0.7] startup
+2026-10-04T03:27:45Z [59,799ms] [Warning] [omni.isaac.version] omni.isaac.version has been deprecated in favor of isaacsim.core.version. Please update your code accordingly.
+[60.208s] [ext: isaacsim.cortex.behaviors-2.0.14] startup
+[60.231s] [ext: omni.isaac.wheeled_robots-3.0.7] startup
+2026-10-04T03:27:45Z [59,880ms] [Warning] [omni.isaac.wheeled_robots] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [59,889ms] [Warning] [omni.isaac.wheeled_robots.controllers] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [59,902ms] [Warning] [omni.isaac.wheeled_robots.controllers.ackermann_controller] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [59,934ms] [Warning] [omni.isaac.wheeled_robots.controllers.differential_controller] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [59,947ms] [Warning] [omni.isaac.wheeled_robots.controllers.holonomic_controller] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [59,961ms] [Warning] [omni.isaac.wheeled_robots.controllers.quintic_path_planner] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [59,977ms] [Warning] [omni.isaac.wheeled_robots.controllers.stanley_control] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [59,995ms] [Warning] [omni.isaac.wheeled_robots.controllers.wheel_base_pose_controller] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [60,017ms] [Warning] [omni.isaac.wheeled_robots.impl] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [60,040ms] [Warning] [omni.isaac.wheeled_robots.robots] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [60,063ms] [Warning] [omni.isaac.wheeled_robots.robots.holonomic_robot_usd_setup] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+2026-10-04T03:27:45Z [60,099ms] [Warning] [omni.isaac.wheeled_robots.robots.wheeled_robot] omni.isaac.wheeled_robots has been deprecated in favor of isaacsim.robot.wheeled_robots. Please update your code accordingly.
+[60.512s] [ext: omni.isaac.window.about-2.0.7] startup
+2026-10-04T03:27:46Z [60,367ms] [Warning] [omni.isaac.window.about] omni.isaac.window.about has been deprecated in favor of isaacsim.app.about. Please update your code accordingly.
+2026-10-04T03:27:46Z [60,374ms] [Warning] [omni.isaac.window.about.about] omni.isaac.window.about.about has been deprecated in favor of isaacsim.app.about.about. Please update your code accordingly.
+[60.759s] [ext: omni.kit.manipulator.camera-106.0.4] startup
+[60.882s] [ext: omni.isaac.cortex.sample_behaviors-2.0.5] startup
+2026-10-04T03:27:46Z [60,525ms] [Warning] [omni.isaac.cortex.sample_behaviors] omni.isaac.cortex.sample_behaviors has been deprecated in favor of isaacsim.cortex.behaviors. Please update your code accordingly.
+[60.901s] [ext: omni.sensors.nv.common-3.0.0] startup
+[61.623s] [ext: omni.kit.property.audio-1.0.16] startup
+[61.703s] [ext: omni.kit.property.camera-1.0.10] startup
+[61.736s] [ext: omni.sensors.net-1.0.0] startup
+[61.821s] [ext: omni.sensors.nv.materials-2.0.0] startup
+[61.989s] [ext: omni.kit.property.geometry-2.0.4] startup
+[62.054s] [ext: omni.kit.property.light-1.0.12] startup
+[62.804s] [ext: omni.kit.property.material-1.11.9] startup
+[63.069s] [ext: omni.sensors.nv.ids-2.0.0] startup
+[63.146s] [ext: omni.sensors.nv.wpm-3.0.0] startup
+[63.224s] [ext: omni.sensors.nv.lidar-3.0.0] startup
+[63.433s] [ext: omni.hydra.scene_api-0.1.2] startup
+[63.507s] [ext: isaacsim.util.debug_draw-3.1.0] startup
+[63.593s] [ext: omni.sensors.nv.radar-3.0.0] startup
+[63.732s] [ext: omni.kit.property.render-1.2.1] startup
+[63.765s] [ext: omni.kit.property.transform-1.5.13] startup
+[63.856s] [ext: isaacsim.gui.property-1.1.3] startup
+[63.935s] [ext: isaacsim.sensors.physx-2.3.2] startup
+[64.046s] [ext: isaacsim.sensors.camera-1.3.6] startup
+[64.133s] [ext: isaacsim.sensors.rtx-15.8.4] startup
+[64.276s] [ext: isaacsim.core.cloner-1.4.10] startup
+[64.333s] [ext: omni.kit.property.bundle-1.4.1] startup
+[64.397s] [ext: omni.kit.property.isaac-1.0.6] startup
+2026-10-04T03:27:49Z [64,036ms] [Warning] [omni.kit.property.isaac] omni.kit.property.isaac has been deprecated in favor of isaacsim.gui.property. Please update your code accordingly.
+2026-10-04T03:27:49Z [64,044ms] [Warning] [omni.kit.property.isaac.widgets] omni.kit.property.isaac.widgets has been deprecated in favor of isaacsim.gui.property.widgets. Please update your code accordingly.
+[64.420s] [ext: omni.isaac.range_sensor-4.0.6] startup
+2026-10-04T03:27:49Z [64,061ms] [Warning] [omni.isaac.range_sensor] omni.isaac.range_sensor has been deprecated in favor of isaacsim.sensors.physx. Please update your code accordingly.
+2026-10-04T03:27:49Z [64,070ms] [Warning] [omni.isaac.range_sensor.commands] omni.isaac.range_sensor.commands has been deprecated in favor of isaacsim.sensors.physx.commands. Please update your code accordingly.
+[64.461s] [ext: isaacsim.replicator.writers-1.0.17] startup
+[65.036s] [ext: omni.isaac.sensor-13.0.7] startup
+2026-10-04T03:27:50Z [64,679ms] [Warning] [omni.isaac.sensor] omni.isaac.sensor has been deprecated in favor of isaacsim.sensors.camera, isaacsim.sensors.physics, isaacsim.sensors.physx, and isaacsim.sensors.rtx. Please update your code accordingly.
+2026-10-04T03:27:50Z [64,686ms] [Warning] [omni.isaac.sensor.camera] omni.isaac.sensor.camera has been deprecated in favor of isaacsim.sensors.camera.camera. Please update your code accordingly.
+2026-10-04T03:27:50Z [64,694ms] [Warning] [omni.isaac.sensor.camera_view] omni.isaac.sensor.camera_view has been deprecated in favor of isaacsim.sensors.camera.camera_view. Please update your code accordingly.
+2026-10-04T03:27:50Z [64,700ms] [Warning] [omni.isaac.sensor.commands] omni.isaac.sensor.commands has been deprecated in favor of isaacsim.sensors.physics.commands, isaacsim.sensors.physx.commands, and isaacsim.sensors.rtx.commands. Please update your code accordingly.
+2026-10-04T03:27:50Z [64,706ms] [Warning] [omni.isaac.sensor.contact_sensor] omni.isaac.sensor.contact_sensor has been deprecated in favor of isaacsim.sensors.physics.contact_sensor. Please update your code accordingly.
+2026-10-04T03:27:50Z [64,722ms] [Warning] [omni.isaac.sensor.imu_sensor] omni.isaac.sensor.imu_sensor has been deprecated in favor of isaacsim.sensors.physics.imu_sensor. Please update your code accordingly.
+2026-10-04T03:27:50Z [64,728ms] [Warning] [omni.isaac.sensor.lidar_rtx] omni.isaac.sensor.lidar_rtx has been deprecated in favor of isaacsim.sensors.rtx.lidar_rtx. Please update your code accordingly.
+2026-10-04T03:27:50Z [64,737ms] [Warning] [omni.isaac.sensor.rotating_lidar_physX] omni.isaac.sensor.imu_sensor has been deprecated in favor of isaacsim.sensors.physix.rotating_lidar_physX. Please update your code accordingly.
+2026-10-04T03:27:50Z [64,767ms] [Warning] [omni.isaac.sensor.scripts.samples.contact_sensor] omni.isaac.sensor.scripts.samples.contact_sensor has been deprecated in favor of isaacsim.sensors.physics.scripts.samples.contact_sensor. Please update your code accordingly.
+2026-10-04T03:27:50Z [64,777ms] [Warning] [omni.isaac.sensor.scripts.samples.imu_sensor] omni.isaac.sensor.scripts.samples.imu_sensor has been deprecated in favor of isaacsim.sensors.physics.scripts.samples.imu_sensor. Please update your code accordingly.
+2026-10-04T03:27:50Z [64,784ms] [Warning] [omni.isaac.sensor.scripts.samples.lightbeam_sensor] omni.isaac.sensor.scripts.samples.lightbeam_sensor has been deprecated in favor of isaacsim.sensors.physx.scripts.samples.lightbeam_sensor. Please update your code accordingly.
+[65.167s] [ext: omni.isaac.cloner-1.0.7] startup
+2026-10-04T03:27:50Z [64,828ms] [Warning] [omni.isaac.cloner] omni.isaac.cloner has been deprecated in favor of isaacsim.core.cloner. Please update your code accordingly.
+[65.216s] [ext: omni.kit.viewport.menubar.lighting-107.3.1] startup
+[65.321s] [ext: omni.kit.viewport.menubar.render-107.0.10] startup
+[65.403s] [ext: isaacsim.replicator.domain_randomization-1.0.16] startup
+[65.512s] [ext: isaacsim.replicator.examples-1.3.6] startup
+[65.542s] [ext: omni.ocio-0.1.1] startup
+[65.564s] [ext: omni.rtx.window.settings-0.6.19] startup
+[65.682s] [ext: omni.kit.window.console-1.1.4] startup
+[65.824s] [ext: omni.kit.window.status_bar-0.1.9] startup
+[65.945s] [ext: omni.replicator.isaac-2.0.8] startup
+2026-10-04T03:27:51Z [65,583ms] [Warning] [omni.replicator.isaac] omni.replicator.isaac has been deprecated in favor of isaacsim.replicator.domain_randomization, isaacsim.replicator.examples, isaacsim.replicator.writers. Please update your code accordingly.
+[65.975s] [ext: omni.replicator.replicator_yaml-2.0.11] startup
+[66.073s] [ext: omni.rtx.settings.core-0.6.5] startup
+[66.169s] [ext: omni.usd.metrics.assembler.ui-107.3.1] startup
+[66.303s] [ext: omni.isaac.surface_gripper-2.0.6] startup
+2026-10-04T03:27:51Z [65,943ms] [Warning] [omni.isaac.surface_gripper] omni.isaac.surface_gripper has been deprecated in favor of isaacsim.robot.surface_gripper. Please update your code accordingly.
+[66.330s] [ext: semantics.schema.editor-2.0.2] startup
+[66.406s] [ext: omni.kit.ui.actions-1.0.5] startup
+[66.448s] [ext: semantics.schema.property-2.0.1] startup
+[66.510s] [ext: omni.isaac.universal_robots-1.0.6] startup
+2026-10-04T03:27:52Z [66,148ms] [Warning] [omni.isaac.universal_robots] omni.isaac.universal_robots has been deprecated in favor of isaacsim.robot.manipulators.examples.universal_robots. Please update your code accordingly.
+2026-10-04T03:27:52Z [66,157ms] [Warning] [omni.isaac.universal_robots.kinematics_solver] omni.isaac.franka has been deprecated in favor of isaacsim.robot.manipulators.examples.universal_robots. Please update your code accordingly.
+2026-10-04T03:27:52Z [66,229ms] [Warning] [omni.isaac.universal_robots.ur10] omni.isaac.franka has been deprecated in favor of isaacsim.robot.manipulators.examples.universal_robots. Please update your code accordingly.
+[66.605s] [ext: omni.isaac.core-4.0.7] startup
+2026-10-04T03:27:52Z [66,264ms] [Warning] [omni.isaac.core.physics_context.physics_context] omni.isaac.core.physics_context.physics_context has been deprecated in favor of isaacsim.core.api.physics_context.physics_context. Please update your code accordingly.
+2026-10-04T03:27:52Z [66,283ms] [Warning] [omni.isaac.core.simulation_context.simulation_context] omni.isaac.core.simulation_context.simulation_context has been deprecated in favor of isaacsim.core.api.simulation_context.simulation_context. Please update your code accordingly.
+2026-10-04T03:27:52Z [66,298ms] [Warning] [omni.isaac.core.world.world] omni.isaac.core.world.world has been deprecated in favor of isaacsim.core.api.world.world. Please update your code accordingly.
+2026-10-04T03:27:52Z [66,299ms] [Warning] [omni.isaac.core] omni.isaac.core has been deprecated in favor of isaacsim.core.api. Please update your code accordingly.
+[66.694s] [ext: isaacsim.gui.sensors.icon-2.0.3] startup
+[67.300s] [ext: isaacsim.asset.importer.mjcf-2.5.13] startup
+2026-10-04T03:27:52Z [66,960ms] [Error] [carb] [Plugin: libisaacsim.asset.importer.mjcf.plugin.so] Could not load the dynamic library from /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.mjcf/bin/libisaacsim.asset.importer.mjcf.plugin.so. Error: libomniverse_asset_converter.so: cannot open shared object file: No such file or directory (Additional information may be available by running the process with the LD_DEBUG environment variable set)
+2026-10-04T03:27:52Z [66,961ms] [Warning] [carb] Potential plugin preload failed: /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.mjcf/bin/libisaacsim.asset.importer.mjcf.plugin.so
+2026-10-04T03:27:52Z [66,961ms] [Error] [omni.ext.plugin] [ext: isaacsim.asset.importer.mjcf-2.5.13] failed to load native plugin: /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.mjcf/bin/libisaacsim.asset.importer.mjcf.plugin.so
+2026-10-04T03:27:53Z [67,135ms] [Error] [omni.ext._impl._internal] Failed to import python module isaacsim.asset.importer.mjcf from /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.mjcf. Error: libxml2.so.2: cannot open shared object file: No such file or directory. Traceback:
+Traceback (most recent call last):
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py", line 196, in _custom_importer
+    return _import_public(ext_module.path, ext_module.name, reload_enabled)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py", line 103, in _import_public
+    module = import_module(module_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/custom_importer.py", line 85, in import_module
+    return importlib.import_module(name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/envs/behavior/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.mjcf/isaacsim/asset/importer/mjcf/__init__.py", line 17, in <module>
+    from .impl.extension import *
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.mjcf/isaacsim/asset/importer/mjcf/impl/extension.py", line 26, in <module>
+    import omni.kit.tool.asset_importer as ai
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3/omni/kit/tool/asset_importer/__init__.py", line 1, in <module>
+    from .extension import AssetImporterExtension, is_supported_format, register_importer, remove_importer
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3/omni/kit/tool/asset_importer/extension.py", line 29, in <module>
+    from .builtin_importer import BuiltinImporter
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.tool.asset_importer-4.3.2+107.0.3/omni/kit/tool/asset_importer/builtin_importer.py", line 8, in <module>
+    import omni.kit.asset_converter as asset_converter
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/__init__.py", line 1, in <module>
+    from .impl import *
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/impl/__init__.py", line 2, in <module>
+    from .extension import AssetImporterExtension, get_instance
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/impl/extension.py", line 23, in <module>
+    from ..native_bindings import *
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/omni/kit/asset_converter/native_bindings/__init__.py", line 9, in <module>
+    from asset_converter_native_bindings import OmniAssetConverter
+  File "/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/extscache/omni.kit.asset_converter-5.0.17+107.3.1.lx64.r.cp311.u353/asset_converter_native_bindings/__init__.py", line 42, in <module>
+    ctypes.CDLL(os.path.join(os.path.dirname(__file__), "libs/libomniverse_asset_converter.so"))
+  File "/workspace/envs/behavior/lib/python3.11/ctypes/__init__.py", line 376, in __init__
+    self._handle = _dlopen(self._name, mode)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: libxml2.so.2: cannot open shared object file: No such file or directory
+
+2026-10-04T03:27:53Z [67,136ms] [Error] [carb.scripting-python.plugin] Exception: Extension python module: 'isaacsim.asset.importer.mjcf' in '/workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.asset.importer.mjcf' failed to load.
+
+At:
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py(222): startup
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/kit/kernel/py/omni/ext/_impl/_internal.py(337): startup_extension
+  PythonExtension.cpp::startup()(2): <module>
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(534): _start_app
+  /workspace/envs/behavior/lib/python3.11/site-packages/isaacsim/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py(270): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py(262): _launch_app
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py(372): _launch_simulator
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/envs/env_base.py(100): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/utils/python_utils.py(92): wrapper
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py(175): load_env
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py(102): __init__
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py(151): main
+  /workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py(208): <module>
+  <frozen runpy>(88): _run_code
+  <frozen runpy>(198): _run_module_as_main
+
+2026-10-04T03:27:53Z [67,137ms] [Error] [omni.ext.plugin] [ext: isaacsim.asset.importer.mjcf-2.5.13] Failed to startup python extension.
+[68.146s] [ext: omni.kit.menu.common-2.0.1] startup
+[68.201s] [ext: isaacsim.exp.base-5.1.0] startup
+[68.204s] [ext: omnigibson_5_1_0-3.9.2] startup
+[68.220s] Simulation App Starting
+2026-10-04T03:27:57Z [71,792ms] [Warning] [omni.fabric.plugin] Warning: attribute viewportHandle not found for bucket id 9
+
+[72.259s] app ready
+[0m[00:02:58.625] [INFO] [omnigibson.simulator] ---------- Welcome to OmniGibson! ----------[0m
+[33m[00:02:59.406] [WARNING] [omnigibson.scenes.scene_base] Scene file does not contain version information; skipping version compatibility check.[0m
+[75.167s] Simulation App Startup Complete
+[76.770s] [ext: omni.physx.fabric-107.3.26] startup
+2026-10-04T03:28:02Z [76,930ms] [Warning] [omni.fabric.plugin] Warning: attribute physics:filteredGroups not found for path /World/collision_groups/structural_doors
+
+2026-10-04T03:28:09Z [83,565ms] [Warning] [omni.syntheticdata.plugin] OgnSdPostRenderVarToHost : rendervar copy from texture directly to host buffer is counter-performant. Please use copy from texture to device buffer first.
+2026-10-04T03:37:55Z [669,803ms] [Warning] [carb] Plugin interface for a client: omni.hydratexture.plugin was already released.
+2026-10-04T03:38:22Z [696,660ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:22Z [696,660ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:22Z [696,663ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:22Z [696,664ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:22Z [696,840ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:22Z [696,840ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:22Z [696,843ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:22Z [696,843ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:23Z [697,367ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:23Z [697,367ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:23Z [697,625ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:23Z [697,626ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:23Z [697,892ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:23Z [697,893ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:23Z [697,896ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:23Z [697,896ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:23Z [697,899ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:23Z [697,900ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:23Z [698,067ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:23Z [698,067ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,281ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,281ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,536ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,536ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,540ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,540ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,545ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,545ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,548ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,549ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,552ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,552ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,556ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:24Z [698,556ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,171ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,171ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,175ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,175ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,178ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,178ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,367ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,367ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,370ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,371ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,374ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,374ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,378ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,378ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,547ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,547ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,551ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,551ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,554ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,555ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,558ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [706,558ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [707,038ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [707,038ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:32Z [707,078ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:32Z [707,078ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,131ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,131ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,180ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,181ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,185ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,185ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,237ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,237ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,277ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,277ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,329ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,329ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,370ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,370ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,421ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,421ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,460ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:33Z [707,460ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:35Z [709,868ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:35Z [709,868ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:36Z [710,108ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:36Z [710,108ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:36Z [710,122ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:36Z [710,122ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:36Z [710,126ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:36Z [710,126ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,582ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,582ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,633ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,633ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,672ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,672ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,721ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,721ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,764ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,764ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,805ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,805ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,854ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,854ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,894ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,894ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,934ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,934ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,973ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [711,973ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [712,021ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [712,021ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [712,061ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [712,061ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:37Z [712,100ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:37Z [712,100ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:38Z [712,151ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:38Z [712,151ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:38Z [712,466ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:38Z [712,466ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:38Z [712,469ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:38Z [712,469ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:38Z [712,601ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:38Z [712,602ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:38Z [712,605ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:38Z [712,605ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:38Z [713,031ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:38Z [713,031ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:38Z [713,035ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+[0m[00:13:41.530] [INFO] [omnigibson.simulator] Imported scene 0.[0m
+[33m[00:13:41.629] [WARNING] [omnigibson.robots.robot] r1pro is set to floating base but is not a non-holonomic locomotion robot[0m
+[33m[00:14:15.871] [WARNING] [omnigibson.utils.usd_utils] RigidContactAPI cannot compute contacts because the physics sim view is invalid. This is expected if the physics sim view is not yet initialized, e.g. you are loading a scene for the first time.[0m
+[33m[00:14:15.881] [WARNING] [omnigibson.utils.usd_utils] RigidContactAPI cannot compute contacts because the physics sim view is invalid. This is expected if the physics sim view is not yet initialized, e.g. you are loading a scene for the first time.[0m
+[33m[00:14:46.658] [WARNING] [omnigibson.utils.usd_utils] RigidContactAPI cannot compute contacts because the physics sim view is invalid. This is expected if the physics sim view is not yet initialized, e.g. you are loading a scene for the first time.[0m
+[33m[00:14:46.668] [WARNING] [omnigibson.utils.usd_utils] RigidContactAPI cannot compute contacts because the physics sim view is invalid. This is expected if the physics sim view is not yet initialized, e.g. you are loading a scene for the first time.[0m
+[0m[00:14:47.493] [INFO] [omnigibson.eval.evaluator] [0m
+[0m[00:14:47.493] [INFO] [omnigibson.eval.evaluator] ==================================================[0m
+[0m[00:14:47.493] [INFO] [omnigibson.eval.evaluator] Loaded policy: websocket[0m
+[0m[00:14:47.493] [INFO] [omnigibson.eval.evaluator] ==================================================[0m
+[0m[00:14:47.494] [INFO] [omnigibson.eval.evaluator] [0m
+2026-10-04T03:38:38Z [713,036ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:40Z [714,942ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use getDofFrictionProperties instead.
+2026-10-04T03:38:40Z [714,942ms] [Warning] [omni.physx.tensors.plugin] DEPRECATED: Please use setDofFrictionProperties instead.
+2026-10-04T03:38:51Z [725,272ms] [Warning] [omni.syntheticdata.plugin] SdRenderVarPtr missing valid input renderVar LdrColorSDhost
+2026-10-04T03:39:26Z [760,932ms] [Warning] [carb] Plugin interface for a client: omni.hydratexture.plugin was already released.
+2026-10-04T03:39:26Z [760,935ms] [Warning] [carb] Plugin interface for a client: omni.hydratexture.plugin was already released.
+2026-10-04T03:39:26Z [760,937ms] [Warning] [carb] Plugin interface for a client: omni.hydratexture.plugin was already released.
+2026-10-04T03:39:26Z [760,939ms] [Warning] [carb] Plugin interface for a client: omni.hydratexture.plugin was already released.
+2026-10-04T03:39:53Z [788,104ms] [Warning] [rtx.postprocessing.plugin] DLSS increasing input dimensions: Render resolution of (540, 240) is below minimal input resolution of 300.
+2026-10-04T03:39:54Z [788,401ms] [Warning] [carb] Client omni.hydratexture.plugin has acquired [carb::settings::ISettings v1.0] 100 times. Consider accessing this interface with carb::getCachedInterface() (Performance warning)
+2026-10-04T03:39:54Z [788,868ms] [Warning] [carb] Client omni.hydratexture.plugin has acquired [carb::dictionary::IDictionary v1.1] 100 times. Consider accessing this interface with carb::getCachedInterface() (Performance warning)
+2026-10-04T03:40:13Z [807,997ms] [Error] [omni.kit.app._impl] [py stderr]: /workspace/envs/behavior/lib/python3.11/site-packages/gymnasium/spaces/box.py:415: UserWarning: [33mWARN: Casting input x to numpy array.[0m
+  gym.logger.warn("Casting input x to numpy array.")
+[0m[00:15:04.307] [INFO] [omnigibson.eval.utils.network_utils] Health check passed, attempting websocket connection...[0m
+[0m[00:15:04.312] [INFO] [omnigibson.eval.utils.network_utils] Connected to server![0m
+[0m[00:15:04.521] [INFO] [omnigibson.eval.evaluator] No generic presampled robot pose found, using robot-specific pose.[0m
+2026-10-04T03:40:14Z [808,489ms] [Warning] [omni.syntheticdata.plugin] OgnSdRenderProductCamera : cannot read data from Fabric.
+2026-10-04T03:40:14Z [808,489ms] [Warning] [omni.replicator.core.plugin] OgnCameraParamsOpenCV: invalid camera path.
+2026-10-04T03:40:14Z [808,490ms] [Warning] [omni.syntheticdata.plugin] OgnSdRenderProductCamera : cannot read data from Fabric.
+2026-10-04T03:40:14Z [808,490ms] [Warning] [omni.replicator.core.plugin] OgnCameraParamsOpenCV: invalid camera path.
+2026-10-04T03:40:14Z [808,879ms] [Warning] [omni.syntheticdata.plugin] OgnSdRenderProductCamera : cannot read data from Fabric.
+2026-10-04T03:40:14Z [808,880ms] [Warning] [omni.replicator.core.plugin] OgnCameraParamsOpenCV: invalid camera path.
+2026-10-04T03:40:14Z [808,880ms] [Warning] [omni.syntheticdata.plugin] OgnSdRenderProductCamera : cannot read data from Fabric.
+2026-10-04T03:40:14Z [808,880ms] [Warning] [omni.replicator.core.plugin] OgnCameraParamsOpenCV: invalid camera path.
+2026-10-04T03:40:14Z [808,880ms] [Warning] [omni.syntheticdata.plugin] OgnSdRenderProductCamera : cannot read data from Fabric.
+2026-10-04T03:40:14Z [808,880ms] [Warning] [omni.replicator.core.plugin] OgnCameraParamsOpenCV: invalid camera path.
+2026-10-04T03:40:14Z [808,919ms] [Warning] [omni.hydra] Camera '/World/scene_0/controllable__r1pro__robot_r1/left_realsense_link/Camera': Unknown projection type, defaulting to pinhole
+2026-10-04T03:40:15Z [809,139ms] [Warning] [omni.syntheticdata.plugin] OgnSdRenderProductCamera : cannot read data from Fabric.
+2026-10-04T03:40:15Z [809,139ms] [Warning] [omni.replicator.core.plugin] OgnCameraParamsOpenCV: invalid camera path.
+2026-10-04T03:40:15Z [809,139ms] [Warning] [omni.syntheticdata.plugin] OgnSdRenderProductCamera : cannot read data from Fabric.
+2026-10-04T03:40:15Z [809,140ms] [Warning] [omni.replicator.core.plugin] OgnCameraParamsOpenCV: invalid camera path.
+2026-10-04T03:40:15Z [809,140ms] [Warning] [omni.syntheticdata.plugin] OgnSdRenderProductCamera : cannot read data from Fabric.
+2026-10-04T03:40:15Z [809,140ms] [Warning] [omni.replicator.core.plugin] OgnCameraParamsOpenCV: invalid camera path.
+2026-10-04T03:40:15Z [809,179ms] [Warning] [omni.hydra] Camera '/World/scene_0/controllable__r1pro__robot_r1/left_realsense_link/Camera': Unknown projection type, defaulting to pinhole
+2026-10-04T03:40:15Z [809,179ms] [Warning] [omni.hydra] Camera '/World/scene_0/controllable__r1pro__robot_r1/right_realsense_link/Camera': Unknown projection type, defaulting to pinhole
+2026-10-04T03:40:46Z [841,027ms] [Error] [omni.kit.app._impl] [py stderr]: /workspace/envs/behavior/lib/python3.11/site-packages/gymnasium/spaces/box.py:415: UserWarning: [33mWARN: Casting input x to numpy array.[0m
+  gym.logger.warn("Casting input x to numpy array.")
+INFO:__main__:Result: instance=10 rollout=0 steps=9400 success=False q_score=0.0 -> /opt/eval_scratch/armB/set_up_a_coffee_station_in_your_kitchen/json/set_up_a_coffee_station_in_your_kitchen_10_0.json | video -> /opt/eval_scratch/armB/set_up_a_coffee_station_in_your_kitchen/videos/set_up_a_coffee_station_in_your_kitchen_10_0.mp4
+2026-10-04T03:41:30Z [884,679ms] [Warning] [carb] Client gpu.foundation.plugin has acquired [gpu::unstable::IMemoryBudgetManagerFactory v0.1] 100 times. Consider accessing this interface with carb::getCachedInterface() (Performance warning)
+2026-10-04T04:19:24Z [3,158,142ms] [Error] [omni.kit.app._impl] [py stderr]: /workspace/envs/behavior/lib/python3.11/site-packages/gymnasium/spaces/box.py:415: UserWarning: [33mWARN: Casting input x to numpy array.[0m
+  gym.logger.warn("Casting input x to numpy array.")
+[0m[00:54:13.764] [INFO] [omnigibson.eval.evaluator] No generic presampled robot pose found, using robot-specific pose.[0m
+2026-10-04T04:19:56Z [3,191,104ms] [Error] [omni.kit.app._impl] [py stderr]: /workspace/envs/behavior/lib/python3.11/site-packages/gymnasium/spaces/box.py:415: UserWarning: [33mWARN: Casting input x to numpy array.[0m
+  gym.logger.warn("Casting input x to numpy array.")
+INFO:__main__:Result: instance=11 rollout=0 steps=9400 success=False q_score=0.0 -> /opt/eval_scratch/armB/set_up_a_coffee_station_in_your_kitchen/json/set_up_a_coffee_station_in_your_kitchen_11_0.json | video -> /opt/eval_scratch/armB/set_up_a_coffee_station_in_your_kitchen/videos/set_up_a_coffee_station_in_your_kitchen_11_0.mp4
+2026-10-04T04:58:58Z [5,532,662ms] [Error] [omni.kit.app._impl] [py stderr]: /workspace/envs/behavior/lib/python3.11/site-packages/gymnasium/spaces/box.py:415: UserWarning: [33mWARN: Casting input x to numpy array.[0m
+  gym.logger.warn("Casting input x to numpy array.")
+[0m[01:33:48.264] [INFO] [omnigibson.eval.evaluator] No generic presampled robot pose found, using robot-specific pose.[0m
+2026-10-04T04:59:31Z [5,565,597ms] [Error] [omni.kit.app._impl] [py stderr]: /workspace/envs/behavior/lib/python3.11/site-packages/gymnasium/spaces/box.py:415: UserWarning: [33mWARN: Casting input x to numpy array.[0m
+  gym.logger.warn("Casting input x to numpy array.")
+INFO:__main__:Result: instance=12 rollout=0 steps=9400 success=False q_score=0.0 -> /opt/eval_scratch/armB/set_up_a_coffee_station_in_your_kitchen/json/set_up_a_coffee_station_in_your_kitchen_12_0.json | video -> /opt/eval_scratch/armB/set_up_a_coffee_station_in_your_kitchen/videos/set_up_a_coffee_station_in_your_kitchen_12_0.mp4
+2026-10-04T05:38:59Z [7,933,236ms] [Error] [omni.kit.app._impl] [py stderr]: /workspace/envs/behavior/lib/python3.11/site-packages/gymnasium/spaces/box.py:415: UserWarning: [33mWARN: Casting input x to numpy array.[0m
+  gym.logger.warn("Casting input x to numpy array.")
+[0m[02:13:48.862] [INFO] [omnigibson.eval.evaluator] No generic presampled robot pose found, using robot-specific pose.[0m
+2026-10-04T05:39:33Z [7,967,386ms] [Error] [omni.kit.app._impl] [py stderr]: /workspace/envs/behavior/lib/python3.11/site-packages/gymnasium/spaces/box.py:415: UserWarning: [33mWARN: Casting input x to numpy array.[0m
+  gym.logger.warn("Casting input x to numpy array.")
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 736 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_arm_link4/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.042013, -0.079908, -0.114483) and max (0.043392, 0.009780, 0.036000)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 730 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_arm_link5/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.040778, -0.040779, -0.186550) and max (0.040779, 0.041797, 0.000000)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 740 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_arm_link3/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.047372, -0.046224, -0.232122) and max (0.047973, 0.046225, 0.021750)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 727 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_arm_link4/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.042013, -0.079902, -0.114484) and max (0.043392, 0.009786, 0.036000)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 738 of geometry "/World/scene_0/controllable__r1pro__robot_r1/wheel_motor_link1/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.070000, -0.027700, -0.070000) and max (0.070000, 0.027700, 0.070000)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 722 of geometry "/World/scene_0/controllable__r1pro__robot_r1/torso_link2/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.062501, -0.091501, -0.062500) and max (0.062500, 0.091501, 0.362500)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 729 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_gripper_finger_link1/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.014116, -0.064919, -0.041465) and max (0.023466, 0.004777, 0.050495)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 746 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_gripper_finger_link2/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.023467, -0.004777, -0.041465) and max (0.014116, 0.064918, 0.050495)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 741 of geometry "/World/scene_0/controllable__r1pro__robot_r1/zed_link/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.040495, -0.058093, -0.160487) and max (0.160502, 0.112650, 0.015257)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 735 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_arm_link1/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.025013, -0.131665, -0.050317) and max (0.023988, 0.000000, 0.050399)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 745 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_arm_base_link/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.059708, 0.000000, -0.064002) and max (0.064002, 0.073500, 0.064002)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 739 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_arm_base_link/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.064002, -0.073500, -0.064002) and max (0.059708, 0.000000, 0.064002)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 751 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_arm_link6/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.029000, -0.007500, -0.029500) and max (0.029500, 0.056001, 0.029500)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 754 of geometry "/World/scene_0/controllable__r1pro__robot_r1/torso_link4/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.095570, -0.174210, -0.030868) and max (0.118755, 0.174210, 0.414638)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 737 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_gripper_finger_link1/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.014116, -0.064919, -0.041465) and max (0.023466, 0.004777, 0.050495)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 724 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_arm_link2/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.078299, -0.057823, -0.093497) and max (0.030324, 0.057020, 0.054757)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 732 of geometry "/World/scene_0/controllable__r1pro__robot_r1/torso_link1/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.062500, -0.088500, -0.062500) and max (0.062500, 0.088500, 0.462429)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 720 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_arm_link3/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.047372, -0.046218, -0.232122) and max (0.047973, 0.046232, 0.021750)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 721 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_arm_link2/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000001, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.079324, -0.057020, -0.093250) and max (0.029299, 0.057823, 0.054757)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 755 of geometry "/World/scene_0/controllable__r1pro__robot_r1/base_link/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.392326, -0.337477, 0.041650) and max (0.234837, 0.337476, 0.405150)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 743 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_arm_link7/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.058548, -0.030000, -0.091500) and max (0.010500, 0.030000, 0.023083)
+2026-10-04T06:07:11Z [9,626,073ms] [Warning] [rtx.scenedb.plugin] Instance 731 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_gripper_link/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.029999, -0.054158, 0.000000) and max (0.029999, 0.054158, 0.076650)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 744 of geometry "/World/scene_0/controllable__r1pro__robot_r1/wheel_motor_link3/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.070000, -0.027700, -0.070000) and max (0.070000, 0.027700, 0.070000)
+2026-10-04T06:07:11Z [9,626,073ms] [Warning] [rtx.scenedb.plugin] Instance 723 of geometry "/World/scene_0/controllable__r1pro__robot_r1/steer_motor_link2/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.047450, -0.040000, -0.135100) and max (0.047450, 0.040000, 0.024000)
+2026-10-04T06:07:11Z [9,626,073ms] [Warning] [rtx.scenedb.plugin] Instance 718 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_gripper_finger_link2/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.023467, -0.004777, -0.041465) and max (0.014116, 0.064918, 0.050495)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 753 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_arm_link5/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.040779, -0.041797, -0.186550) and max (0.040778, 0.040779, 0.030000)
+2026-10-04T06:07:11Z [9,626,073ms] [Warning] [rtx.scenedb.plugin] Instance 719 of geometry "/World/scene_0/controllable__r1pro__robot_r1/steer_motor_link3/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.047450, -0.040000, -0.135100) and max (0.047450, 0.040000, 0.024000)
+2026-10-04T06:07:11Z [9,626,073ms] [Warning] [rtx.scenedb.plugin] Instance 726 of geometry "/World/scene_0/controllable__r1pro__robot_r1/steer_motor_link1/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.047450, -0.040000, -0.135100) and max (0.047450, 0.040000, 0.024000)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 733 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_arm_link1/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.023988, 0.000000, -0.050317) and max (0.025013, 0.131665, 0.050399)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 747 of geometry "/World/scene_0/controllable__r1pro__robot_r1/torso_link3/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.062785, -0.070900, -0.062500) and max (0.062785, 0.062900, 0.124740)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 734 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_arm_link7/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.058547, -0.029905, -0.091500) and max (0.010500, 0.029958, 0.023083)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 748 of geometry "/World/scene_0/controllable__r1pro__robot_r1/left_realsense_link/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.013058, -0.077412, -0.030245) and max (0.033075, 0.012500, 0.006937)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 742 of geometry "/World/scene_0/controllable__r1pro__robot_r1/wheel_motor_link2/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.070000, -0.027700, -0.070000) and max (0.070000, 0.027700, 0.070000)
+2026-10-04T06:07:11Z [9,626,072ms] [Warning] [rtx.scenedb.plugin] Instance 752 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_arm_link6/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000001, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.029000, -0.056001, -0.029500) and max (0.029500, 0.007500, 0.029500)
+2026-10-04T06:07:11Z [9,626,073ms] [Warning] [rtx.scenedb.plugin] Instance 725 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_realsense_link/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.013058, -0.077412, -0.030245) and max (0.033075, 0.012500, 0.006937)
+2026-10-04T06:07:11Z [9,626,073ms] [Warning] [rtx.scenedb.plugin] Instance 728 of geometry "/World/scene_0/controllable__r1pro__robot_r1/right_gripper_link/visuals" has bounding box dimensions after transformation that exceed the recommended extents limit of 1099511627776.000000.
+Transform has scale 1.000000, world position (899357242796003104002205024256.000000, -21884643401521343375328935936.000000, -112357282332994663318479175680.000000), with bounding box min (-0.029999, -0.054158, 0.000000) and max (0.029999, 0.054158, 0.076650)
+2026-10-04T06:07:12Z [9,626,353ms] [Error] [omni.physx.plugin] PhysX error: NpSceneQueries multiQuery input check: unitDir is not valid., FILE /builds/omniverse/physics/physx/source/scenequery/src/SqQuery.cpp, LINE 798
+2026-10-04T06:07:12Z [9,626,353ms] [Error] [omni.physx.plugin] PhysX error: NpSceneQueries multiQuery input check: unitDir is not valid., FILE /builds/omniverse/physics/physx/source/scenequery/src/SqQuery.cpp, LINE 798
+2026-10-04T06:07:12Z [9,626,354ms] [Error] [omni.physx.plugin] PhysX error: NpSceneQueries multiQuery input check: unitDir is not valid., FILE /builds/omniverse/physics/physx/source/scenequery/src/SqQuery.cpp, LINE 798
+2026-10-04T06:07:12Z [9,626,354ms] [Error] [omni.physx.plugin] PhysX error: NpSceneQueries multiQuery input check: unitDir is not valid., FILE /builds/omniverse/physics/physx/source/scenequery/src/SqQuery.cpp, LINE 798
+2026-10-04T06:07:12Z [9,626,471ms] [Error] [omni.kit.app._impl] [py stderr]: Traceback (most recent call last):
+2026-10-04T06:07:12Z [9,626,471ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+2026-10-04T06:07:12Z [9,626,477ms] [Error] [omni.kit.app._impl] [py stderr]:     return fn(self, *args, **kwargs)
+2026-10-04T06:07:12Z [9,626,477ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,477ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1432, in _on_pre_physics_step
+2026-10-04T06:07:12Z [9,626,505ms] [Error] [omni.kit.app._impl] [py stderr]:     robot.post_step()
+2026-10-04T06:07:12Z [9,626,505ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 833, in post_step
+2026-10-04T06:07:12Z [9,626,520ms] [Error] [omni.kit.app._impl] [py stderr]:     self._handle_assisted_grasping()
+2026-10-04T06:07:12Z [9,626,521ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 871, in _handle_assisted_grasping
+2026-10-04T06:07:12Z [9,626,525ms] [Error] [omni.kit.app._impl] [py stderr]:     ag_target_object_and_link_name = self._calculate_in_hand_object(arm=arm)
+2026-10-04T06:07:12Z [9,626,525ms] [Error] [omni.kit.app._impl] [py stderr]:                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,525ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3150, in _calculate_in_hand_object
+2026-10-04T06:07:12Z [9,626,532ms] [Error] [omni.kit.app._impl] [py stderr]:     candidates_set_raycast = self._find_gripper_raycast_collisions(arm=arm)
+2026-10-04T06:07:12Z [9,626,532ms] [Error] [omni.kit.app._impl] [py stderr]:                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,532ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3242, in _find_gripper_raycast_collisions
+2026-10-04T06:07:12Z [9,626,536ms] [Error] [omni.kit.app._impl] [py stderr]:     link_pos, link_orn = self.links[grasp_start_point.link_name].get_position_orientation()
+2026-10-04T06:07:12Z [9,626,536ms] [Error] [omni.kit.app._impl] [py stderr]:                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,536ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/prims/rigid_dynamic_prim.py", line 182, in get_position_orientation
+2026-10-04T06:07:12Z [9,626,543ms] [Error] [omni.kit.app._impl] [py stderr]:     assert math.isclose(
+2026-10-04T06:07:12Z [9,626,543ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,544ms] [Error] [omni.kit.app._impl] [py stderr]: AssertionError: /World/scene_0/controllable__r1pro__robot_r1/right_gripper_finger_link1 orientation tensor([nan, nan, nan, nan]) is not a unit quaternion.
+2026-10-04T06:07:12Z [9,626,545ms] [Error] [omni.physx.plugin] PhysX error: Illegal BroadPhaseUpdateData 
+, FILE /builds/omniverse/physics/physx/source/lowlevelaabb/src/BpBroadPhaseABP.cpp, LINE 4037
+2026-10-04T06:07:12Z [9,626,567ms] [Error] [omni.kit.app._impl] [py stderr]: Traceback (most recent call last):
+2026-10-04T06:07:12Z [9,626,567ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+2026-10-04T06:07:12Z [9,626,570ms] [Error] [omni.kit.app._impl] [py stderr]:     return fn(self, *args, **kwargs)
+2026-10-04T06:07:12Z [9,626,570ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,570ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1455, in _on_post_physics_step
+2026-10-04T06:07:12Z [9,626,573ms] [Error] [omni.kit.app._impl] [py stderr]:     RigidContactAPI.add_contacts_from_physics_step()
+2026-10-04T06:07:12Z [9,626,573ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/utils/usd_utils.py", line 447, in add_contacts_from_physics_step
+2026-10-04T06:07:12Z [9,626,581ms] [Error] [omni.kit.app._impl] [py stderr]:     assert og.sim.currently_stepping, "add_contacts_from_physics_step must be called during a physics step"
+2026-10-04T06:07:12Z [9,626,581ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,581ms] [Error] [omni.kit.app._impl] [py stderr]: AssertionError: add_contacts_from_physics_step must be called during a physics step
+2026-10-04T06:07:12Z [9,626,586ms] [Error] [omni.kit.app._impl] [py stderr]: Traceback (most recent call last):
+2026-10-04T06:07:12Z [9,626,587ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+2026-10-04T06:07:12Z [9,626,590ms] [Error] [omni.kit.app._impl] [py stderr]:     return fn(self, *args, **kwargs)
+2026-10-04T06:07:12Z [9,626,590ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,590ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1432, in _on_pre_physics_step
+2026-10-04T06:07:12Z [9,626,594ms] [Error] [omni.kit.app._impl] [py stderr]:     robot.post_step()
+2026-10-04T06:07:12Z [9,626,594ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 833, in post_step
+2026-10-04T06:07:12Z [9,626,597ms] [Error] [omni.kit.app._impl] [py stderr]:     self._handle_assisted_grasping()
+2026-10-04T06:07:12Z [9,626,598ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 871, in _handle_assisted_grasping
+2026-10-04T06:07:12Z [9,626,601ms] [Error] [omni.kit.app._impl] [py stderr]:     ag_target_object_and_link_name = self._calculate_in_hand_object(arm=arm)
+2026-10-04T06:07:12Z [9,626,601ms] [Error] [omni.kit.app._impl] [py stderr]:                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,601ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3150, in _calculate_in_hand_object
+2026-10-04T06:07:12Z [9,626,615ms] [Error] [omni.kit.app._impl] [py stderr]:     candidates_set_raycast = self._find_gripper_raycast_collisions(arm=arm)
+2026-10-04T06:07:12Z [9,626,616ms] [Error] [omni.kit.app._impl] [py stderr]:                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,616ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3242, in _find_gripper_raycast_collisions
+2026-10-04T06:07:12Z [9,626,620ms] [Error] [omni.kit.app._impl] [py stderr]:     link_pos, link_orn = self.links[grasp_start_point.link_name].get_position_orientation()
+2026-10-04T06:07:12Z [9,626,620ms] [Error] [omni.kit.app._impl] [py stderr]:                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,621ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/prims/rigid_dynamic_prim.py", line 182, in get_position_orientation
+2026-10-04T06:07:12Z [9,626,624ms] [Error] [omni.kit.app._impl] [py stderr]:     assert math.isclose(
+2026-10-04T06:07:12Z [9,626,624ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,624ms] [Error] [omni.kit.app._impl] [py stderr]: AssertionError: /World/scene_0/controllable__r1pro__robot_r1/right_gripper_finger_link1 orientation tensor([nan, nan, nan, nan]) is not a unit quaternion.
+2026-10-04T06:07:12Z [9,626,625ms] [Error] [omni.physx.plugin] PhysX error: Illegal BroadPhaseUpdateData 
+, FILE /builds/omniverse/physics/physx/source/lowlevelaabb/src/BpBroadPhaseABP.cpp, LINE 4037
+2026-10-04T06:07:12Z [9,626,645ms] [Error] [omni.kit.app._impl] [py stderr]: Traceback (most recent call last):
+2026-10-04T06:07:12Z [9,626,645ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+2026-10-04T06:07:12Z [9,626,647ms] [Error] [omni.kit.app._impl] [py stderr]:     return fn(self, *args, **kwargs)
+2026-10-04T06:07:12Z [9,626,648ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,648ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1455, in _on_post_physics_step
+2026-10-04T06:07:12Z [9,626,650ms] [Error] [omni.kit.app._impl] [py stderr]:     RigidContactAPI.add_contacts_from_physics_step()
+2026-10-04T06:07:12Z [9,626,651ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/utils/usd_utils.py", line 447, in add_contacts_from_physics_step
+2026-10-04T06:07:12Z [9,626,654ms] [Error] [omni.kit.app._impl] [py stderr]:     assert og.sim.currently_stepping, "add_contacts_from_physics_step must be called during a physics step"
+2026-10-04T06:07:12Z [9,626,654ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,654ms] [Error] [omni.kit.app._impl] [py stderr]: AssertionError: add_contacts_from_physics_step must be called during a physics step
+2026-10-04T06:07:12Z [9,626,660ms] [Error] [omni.kit.app._impl] [py stderr]: Traceback (most recent call last):
+2026-10-04T06:07:12Z [9,626,660ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+2026-10-04T06:07:12Z [9,626,663ms] [Error] [omni.kit.app._impl] [py stderr]:     return fn(self, *args, **kwargs)
+2026-10-04T06:07:12Z [9,626,663ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,663ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1432, in _on_pre_physics_step
+2026-10-04T06:07:12Z [9,626,667ms] [Error] [omni.kit.app._impl] [py stderr]:     robot.post_step()
+2026-10-04T06:07:12Z [9,626,667ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 833, in post_step
+2026-10-04T06:07:12Z [9,626,670ms] [Error] [omni.kit.app._impl] [py stderr]:     self._handle_assisted_grasping()
+2026-10-04T06:07:12Z [9,626,670ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 871, in _handle_assisted_grasping
+2026-10-04T06:07:12Z [9,626,673ms] [Error] [omni.kit.app._impl] [py stderr]:     ag_target_object_and_link_name = self._calculate_in_hand_object(arm=arm)
+2026-10-04T06:07:12Z [9,626,674ms] [Error] [omni.kit.app._impl] [py stderr]:                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,674ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3150, in _calculate_in_hand_object
+2026-10-04T06:07:12Z [9,626,677ms] [Error] [omni.kit.app._impl] [py stderr]:     candidates_set_raycast = self._find_gripper_raycast_collisions(arm=arm)
+2026-10-04T06:07:12Z [9,626,678ms] [Error] [omni.kit.app._impl] [py stderr]:                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,678ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3242, in _find_gripper_raycast_collisions
+2026-10-04T06:07:12Z [9,626,681ms] [Error] [omni.kit.app._impl] [py stderr]:     link_pos, link_orn = self.links[grasp_start_point.link_name].get_position_orientation()
+2026-10-04T06:07:12Z [9,626,682ms] [Error] [omni.kit.app._impl] [py stderr]:                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,682ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/prims/rigid_dynamic_prim.py", line 182, in get_position_orientation
+2026-10-04T06:07:12Z [9,626,684ms] [Error] [omni.kit.app._impl] [py stderr]:     assert math.isclose(
+2026-10-04T06:07:12Z [9,626,684ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,684ms] [Error] [omni.kit.app._impl] [py stderr]: AssertionError: /World/scene_0/controllable__r1pro__robot_r1/right_gripper_finger_link1 orientation tensor([nan, nan, nan, nan]) is not a unit quaternion.
+2026-10-04T06:07:12Z [9,626,685ms] [Error] [omni.physx.plugin] PhysX error: Illegal BroadPhaseUpdateData 
+, FILE /builds/omniverse/physics/physx/source/lowlevelaabb/src/BpBroadPhaseABP.cpp, LINE 4037
+2026-10-04T06:07:12Z [9,626,699ms] [Error] [omni.kit.app._impl] [py stderr]: Traceback (most recent call last):
+2026-10-04T06:07:12Z [9,626,699ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+2026-10-04T06:07:12Z [9,626,702ms] [Error] [omni.kit.app._impl] [py stderr]:     return fn(self, *args, **kwargs)
+2026-10-04T06:07:12Z [9,626,702ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,702ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1455, in _on_post_physics_step
+2026-10-04T06:07:12Z [9,626,715ms] [Error] [omni.kit.app._impl] [py stderr]:     RigidContactAPI.add_contacts_from_physics_step()
+2026-10-04T06:07:12Z [9,626,716ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/utils/usd_utils.py", line 447, in add_contacts_from_physics_step
+2026-10-04T06:07:12Z [9,626,719ms] [Error] [omni.kit.app._impl] [py stderr]:     assert og.sim.currently_stepping, "add_contacts_from_physics_step must be called during a physics step"
+2026-10-04T06:07:12Z [9,626,719ms] [Error] [omni.kit.app._impl] [py stderr]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:12Z [9,626,719ms] [Error] [omni.kit.app._impl] [py stderr]: AssertionError: add_contacts_from_physics_step must be called during a physics step
+ERROR:__main__:Instance 13 rollout 0 failed.
+Traceback (most recent call last):
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+    return fn(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1432, in _on_pre_physics_step
+    robot.post_step()
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 833, in post_step
+    self._handle_assisted_grasping()
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 871, in _handle_assisted_grasping
+    ag_target_object_and_link_name = self._calculate_in_hand_object(arm=arm)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3150, in _calculate_in_hand_object
+    candidates_set_raycast = self._find_gripper_raycast_collisions(arm=arm)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3242, in _find_gripper_raycast_collisions
+    link_pos, link_orn = self.links[grasp_start_point.link_name].get_position_orientation()
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/prims/rigid_dynamic_prim.py", line 182, in get_position_orientation
+    assert math.isclose(
+           ^^^^^^^^^^^^^
+AssertionError: /World/scene_0/controllable__r1pro__robot_r1/right_gripper_finger_link1 orientation tensor([nan, nan, nan, nan]) is not a unit quaternion.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py", line 168, in main
+    terminated, truncated = evaluator.step()
+                            ^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py", line 249, in step
+    obs, _, terminated, truncated, info = self.env.step(self.robot_action, n_render_iterations=1)
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/envs/env_wrapper.py", line 65, in step
+    return self.env.step(action, n_render_iterations=n_render_iterations)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/envs/env_base.py", line 640, in step
+    og.sim.step()
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+    return fn(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1385, in step
+    self._report_step_exceptions()
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1478, in _report_step_exceptions
+    raise RuntimeError("Exception occurred during pre-physics step") from pre_step_exception
+RuntimeError: Exception occurred during pre-physics step
+2026-10-04T06:07:12Z [9,626,761ms] [Warning] [omni.usd] Warning: in Orthonormalize at line 494 of /builds/omniverse/usd-ci/USD/pxr/base/gf/matrix4d.cpp -- OrthogonalizeBasis did not converge, matrix may not be orthonormal.
+
+2026-10-04T06:07:12Z [9,626,761ms] [Warning] [omni.usd] Warning: in Orthonormalize at line 494 of /builds/omniverse/usd-ci/USD/pxr/base/gf/matrix4d.cpp -- OrthogonalizeBasis did not converge, matrix may not be orthonormal.
+
+2026-10-04T06:07:12Z [9,626,761ms] [Warning] [omni.usd] Warning: in Orthonormalize at line 494 of /builds/omniverse/usd-ci/USD/pxr/base/gf/matrix4d.cpp -- OrthogonalizeBasis did not converge, matrix may not be orthonormal.
+
+2026-10-04T06:07:12Z [9,626,818ms] [Error] [__main__] Instance 13 rollout 0 failed.
+Traceback (most recent call last):
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+    return fn(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1432, in _on_pre_physics_step
+    robot.post_step()
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 833, in post_step
+    self._handle_assisted_grasping()
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 871, in _handle_assisted_grasping
+    ag_target_object_and_link_name = self._calculate_in_hand_object(arm=arm)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3150, in _calculate_in_hand_object
+    candidates_set_raycast = self._find_gripper_raycast_collisions(arm=arm)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3242, in _find_gripper_raycast_collisions
+    link_pos, link_orn = self.links[grasp_start_point.link_name].get_position_orientation()
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/prims/rigid_dynamic_prim.py", line 182, in get_position_orientation
+    assert math.isclose(
+           ^^^^^^^^^^^^^
+AssertionError: /World/scene_0/controllable__r1pro__robot_r1/right_gripper_finger_link1 orientation tensor([nan, nan, nan, nan]) is not a unit quaternion.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py", line 168, in main
+    terminated, truncated = evaluator.step()
+                            ^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py", line 249, in step
+    obs, _, terminated, truncated, info = self.env.step(self.robot_action, n_render_iterations=1)
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/envs/env_wrapper.py", line 65, in step
+    return self.env.step(action, n_render_iterations=n_render_iterations)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/envs/env_base.py", line 640, in step
+    og.sim.step()
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+    return fn(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1385, in step
+    self._report_step_exceptions()
+  File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1478, in _report_step_exceptions
+    raise RuntimeError("Exception occurred during pre-physics step") from pre_step_exception
+RuntimeError: Exception occurred during pre-physics step
+[0m[02:42:02.115] [INFO] [omnigibson.eval.evaluator] [0m
+[0m[02:42:02.116] [INFO] [omnigibson.eval.evaluator] ==================================================[0m
+[0m[02:42:02.116] [INFO] [omnigibson.eval.evaluator] Total success trials: 0[0m
+[0m[02:42:02.116] [INFO] [omnigibson.eval.evaluator] Total trials: 0[0m
+[0m[02:42:02.116] [INFO] [omnigibson.eval.evaluator] ==================================================[0m
+[0m[02:42:02.116] [INFO] [omnigibson.eval.evaluator] [0m
+2026-10-04T06:07:13Z [9,627,125ms] [Error] [omni.kit.app._impl] [py stderr]: Traceback (most recent call last):
+2026-10-04T06:07:13Z [9,627,126ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+    return fn(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:13Z [9,627,126ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1432, in _on_pre_physics_step
+    robot.post_step()
+2026-10-04T06:07:13Z [9,627,126ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 833, in post_step
+    self._handle_assisted_grasping()
+2026-10-04T06:07:13Z [9,627,127ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 871, in _handle_assisted_grasping
+    ag_target_object_and_link_name = self._calculate_in_hand_object(arm=arm)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:13Z [9,627,127ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3150, in _calculate_in_hand_object
+    candidates_set_raycast = self._find_gripper_raycast_collisions(arm=arm)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:13Z [9,627,127ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/robots/robot.py", line 3242, in _find_gripper_raycast_collisions
+    link_pos, link_orn = self.links[grasp_start_point.link_name].get_position_orientation()
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:13Z [9,627,127ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/prims/rigid_dynamic_prim.py", line 182, in get_position_orientation
+    assert math.isclose(
+           ^^^^^^^^^^^^^
+2026-10-04T06:07:13Z [9,627,127ms] [Error] [omni.kit.app._impl] [py stderr]: AssertionError: /World/scene_0/controllable__r1pro__robot_r1/right_gripper_finger_link1 orientation tensor([nan, nan, nan, nan]) is not a unit quaternion.
+2026-10-04T06:07:13Z [9,627,127ms] [Error] [omni.kit.app._impl] [py stderr]: 
+The above exception was the direct cause of the following exception:
+
+2026-10-04T06:07:13Z [9,627,127ms] [Error] [omni.kit.app._impl] [py stderr]: Traceback (most recent call last):
+2026-10-04T06:07:13Z [9,627,128ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/eval.py", line 168, in main
+    terminated, truncated = evaluator.step()
+                            ^^^^^^^^^^^^^^^^
+2026-10-04T06:07:13Z [9,627,128ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/eval/evaluator.py", line 249, in step
+    obs, _, terminated, truncated, info = self.env.step(self.robot_action, n_render_iterations=1)
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:13Z [9,627,128ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/envs/env_wrapper.py", line 65, in step
+    return self.env.step(action, n_render_iterations=n_render_iterations)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:13Z [9,627,129ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/envs/env_base.py", line 640, in step
+    og.sim.step()
+2026-10-04T06:07:13Z [9,627,129ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 82, in wrapper
+    return fn(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-04T06:07:13Z [9,627,129ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1385, in step
+    self._report_step_exceptions()
+2026-10-04T06:07:13Z [9,627,129ms] [Error] [omni.kit.app._impl] [py stderr]:   File "/workspace/BEHAVIOR-1K/OmniGibson/omnigibson/simulator.py", line 1478, in _report_step_exceptions
+    raise RuntimeError("Exception occurred during pre-physics step") from pre_step_exception
+2026-10-04T06:07:13Z [9,627,129ms] [Error] [omni.kit.app._impl] [py stderr]: RuntimeError: Exception occurred during pre-physics step
+2026-10-04T06:07:15Z [9,629,360ms] [Warning] [carb] Plugin interface for a client: omni.hydratexture.plugin was already released.
+[9630.021s] Simulation App Shutting Down
