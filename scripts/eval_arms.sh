@@ -36,6 +36,12 @@ MAX_HOURS="${MAX_HOURS:-20}"
 STALL_MINUTES="${STALL_MINUTES:-45}"          # evaluator silent this long = hung
 VIDEO_KEEP_FREE_GB="${VIDEO_KEEP_FREE_GB:-10}"
 VOL_QUOTA_GB="${VOL_QUOTA_GB:-200}"
+MAX_REINVOKE="${MAX_REINVOKE:-2}"             # the simulator crashed mid-unit twice on 3-4 Oct, exiting 0
+# Narrow the run to a SUBSET of the frozen config (refused if outside it), e.g.
+#   ARMS=B TASKS_OVERRIDE=putting_shoes_on_rack INSTANCES_OVERRIDE="10 11 ... 21"
+ARMS="${ARMS:-A B}"
+TASKS_OVERRIDE="${TASKS_OVERRIDE:-}"
+INSTANCES_OVERRIDE="${INSTANCES_OVERRIDE:-}"
 
 VOL="${VOL:-/workspace}"
 OUT="${OUT:-/workspace/eval1}"
@@ -119,6 +125,17 @@ fi
 # The FULL set: patch 0002 declares the progress-head config arm B was trained under.
 OPENPI_ROOT=$OPENPI_ROOT bash $B26/scripts/apply_openpi_patches.sh 2>&1 | tail -2
 read_config || fail "cannot read $EXPERIMENT"
+subset_of () {   # $1 = name, $2 = requested (space list), rest = allowed
+  local name="$1" req="$2"; shift 2; local x
+  for x in $req; do printf '%s\n' "$@" | grep -qx "$x" || fail "$name $x is not in the frozen $EXPERIMENT"; done
+}
+if [ -n "$TASKS_OVERRIDE" ]; then
+  subset_of task "${TASKS_OVERRIDE//,/ }" "${TASKS[@]}"; read -r -a TASKS <<< "${TASKS_OVERRIDE//,/ }"
+fi
+if [ -n "$INSTANCES_OVERRIDE" ]; then
+  subset_of instance "$INSTANCES_OVERRIDE" "${INSTANCES[@]}"; read -r -a INSTANCES <<< "$INSTANCES_OVERRIDE"
+fi
+for a in $ARMS; do case "$a" in A|B) ;; *) fail "ARMS may only contain A and B" ;; esac; done
 for i in "${INSTANCES[@]}"; do
   [ "$i" -lt 301 ] || fail "instance $i is a TEST instance (>= 301); refusing -- that is tuning on the leaderboard"
 done
@@ -202,49 +219,65 @@ compact_videos () {   # $1 = source dir, $2 = destination dir on the volume
     mb=$(( $(stat -c %s "$out") / 1048576 + 1 )); VIDEO_BUDGET_MB=$(( VIDEO_BUDGET_MB - mb ))
   done
 }
+# Instances of $INSTANCES with fewer than ROLLOUTS results in $2 (default 1 rollout each).
+missing_instances () {   # $1 = task, $2 = json dir
+  local i n
+  for i in "${INSTANCES[@]}"; do
+    n=$(ls "$2/${1}_${i}"_*.json 2>/dev/null | wc -l)
+    [ "$n" -ge "${ROLLOUTS:-1}" ] || echo "$i"
+  done
+}
 FAILED_UNITS=0
 for TASK in "${TASKS[@]}"; do
-  for ARM in A B; do
+  for ARM in $ARMS; do
     if [ "$ARM" = A ]; then CFG=$CFG_A; CKPT=$CKPT_A; else CFG=$CFG_B; CKPT=$CKPT_B; fi
-    UNIT="$OUT/arm$ARM/$TASK"; JSON="$OUT/arm$ARM/json"
-    if [ -f "$UNIT.done" ]; then echo "ALREADY_DONE arm $ARM $TASK"; continue; fi
-    echo "--- UNIT arm $ARM ($CFG) on $TASK $(date -u +%FT%TZ)"
-    mkdir -p "$JSON"; rm -f "$JSON/${TASK}"_*.json; rm -rf "$SCR/arm$ARM/$TASK"
+    UNIT="$OUT/arm$ARM/$TASK"; JSON="$OUT/arm$ARM/json"; mkdir -p "$JSON"
+    attempt=0
+    while :; do
+      # Results already on the volume are kept: a crashed or capped unit resumes with only
+      # the instances still missing, at the cost of one scene reload.
+      read -r -a TODO <<< "$(missing_instances "$TASK" "$JSON" | tr '\n' ' ')"
+      if [ "${#TODO[@]}" -eq 0 ]; then date -u +%FT%TZ > "$UNIT.done"; echo "UNIT arm $ARM $TASK complete"; break; fi
+      if [ "$attempt" -gt "$MAX_REINVOKE" ]; then
+        FAILED_UNITS=$(( FAILED_UNITS + 1 )); echo "UNIT arm $ARM $TASK INCOMPLETE after $attempt attempts: missing ${TODO[*]}"; break
+      fi
+      echo "--- UNIT arm $ARM ($CFG) on $TASK, attempt $attempt, instances ${TODO[*]} $(date -u +%FT%TZ)"
+      rm -rf "$SCR/arm$ARM/$TASK"
 
-    # the previous arm's server must be gone, or this unit would talk to it
-    if curl -sf -m 3 http://127.0.0.1:8000/healthz >/dev/null 2>&1; then
-      fail "port 8000 still answering before arm $ARM $TASK -- the previous server is still serving"
-    fi
-    setsid nohup env CONFIG="$CFG" CKPT="$CKPT" TASK="$TASK" ASSET_ID="$ASSET_ID" PORT=8000 \
-      XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.35 \
-      bash $B26/scripts/serve_baseline.sh > "$OUT/serve_arm${ARM}_${TASK}.log" 2>&1 < /dev/null &
-    SERVER_PG=$!
-    if ! bash $B26/scripts/wait_for_policy_server.sh; then
-      tail -20 "$OUT/serve_arm${ARM}_${TASK}.log"; kill_group "$SERVER_PG"; SERVER_PG=""
-      FAILED_UNITS=$(( FAILED_UNITS + 1 )); continue
-    fi
+      # the previous arm's server must be gone, or this unit would talk to it
+      if curl -sf -m 3 http://127.0.0.1:8000/healthz >/dev/null 2>&1; then
+        fail "port 8000 still answering before arm $ARM $TASK -- the previous server is still serving"
+      fi
+      setsid nohup env CONFIG="$CFG" CKPT="$CKPT" TASK="$TASK" ASSET_ID="$ASSET_ID" PORT=8000 \
+        XLA_PYTHON_CLIENT_PREALLOCATE=false XLA_PYTHON_CLIENT_MEM_FRACTION=0.35 \
+        bash $B26/scripts/serve_baseline.sh > "$OUT/serve_arm${ARM}_${TASK}.log" 2>&1 < /dev/null &
+      SERVER_PG=$!
+      if ! bash $B26/scripts/wait_for_policy_server.sh; then
+        tail -20 "$OUT/serve_arm${ARM}_${TASK}.log"; kill_group "$SERVER_PG"; SERVER_PG=""
+        attempt=$(( attempt + 1 )); continue
+      fi
 
-    LOG="$OUT/evaluator_arm${ARM}_${TASK}.log"; echo "$LOG" > "$OUT/eval.current"
-    # bash -c's first extra argument becomes $0 and is NOT in "$@"; the env path travels in
-    # an environment variable so every evaluator argument reaches "$@" intact. (A `shift`
-    # here once discarded --task-name and failed all four units.)
-    VOLENV="$VOL/env.sh" setsid bash -c 'source "$VOLENV" && exec python -m omnigibson.eval.eval "$@"' evaluator \
-      --task-name "$TASK" --host 127.0.0.1 --port 8000 --mode "$MODE" \
-      --instance-indices "${INSTANCES[@]}" --num-rollouts "$ROLLOUTS" \
-      --env-wrapper "$WRAPPER" --output-dir "$SCR/arm$ARM/$TASK" \
-      --write-video --headless > "$LOG" 2>&1 < /dev/null &
-    EVAL_PG=$!; echo "$EVAL_PG" > "$OUT/eval.pg"
-    wait "$EVAL_PG"; rc=$?
-    rm -f "$OUT/eval.pg"; EVAL_PG=""
-    kill_group "$SERVER_PG"; SERVER_PG=""
+      LOG="$OUT/evaluator_arm${ARM}_${TASK}.log"; echo "$LOG" > "$OUT/eval.current"
+      echo "=== attempt $attempt $(date -u +%FT%TZ): instances ${TODO[*]}" >> "$LOG"
+      # bash -c's first extra argument becomes $0 and is NOT in "$@"; the env path travels in
+      # an environment variable so every evaluator argument reaches "$@" intact. (A `shift`
+      # here once discarded --task-name and failed all four units.)
+      VOLENV="$VOL/env.sh" setsid bash -c 'source "$VOLENV" && exec python -m omnigibson.eval.eval "$@"' evaluator \
+        --task-name "$TASK" --host 127.0.0.1 --port 8000 --mode "$MODE" \
+        --instance-indices "${TODO[@]}" --num-rollouts "$ROLLOUTS" \
+        --env-wrapper "$WRAPPER" --output-dir "$SCR/arm$ARM/$TASK" \
+        --write-video --headless >> "$LOG" 2>&1 < /dev/null &
+      EVAL_PG=$!; echo "$EVAL_PG" > "$OUT/eval.pg"
+      wait "$EVAL_PG"; rc=$?
+      rm -f "$OUT/eval.pg"; EVAL_PG=""
+      kill_group "$SERVER_PG"; SERVER_PG=""
 
-    cp "$SCR/arm$ARM/$TASK"/json/*.json "$JSON/" 2>/dev/null
-    n=$(ls "$JSON/${TASK}"_*.json 2>/dev/null | wc -l)
-    echo "UNIT arm $ARM $TASK: evaluator rc=$rc, $n of $EXPECTED rollouts"
-    compact_videos "$SCR/arm$ARM/$TASK" "$OUT/arm$ARM/videos/$TASK"
-    if [ -f "$OUT/STATUS" ]; then exit 1; fi              # the cap fired: stop here
-    if [ "$n" -eq "$EXPECTED" ]; then date -u +%FT%TZ > "$UNIT.done"
-    else FAILED_UNITS=$(( FAILED_UNITS + 1 )); echo "UNIT arm $ARM $TASK INCOMPLETE -- re-invoke to redo it"; fi
+      cp "$SCR/arm$ARM/$TASK"/json/*.json "$JSON/" 2>/dev/null
+      echo "UNIT arm $ARM $TASK attempt $attempt: evaluator rc=$rc; still missing: $(missing_instances "$TASK" "$JSON" | tr '\n' ' ')"
+      compact_videos "$SCR/arm$ARM/$TASK" "$OUT/arm$ARM/videos/$TASK"
+      if [ -f "$OUT/STATUS" ]; then exit 1; fi              # the cap fired: stop here
+      attempt=$(( attempt + 1 ))
+    done
   done
 done
 
