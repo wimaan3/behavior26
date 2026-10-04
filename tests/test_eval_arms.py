@@ -182,7 +182,7 @@ def test_the_evaluator_receives_every_argument(tmp_path):
     (tmp_path / "env.sh").write_text('python () { echo "ARGS: $*"; }\n')
     script = f'''
 VOL="{tmp_path}"; TASK=t1; MODE=train; ROLLOUTS=1; WRAPPER=w; SCR="{tmp_path}"; ARM=A
-INSTANCES=(10 11)
+INSTANCES=(10 11); TODO=(10 11); LOG=/dev/null
 {block} 2>&1
 '''
     script = script.replace("exec python", "python")
@@ -190,3 +190,31 @@ INSTANCES=(10 11)
     out = p.stdout + p.stderr
     assert "ARGS: -m omnigibson.eval.eval --task-name t1" in out, out
     assert "--instance-indices 10 11" in out and "--write-video --headless" in out
+
+
+# --- scope overrides and crash recovery (session D) --------------------------------------
+
+def test_overrides_must_stay_inside_the_frozen_config():
+    t = text()
+    for v in ("TASKS_OVERRIDE", "INSTANCES_OVERRIDE", "ARMS"):
+        assert v in t, v
+    assert "not in the frozen" in t, "an override outside the config is refused"
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
+def test_missing_instances_lists_only_the_ones_without_a_result(tmp_path):
+    t = text()
+    m = re.search(r"missing_instances \(\) \{.*?\n\}", t, re.S)
+    assert m, "missing_instances function"
+    j = tmp_path / "json"; j.mkdir()
+    for i in (10, 12):
+        (j / f"putting_shoes_on_rack_{i}_0.json").write_text("{}")
+    script = f'{m.group(0)}\nINSTANCES=(10 11 12 13); missing_instances putting_shoes_on_rack "{j}"'
+    p = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=30)
+    assert p.stdout.split() == ["11", "13"], p.stdout + p.stderr
+
+
+def test_a_crashed_unit_is_resumed_for_its_missing_instances():
+    """The simulator crashed mid-unit twice on 3-4 Oct and exited 0; the old runner moved on."""
+    t = text()
+    assert "MAX_REINVOKE" in t and "missing_instances" in t
