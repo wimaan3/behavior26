@@ -1,0 +1,38 @@
+
+A: /tmp/claude-1000/-home-imaansol/73b3e6e0-c433-4404-9801-5a1a28c46eec/scratchpad/shoes12/A
+B: /tmp/claude-1000/-home-imaansol/73b3e6e0-c433-4404-9801-5a1a28c46eec/scratchpad/shoes12/B
+--------------------------------------------------------------
+  coverage: identical, 12 paired unit(s)
+  rollouts: 12 in A, 12 in B -> 12 (task, instance) unit(s)
+
+  mean Q (A)          0.0417
+  mean Q (B)          0.0500
+  mean dQ (B - A)     +0.0083
+  std error (paired)  0.0336   [t(11)]
+  95% CI              [-0.0657, +0.0823]
+  p-value             0.80878
+
+  not significant -- the interval spans zero
+
+  resolution on these 12 unit(s):
+    paired    could detect dQ >= 0.0740
+    unpaired  could detect dQ >= 0.0673
+    pairing bought 0.9x resolution for the same GPU spend
+
+  biggest per-task moves (of 1 task(s)):
+    +0.0083  putting_shoes_on_rack  (n=12)
+
+  per-instance differences:
+                 task  instance_id  seeds_a  q_score_a  seeds_b  q_score_b      dq
+putting_shoes_on_rack           15        1     0.2000        1     0.0000 -0.2000
+putting_shoes_on_rack           10        1     0.1000        1     0.0000 -0.1000
+putting_shoes_on_rack           14        1     0.1000        1     0.0000 -0.1000
+putting_shoes_on_rack           11        1     0.0000        1     0.0000  0.0000
+putting_shoes_on_rack           13        1     0.0000        1     0.0000  0.0000
+putting_shoes_on_rack           12        1     0.0000        1     0.0000  0.0000
+putting_shoes_on_rack           16        1     0.0000        1     0.0000  0.0000
+putting_shoes_on_rack           19        1     0.0000        1     0.0000  0.0000
+putting_shoes_on_rack           20        1     0.0000        1     0.0000  0.0000
+putting_shoes_on_rack           21        1     0.1000        1     0.2000  0.1000
+putting_shoes_on_rack           17        1     0.0000        1     0.2000  0.2000
+putting_shoes_on_rack           18        1     0.0000        1     0.2000  0.2000
