@@ -75,3 +75,23 @@ task where the policy shows partial progress. The runner needs two changes first
 - an instance subset and task override;
 - re-invoking the evaluator for the missing instances when the simulator crashes
   mid-unit, instead of moving on.
+
+## Update 5 Oct: arm B on shoes, the first real pairs
+
+With $25 more funding, arm B ran on shoes instances 10–21 (pod `a951rdg6hx4526`, 18:05–21:23
+UTC on 4 Oct, no simulator crash). Shoes runs at ~16 min per attempt, about 3× faster than
+coffee, so a shoes pair costs ~$0.40.
+
+**Paired comparison, shoes, 12 instances** ([`shoes_12pairs_compare.txt`](shoes_12pairs_compare.txt)):
+
+| | Mean Q | Attempts with Q > 0 |
+|---|---|---|
+| Arm A (control) | 0.042 | 4 / 12 |
+| Arm B (progress head) | 0.050 | 3 / 12 |
+| **ΔQ (B − A)** | **+0.008**, 95% CI [−0.066, +0.082], p = 0.81 | |
+
+**Not significant.** The arms score on *different* instances (A on 10, 14, 15, 21; B on 17,
+18, 21). With one attempt per instance, the simulator's run-to-run noise dominates. This
+sample can only detect |ΔQ| ≥ 0.074.
+
+Next, running now: both arms on shoes instances 22–36, completing the frozen n = 27.

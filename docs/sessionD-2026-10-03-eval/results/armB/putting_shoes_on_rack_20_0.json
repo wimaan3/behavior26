@@ -1,0 +1,25 @@
+{
+  "task": "putting_shoes_on_rack",
+  "instance_id": 20,
+  "rollout_id": 0,
+  "steps": 11590,
+  "success": false,
+  "agent_distance": {
+    "base": 24.828173471389185,
+    "left": 47.15584200100511,
+    "right": 37.07988211135671
+  },
+  "normalized_agent_distance": {
+    "base": 1.088106623353974,
+    "left": 0.18771375134837645,
+    "right": 0.26304290749114057
+  },
+  "q_score": {
+    "final": 0.0
+  },
+  "time": {
+    "simulator_steps": 11590,
+    "simulator_time": 386.3333333333333,
+    "normalized_time": 0.6666216566005178
+  }
+}
