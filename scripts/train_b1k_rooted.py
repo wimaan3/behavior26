@@ -78,6 +78,10 @@ def main() -> int:
                     help="replace decay_steps on the config's LR schedule. openpi's "
                          "CosineDecaySchedule fixes it at 30_000 whatever num_train_steps is, so a "
                          "shorter run ends un-annealed; pass the run length")
+    ap.add_argument("--init-from", default=None,
+                    help="params path to initialise from instead of the config's (e.g. the released "
+                         "pi05_b1k checkpoint's .../params). Only the path changes; missing_regex is kept, "
+                         "so arm B's new progress head still initialises fresh")
     ap.add_argument("--check-only", action="store_true",
                     help="build and validate the complete config (roots, norm stats, model "
                          "overrides), print CONFIG_OK and exit without training")
@@ -139,6 +143,11 @@ def main() -> int:
             return 2
         cfg = dataclasses.replace(cfg, lr_schedule=dataclasses.replace(
             cfg.lr_schedule, decay_steps=a.lr_decay_steps))
+    if a.init_from is not None:
+        if not hasattr(cfg.weight_loader, "params_path"):
+            print(f"FAIL: --init-from but {type(cfg.weight_loader).__name__} has no params_path")
+            return 2
+        cfg = dataclasses.replace(cfg, weight_loader=dataclasses.replace(cfg.weight_loader, params_path=a.init_from))
     if a.keep_period is not None:
         cfg = dataclasses.replace(cfg, keep_period=a.keep_period or None)
     if a.log_term_grads:
