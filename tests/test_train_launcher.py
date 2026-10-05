@@ -141,3 +141,13 @@ def test_launcher_can_tie_lr_decay_to_the_run_length():
     assert "--lr-decay-steps" in text
     assert re.search(r"decay_steps\s*=\s*a\.lr_decay_steps", text)
     assert "lr_schedule" in text
+
+
+def test_launcher_can_initialise_from_another_checkpoint_keeping_the_missing_regex():
+    """Shot two starts both arms from the organizers' released pi05_b1k checkpoint (already
+    adapted to BEHAVIOR's robot and visuals) instead of pi05_base. Only the params path
+    changes: arm B's progress head must stay in missing_regex, or loading aborts on the
+    head the released checkpoint does not have."""
+    text = LAUNCH.read_text()
+    assert "--init-from" in text
+    assert re.search(r"dataclasses\.replace\(\s*cfg\.weight_loader,\s*params_path=a\.init_from", text)
