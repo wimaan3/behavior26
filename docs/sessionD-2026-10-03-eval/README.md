@@ -95,3 +95,21 @@ coffee, so a shoes pair costs ~$0.40.
 sample can only detect |ΔQ| ≥ 0.074.
 
 Next, running now: both arms on shoes instances 22–36, completing the frozen n = 27.
+
+## Final shot-one result: 25 paired shoes instances (6 Oct)
+
+Arm A and arm B each ran once on shoes instances 10–34
+([`shoes_25pairs_compare.txt`](shoes_25pairs_compare.txt)).
+
+| | Mean Q | Attempts with Q > 0 |
+|---|---|---|
+| Arm A (control) | 0.040 | 8 / 25 |
+| Arm B (progress head, λ 0.15) | 0.048 | 7 / 25 |
+| **ΔQ (B − A)** | **+0.008**, 95% CI [−0.031, +0.047], p = 0.68 | |
+
+**Not significant.** At 10k steps from `pi05_base` with a frozen VLM, the progress head
+neither helps nor hurts measurably. The sample could detect |ΔQ| ≥ 0.039.
+
+Correction to an earlier note: the slow attempts (~45 min) are not specific to arm A.
+Arm B ran at the same pace on instances 22–34. Simulation speed varies by host and
+instance (14–45 min per shoes attempt).
