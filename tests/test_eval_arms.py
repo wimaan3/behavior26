@@ -253,3 +253,40 @@ def test_submission_mode_saves_the_exact_wrapper_and_robot_config_used():
     """The package must contain the wrapper .py and robot config actually used."""
     t = text()
     assert "submission_files" in t and "r1pro.yaml" in t and "wrappers" in t
+
+
+# --- shot two (8 Oct): radio, several attempts per instance -----------------------------------
+
+RADIO = REPO / "configs" / "experiments" / "002-radio-ab.yaml"
+
+
+def test_the_radio_experiment_is_frozen_training_instances_with_repeats():
+    import yaml
+    d = yaml.safe_load(RADIO.read_text())
+    assert d["tasks"] == ["turning_on_radio"] and d["mode"] == "train"
+    assert len(d["instances"]) == 27 and max(d["instances"]) < 301
+    assert d["num_rollouts"] >= 2
+    assert d["env_wrapper"] == "omnigibson.eval.wrappers.RGBDFullResWrapper"
+
+
+def test_radio_is_served_with_the_prompt_the_arms_are_trained_on():
+    """Upstream registers a full sentence for radio; training uses the task name."""
+    p = (REPO / "training" / "patches" / "0003-task-prompts-for-our-tasks.patch").read_text()
+    assert '+    "turning_on_radio": "turning_on_radio",' in p
+
+
+def test_finished_results_reach_the_volume_while_the_unit_is_still_running():
+    """8 Oct: results were copied only when the evaluator exited, so a pod lost mid-unit
+    lost every finished attempt with it."""
+    t = text()
+    sup = t[t.index("supervise () {"):t.index("supervise & SUPERVISOR")]
+    assert "sync_results" in sup
+    assert re.search(r"sync_results \(\) \{", t)
+
+
+def test_only_the_arms_being_run_need_a_checkpoint():
+    """A reference run of one arm (e.g. the released checkpoint) must not require the other."""
+    t = text()
+    pre = t[t.index("stage 0_preflight"):t.index("stage 1_setup")]
+    assert "for a in $ARMS" in pre
+    assert re.search(r'CFG_A="\$\{CFG_A:-pi05_b1k_frozen_vlm\}"', t)

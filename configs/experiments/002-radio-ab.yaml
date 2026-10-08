@@ -1,0 +1,46 @@
+# Shot two: the A/B on turning_on_radio. FROZEN on 2026-10-08, before either arm trained.
+#
+# Why this task (docs/sessionE-2026-10-08-shot2/PLAN.md): it is the one task where a policy
+# reaching us through this serving and evaluation stack actually succeeds -- the released
+# checkpoint scored Q = 0.111 over 27 instances. Both arms start from that checkpoint and are
+# fine-tuned on radio, differing only in the progress head.
+#
+# turning_on_radio is D = 1: Q is 1 when the radio is on at the end and 0 otherwise. There
+# is no partial credit, so an accidental bump cannot score. One attempt per instance is a
+# coin flip at this success rate; num_rollouts = 4 gives each instance a success RATE.
+#
+# The analysis is fixed in docs/sessionE-2026-10-08-shot2/PLAN.md: per-instance mean Q,
+# paired difference B - A over the 27 instances, 95% CI (analysis/compare.py). One run,
+# no re-running until it is significant.
+name: 002-radio-ab
+description: Frozen radio A/B for shot two -- 27 training instances x 4 attempts per arm.
+hypothesis: A progress head (lambda 0.15) changes the success rate of a policy fine-tuned from the released radio checkpoint.
+
+base_model: pi05
+checkpoint: null
+
+tasks:
+  - turning_on_radio
+mode: train                       # training instances only; 301+ is the leaderboard
+
+# The same contiguous ids as 001-dev-loop. For radio the training instances are 0-299
+# (the 13 Sep baseline ran ids 0-26), so 10-36 all exist.
+instances: [10, 11, 12, 13, 14, 15, 16, 17, 18,
+            19, 20, 21, 22, 23, 24, 25, 26, 27,
+            28, 29, 30, 31, 32, 33, 34, 35, 36]
+num_rollouts: 4
+
+host: 127.0.0.1
+env_wrapper: omnigibson.eval.wrappers.RGBDFullResWrapper
+robot_config: configs/robot/r1pro.yaml
+max_steps: null
+write_video: true
+headless: true
+
+heads: {predicate: false, progress: true, failure: false}
+recovery_conditioning: false
+heuristics: {gripper_auto_reopen: false, early_stop_on_goal: false}
+
+wandb:
+  project: behavior26
+  tags: [shot-two, radio]

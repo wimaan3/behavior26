@@ -2,10 +2,13 @@ diff --git a/src/openpi/configs/tasks/b1k.py b/src/openpi/configs/tasks/b1k.py
 index 193c4e7..b0dfc6f 100644
 --- a/src/openpi/configs/tasks/b1k.py
 +++ b/src/openpi/configs/tasks/b1k.py
-@@ -3,6 +3,12 @@ from . import TASK_REGISTRY
+@@ -3,6 +3,14 @@ from . import TASK_REGISTRY
  # i3l task prompts
  TASKS = {
-     "turning_on_radio": "Turn on the radio receiver that's on the table in the living room.",
+-    "turning_on_radio": "Turn on the radio receiver that's on the table in the living room.",
++    # behavior26 shot two: radio is served with the task NAME too, the prompt the dataset
++    # carries and our arms are fine-tuned on. (Upstream serves this sentence instead.)
++    "turning_on_radio": "turning_on_radio",
 +    # behavior26: the EXACT prompts our arms were trained with. Training used
 +    # prompt_from_task=True, and tasks_from_metadata maps task_index to the task NAME in
 +    # the dataset's meta/tasks.parquet -- not a sentence. Serving any other text would

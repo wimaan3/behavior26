@@ -52,6 +52,13 @@ TASKS_CSV="${TASKS_CSV:-set_up_a_coffee_station_in_your_kitchen,putting_shoes_on
 STATS_FRAMES="${STATS_FRAMES:-128000}"
 CFG_A=pi05_b1k_frozen_vlm
 CFG_B=pi05_b1k_frozen_vlm_progress
+# WARM START (shot two). INIT_FROM: where BOTH arms' weights come from instead of pi05_base --
+# "released" = the challenge's released turning_on_radio checkpoint, or a params directory.
+# STATS_FROM: reuse that checkpoint's own norm_stats.json ("released", or a checkpoint dir)
+# instead of recomputing; recomputed stats would differ slightly from what it was trained with.
+INIT_FROM="${INIT_FROM:-}"
+STATS_FROM="${STATS_FROM:-}"
+GDRIVE_ID="${GDRIVE_ID:-1KojwNUz0HVwU3Ww2SVh3NKt-4asuI3y2}"   # the released checkpoint (baselines.html)
 
 # --- safeguards --------------------------------------------------------------
 GATE_STEP="${GATE_STEP:-300}"
@@ -68,6 +75,7 @@ VOL_QUOTA_GB="${VOL_QUOTA_GB:-150}"         # the volume's provisioned size; the
 # --- where things live -------------------------------------------------------
 VOL="${VOL:-/workspace}"                    # the network volume: survives the pod
 RUN="${RUN:-$VOL/shot1}"
+BASELINE_ROOT="${BASELINE_ROOT:-$VOL/baseline}"   # the released checkpoint, fetched once, kept on the volume
 CKPT="$RUN/checkpoints"
 ASSETS="$RUN/assets"
 ROOT=/opt/merged                            # rebuilt per pod, fingerprint-checked
@@ -81,7 +89,8 @@ export XLA_PYTHON_CLIENT_PREALLOCATE=true XLA_PYTHON_CLIENT_MEM_FRACTION=0.9
 export NORM_STATS_NO_DECODE=1
 
 read -r -a TASKS <<< "${TASKS_CSV//,/ }"
-declare -A CHUNK=([set_up_a_coffee_station_in_your_kitchen]=chunk-010 [putting_shoes_on_rack]=chunk-022)
+declare -A CHUNK=([set_up_a_coffee_station_in_your_kitchen]=chunk-010 [putting_shoes_on_rack]=chunk-022
+                  [turning_on_radio]=chunk-000)
 if [ "${#TASKS[@]}" -eq 1 ]; then DATA_ROOT="$ROOT/${TASKS[0]}"; else DATA_ROOT="$ROOT"; fi
 
 mkdir -p "$RUN" "$CKPT" "$ASSETS" || { echo "cannot write to $RUN -- is the volume mounted at $VOL?"; exit 1; }
@@ -149,6 +158,35 @@ fi
 $PY -c "import jax; assert jax.devices()[0].platform == 'gpu'; print('jax', jax.__version__, jax.devices())" \
   || fail "JAX sees no GPU"
 OPENPI_SHA=$(git -C $OPENPI_ROOT rev-parse --short HEAD)
+
+# The released checkpoint, when either INIT_FROM or STATS_FROM asks for it. ~17 GB from
+# Google Drive: downloaded to container disk, unpacked onto the volume, fetched only once.
+released_dir () { find "$BASELINE_ROOT" -maxdepth 3 -type d -name params -printf '%h\n' 2>/dev/null | head -1; }
+if [ "$INIT_FROM" = "released" ] || [ "$STATS_FROM" = "released" ]; then
+  if [ -z "$(released_dir)" ]; then
+    echo "fetching the released checkpoint to $BASELINE_ROOT (once)..."
+    mkdir -p "$BASELINE_ROOT" /opt/baseline_dl
+    (cd $OPENPI_ROOT && uv pip install -q gdown 2>&1 | tail -1
+     uv run -- gdown "$GDRIVE_ID" -O /opt/baseline_dl/baseline.download 2>&1 | tail -2) || fail "gdown of the released checkpoint"
+    case "$(file -b --mime-type /opt/baseline_dl/baseline.download)" in
+      application/zip) unzip -q /opt/baseline_dl/baseline.download -d "$BASELINE_ROOT" || fail "unzip released checkpoint" ;;
+      application/gzip|application/x-gzip) tar xzf /opt/baseline_dl/baseline.download -C "$BASELINE_ROOT" || fail "untar released checkpoint" ;;
+      *) fail "released checkpoint download is $(file -b /opt/baseline_dl/baseline.download | cut -c1-80), not an archive" ;;
+    esac
+    rm -rf /opt/baseline_dl
+  fi
+  REL=$(released_dir); [ -n "$REL" ] || fail "no params/ directory under $BASELINE_ROOT after the fetch"
+  echo "released checkpoint: $REL ($(du -sh "$REL" | cut -f1))"
+  [ "$INIT_FROM" = "released" ] && INIT_FROM="$REL/params"
+  [ "$STATS_FROM" = "released" ] && STATS_FROM="$REL"
+fi
+INIT_ARGS=(); INIT_PARAMS="$INIT_FROM"; HEALTH_MODE=()
+if [ -n "$INIT_PARAMS" ]; then
+  [ -d "$INIT_PARAMS" ] || fail "INIT_FROM $INIT_PARAMS is not a directory"
+  INIT_ARGS=( --init-from "$INIT_PARAMS" )
+  HEALTH_MODE=( --warm-start )
+  echo "WARM START: both arms initialise from $INIT_PARAMS"
+fi
 B26_SHA=$(git -C $B26 rev-parse --short HEAD)
 
 # --- 1 data: rebuilt on each pod, identical every time -------------------------
@@ -208,6 +246,17 @@ echo "data fingerprint $FP"
 
 # --- 2 norm stats: ONCE, the same file for both arms ---------------------------
 stage 2_norm_stats
+if [ ! -f "$ASSETS/.stats_done" ] && [ -n "$STATS_FROM" ]; then
+  # The checkpoint's own statistics, for both arms. There must be exactly one such file:
+  # two would mean guessing which one the checkpoint was trained with.
+  mapfile -t SRC < <(find "$STATS_FROM/assets" -name norm_stats.json 2>/dev/null)
+  [ "${#SRC[@]}" -eq 1 ] || fail "expected exactly one norm_stats.json under $STATS_FROM/assets, found ${#SRC[@]}"
+  for c in $CFG_A $CFG_B; do
+    mkdir -p "$ASSETS/$c/${TASKS[0]}" && cp "${SRC[0]}" "$ASSETS/$c/${TASKS[0]}/norm_stats.json" || fail "install norm stats for $c"
+  done
+  echo "norm stats reused from ${SRC[0]}" | tee "$RUN/norm_stats.log"
+  date -u +%FT%TZ > "$ASSETS/.stats_done"
+fi
 if [ ! -f "$ASSETS/.stats_done" ]; then
   $PY $B26/scripts/compute_norm_stats_b1k.py --config-name $CFG_A \
       --dataset-root "$DATA_ROOT" --repo-id "${TASKS[@]}" --assets-base-dir "$ASSETS" \
@@ -241,7 +290,7 @@ trainer () {   # exp-name config [extra...]; extra args follow the shared ones
       --assets-base-dir $ASSETS --checkpoint-base-dir "$CKPT" \
       --num-train-steps $STEPS --batch-size "$BATCH" --num-workers "$WORKERS" --seed $SEED \
       --save-interval $SAVE_EVERY --keep-period 0 --log-interval $LOG_EVERY \
-      --lr-decay-steps $STEPS "$@")
+      --lr-decay-steps $STEPS "${INIT_ARGS[@]}" "$@")
 }
 
 # Kill the trainer AND everything it spawned. The pipe it writes to only reaches EOF when
@@ -317,7 +366,7 @@ supervise () {
       [ -f "$RUN/train_arm$arm.log" ] || continue
       [ -f "$RUN/arm$arm.done" ] && continue
       (cd $B26 && $PY -m analysis.health_gate "$RUN/train_arm$arm.log" --arm $arm \
-          --check-step $HEALTH_CHECK_STEP) > "$RUN/health.try" 2>&1
+          --check-step $HEALTH_CHECK_STEP "${HEALTH_MODE[@]}") > "$RUN/health.try" 2>&1
       case $? in
         0) [ -f "$RUN/health_arm$arm.txt" ] || { mv "$RUN/health.try" "$RUN/health_arm$arm.txt"; cat "$RUN/health_arm$arm.txt"; } ;;
         1) mv "$RUN/health.try" "$RUN/health_arm$arm.txt"; cat "$RUN/health_arm$arm.txt"
@@ -414,6 +463,8 @@ cat > "$RUN/manifest.json" <<EOF
   "health_armB": "$(cat "$RUN/health_armB.txt" 2>/dev/null)",
   "config_a": "$CFG_A",
   "config_b": "$CFG_B",
+  "init_from": "$INIT_PARAMS",
+  "stats_from": "$STATS_FROM",
   "tasks": "$TASKS_CSV",
   "data_fingerprint": "$FP",
   "norm_stats_sha": "$STATS_SHA",
