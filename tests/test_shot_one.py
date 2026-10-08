@@ -411,3 +411,15 @@ def test_a_warm_start_switches_the_health_gate_to_the_warm_rule():
 def test_the_manifest_records_where_the_arms_started_from():
     m = text()[text().index("manifest.json"):]
     assert '"init_from"' in m and '"stats_from"' in m
+
+
+def test_a_warm_start_proves_arm_b_loads_the_checkpoint_before_arm_a_trains():
+    """--check-only never loads weights. Arm B loads the released checkpoint with a NEW head
+    (missing_regex); if that fails it must fail in minutes, not after arm A's hours."""
+    t = text()
+    smoke = t[t.index("stage 3b_smoke_arm_B"):t.index("# --- supervisor: the hours cap")]
+    assert 'trainer smokeB "${ARM_B[@]}"' in smoke        # the real trainer call, arm B's real args
+    assert "CKPT=/opt/smoke_ckpt" in smoke                 # never into the run's checkpoints
+    assert "kill_trainer" in smoke and "--warm-start" in smoke and "--arm B" in smoke
+    assert "smoke_armB.ok" in smoke
+    assert t.index("stage 3b_smoke_arm_B") < t.index("stage 4_arm_A")
