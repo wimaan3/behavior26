@@ -529,9 +529,16 @@ def main() -> int:
             (shutil.copytree if extra.is_dir() else shutil.copy2)(extra, target)
 
     print(f"==> merged {total} frames ({missing} unlabelled)")
-    if missing and args.drop_unlabelled:
+    if args.drop_unlabelled:
         # The filter manifest is what makes arm symmetry auditable after the fact:
         # both arms must train on THIS root, and this file says exactly what it is.
+        # Written even when nothing was dropped (turning_on_radio: every frame is
+        # labelled): the protocol requires it for every task, and "zero dropped" is a
+        # fact about the root like any other. With nothing dropped there is no
+        # compaction, so episodes_out is the root's own episode count.
+        if not dropped:
+            _info = json.loads((out_root / "meta" / "info.json").read_text())
+            compaction = {**compaction, "episodes_out": _info.get("total_episodes"), "compacted": False}
         manifest = out_root / "meta" / "progress_filter.json"
         manifest.write_text(json.dumps({
             "dropped_episodes": sorted(dropped),

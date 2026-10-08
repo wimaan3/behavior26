@@ -627,3 +627,18 @@ def test_compaction_preserves_video_linkage(wide_dataset, partial_labels, tmp_pa
         assert got == want, (
             f"episode {original} -> {new_idx} lost its video offset: {got} != {want}"
         )
+
+
+def test_drop_unlabelled_writes_the_manifest_even_when_nothing_is_dropped(dataset, labels, tmp_path):
+    """8 Oct, shot two: every radio frame is labelled, so nothing was dropped, so no
+    progress_filter.json was written -- and the protocol run, which requires that file for
+    every task, stopped at the data stage. Zero dropped is a fact worth recording too."""
+    out = tmp_path / "all-labelled"
+    assert _merge(dataset, labels, "--out-root", str(out), "--drop-unlabelled").returncode == 0
+    manifest = json.loads((out / "meta" / "progress_filter.json").read_text())
+    info = json.loads((out / "meta" / "info.json").read_text())
+    assert manifest["n_dropped_episodes"] == 0 and manifest["dropped_episodes"] == []
+    assert manifest["unlabelled_rows"] == 0 and manifest["rows_in"] == manifest["rows_out"]
+    # what scripts/b1k_roots.py compares against the root's own info.json
+    assert manifest["episodes_out"] == info["total_episodes"]
+    assert manifest["compacted"] is False
