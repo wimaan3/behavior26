@@ -40,10 +40,14 @@ MAX_REINVOKE="${MAX_REINVOKE:-2}"             # the simulator crashed mid-unit t
 # Narrow the run to a SUBSET of the frozen config (refused if outside it), e.g.
 #   ARMS=B TASKS_OVERRIDE=putting_shoes_on_rack INSTANCES_OVERRIDE="10 11 ... 21"
 ARMS="${ARMS:-A B}"
+# SUBMISSION=1 is the ONLY path onto the public test instances: public_test mode, the 20
+# public indices (ids 301-320), exactly one arm, results under its own directory.
+SUBMISSION="${SUBMISSION:-0}"
 TASKS_OVERRIDE="${TASKS_OVERRIDE:-}"
 INSTANCES_OVERRIDE="${INSTANCES_OVERRIDE:-}"
 
 VOL="${VOL:-/workspace}"
+if [ "$SUBMISSION" = "1" ]; then OUT="${OUT:-/workspace/submission1}"; fi
 OUT="${OUT:-/workspace/eval1}"
 SCR=/opt/eval_scratch                          # container disk: full-size videos
 B26=/opt/behavior26
@@ -136,10 +140,22 @@ if [ -n "$INSTANCES_OVERRIDE" ]; then
   subset_of instance "$INSTANCES_OVERRIDE" "${INSTANCES[@]}"; read -r -a INSTANCES <<< "$INSTANCES_OVERRIDE"
 fi
 for a in $ARMS; do case "$a" in A|B) ;; *) fail "ARMS may only contain A and B" ;; esac; done
-for i in "${INSTANCES[@]}"; do
-  [ "$i" -lt 301 ] || fail "instance $i is a TEST instance (>= 301); refusing -- that is tuning on the leaderboard"
-done
-[ "$MODE" = "train" ] || fail "mode $MODE: this A/B runs on training instances only"
+ID_OFFSET=0
+if [ "$SUBMISSION" = "1" ]; then
+  [ "$(wc -w <<< "$ARMS")" -eq 1 ] || fail "SUBMISSION=1 needs exactly one arm (ARMS=A or ARMS=B)"
+  MODE=public_test; read -r -a INSTANCES <<< "$(seq 0 19 | tr '\n' ' ')"
+  ID_OFFSET=301       # --instance-indices are 0..19; the JSON carries the resolved id 301..320
+  echo "SUBMISSION MODE: arm $ARMS, public test instances 301-320"
+  mkdir -p "$OUT/submission_files"
+  cp "$VOL/BEHAVIOR-1K/OmniGibson/omnigibson/eval/r1pro.yaml" "$OUT/submission_files/" 2>/dev/null
+  cp -r "$VOL/BEHAVIOR-1K/OmniGibson/omnigibson/eval/wrappers" "$OUT/submission_files/" 2>/dev/null
+  git -C "$VOL/BEHAVIOR-1K" describe --tags --always > "$OUT/submission_files/BEHAVIOR-1K.version" 2>/dev/null
+else
+  for i in "${INSTANCES[@]}"; do
+    [ "$i" -lt 301 ] || fail "instance $i is a TEST instance (>= 301); refusing -- that is tuning on the leaderboard"
+  done
+  [ "$MODE" = "train" ] || fail "mode $MODE: this A/B runs on training instances only"
+fi
 EXPECTED=$(( ${#INSTANCES[@]} * ROLLOUTS ))
 echo "tasks ${TASKS[*]} | mode $MODE | ${#INSTANCES[@]} instances (${INSTANCES[0]}..${INSTANCES[-1]}) x $ROLLOUTS = $EXPECTED rollouts per arm per task"
 FFMPEG=$(command -v ffmpeg || $PY -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())' 2>/dev/null || true)
@@ -223,7 +239,7 @@ compact_videos () {   # $1 = source dir, $2 = destination dir on the volume
 missing_instances () {   # $1 = task, $2 = json dir
   local i n
   for i in "${INSTANCES[@]}"; do
-    n=$(ls "$2/${1}_${i}"_*.json 2>/dev/null | wc -l)
+    n=$(ls "$2/${1}_$(( i + ${ID_OFFSET:-0} ))"_*.json 2>/dev/null | wc -l)
     [ "$n" -ge "${ROLLOUTS:-1}" ] || echo "$i"
   done
 }
@@ -283,7 +299,9 @@ done
 
 # --- 4 the paired comparison -----------------------------------------------------------
 stage 4_compare
+if [ "$SUBMISSION" = "1" ]; then echo "submission run: no A/B comparison"; else
 (cd $B26 && $PY -m analysis.compare "$OUT/armA" "$OUT/armB" --per-instance --csv "$OUT/paired.csv") \
   | tee "$OUT/compare.txt" || echo "compare.py failed (see above)"
+fi
 if [ "$FAILED_UNITS" -gt 0 ]; then status "PARTIAL: $FAILED_UNITS unit(s) incomplete; re-invoke to finish"
 else status "DONE"; fi
