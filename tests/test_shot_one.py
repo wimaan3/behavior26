@@ -43,7 +43,7 @@ def test_there_is_exactly_one_trainer_invocation():
 def test_the_shared_call_fixes_everything_that_must_match():
     t = text()
     body = t[t.index("trainer () {"):t.index("stage 3_check_both_arms")]
-    for required in ("--num-train-steps $STEPS", "--dataset-root $ROOT", "--assets-base-dir $ASSETS",
+    for required in ("--num-train-steps $STEPS", '--dataset-root "$DATA_ROOT"', "--assets-base-dir $ASSETS",
                      "--protocol", "--seed $SEED", "--batch-size", "--num-workers"):
         assert required in body, required
 
@@ -423,3 +423,13 @@ def test_a_warm_start_proves_arm_b_loads_the_checkpoint_before_arm_a_trains():
     assert "kill_trainer" in smoke and "--warm-start" in smoke and "--arm B" in smoke
     assert "smoke_armB.ok" in smoke
     assert t.index("stage 3b_smoke_arm_B") < t.index("stage 4_arm_A")
+
+
+def test_the_trainer_gets_the_same_dataset_root_as_the_norm_stats():
+    """8 Oct: with ONE task the dataset root is the task directory itself, not its parent
+    (scripts/b1k_roots.py). The norm-stats call used DATA_ROOT; the trainer used $ROOT and
+    the single-task run stopped at the config check."""
+    t = text()
+    call = t[t.index("exec setsid $PY -u scripts/train_b1k_rooted.py"):t.index("# Kill the trainer AND")]
+    assert '--dataset-root "$DATA_ROOT"' in call
+    assert 'DATA_ROOT="$ROOT/${TASKS[0]}"' in t
