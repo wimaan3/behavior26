@@ -369,3 +369,45 @@ def test_a_signal_kill_is_recorded_as_killed_not_as_success():
     """Attempt 1 was stopped with SIGTERM and recorded `EXITED rc=0`, which reads as success."""
     t = text()
     assert re.search(r"trap .*KILLED.* TERM", t)
+
+
+# --- shot two (8 Oct): the same runner, warm-started on turning_on_radio ---------------------
+
+def test_the_radio_task_has_a_chunk_and_committed_labels():
+    assert "[turning_on_radio]=chunk-000" in text()
+    assert (REPO / "labels" / "turning_on_radio" / "labels.parquet").exists()
+
+
+def test_both_arms_get_the_same_init_checkpoint_through_the_one_trainer_call():
+    """--init-from sits in the shared arguments, so the arms cannot start from different weights."""
+    t = text()
+    call = t[t.index("exec setsid $PY -u scripts/train_b1k_rooted.py"):t.index("# Kill the trainer AND")]
+    assert '"${INIT_ARGS[@]}"' in call
+    assert re.search(r'INIT_ARGS=\(\s*--init-from "\$INIT_PARAMS"\s*\)', t)
+    for arm in ("ARM_A=", "ARM_B="):
+        line = next(l for l in t.splitlines() if l.startswith(arm))
+        assert "init-from" not in line
+
+
+def test_a_warm_start_reuses_the_checkpoints_own_norm_stats_for_both_arms():
+    """Recomputed stats would differ slightly from what the checkpoint was trained with."""
+    t = text()
+    stats = t[t.index("stage 2_norm_stats"):t.index("# --- the one trainer call")]
+    assert "STATS_FROM" in stats and "find" in stats and "exactly one" in stats
+    assert "the two arms' norm stats differ" in stats
+
+
+def test_the_released_checkpoint_lives_on_the_volume_and_is_fetched_once():
+    t = text()
+    assert 'BASELINE_ROOT="${BASELINE_ROOT:-$VOL/baseline}"' in t
+    assert "gdown" in t and "INIT_FROM" in t
+
+
+def test_a_warm_start_switches_the_health_gate_to_the_warm_rule():
+    t = text()
+    assert "--warm-start" in t and "analysis.health_gate" in t
+
+
+def test_the_manifest_records_where_the_arms_started_from():
+    m = text()[text().index("manifest.json"):]
+    assert '"init_from"' in m and '"stats_from"' in m

@@ -24,8 +24,10 @@
 #
 set -uo pipefail
 
-CFG_A=pi05_b1k_frozen_vlm
-CFG_B=pi05_b1k_frozen_vlm_progress
+# Overridable so ONE arm can be pointed at another config + checkpoint for a reference run,
+# e.g. the released checkpoint: ARMS=A CFG_A=pi05_b1k CKPT_A=/workspace/baseline/<dir>.
+CFG_A="${CFG_A:-pi05_b1k_frozen_vlm}"
+CFG_B="${CFG_B:-pi05_b1k_frozen_vlm_progress}"
 CKPT_A="${CKPT_A:-/workspace/shot1/checkpoints/$CFG_A/armA/9999}"
 CKPT_B="${CKPT_B:-/workspace/shot1/checkpoints/$CFG_B/armB/9999}"
 # shot one trained both tasks as one dataset; openpi filed the one stats file under the
@@ -108,7 +110,8 @@ stage 0_preflight
 echo "$RUNPOD_POD_ID" > "$OUT/pod_id"
 [ "$(stat -f -c %T "$VOL" 2>/dev/null)" != "overlayfs" ] || fail "$VOL is container disk, not the network volume"
 [ -f "$VOL/env.sh" ] || fail "no $VOL/env.sh -- the simulator env is not on this volume"
-for c in "$CKPT_A" "$CKPT_B"; do
+for a in $ARMS; do      # only the arms being run need a checkpoint
+  if [ "$a" = A ]; then c=$CKPT_A; else c=$CKPT_B; fi
   [ -d "$c/params" ] || fail "no checkpoint at $c"
   [ -f "$c/assets/$ASSET_ID/norm_stats.json" ] || fail "no $c/assets/$ASSET_ID/norm_stats.json -- \
 it would be served UNNORMALISED. Present: $(ls "$c/assets" 2>/dev/null | tr '\n' ' ')"
@@ -176,6 +179,7 @@ print("PROMPTS_OK", sys.argv[1:])
 PYEOF
 for spec in "A|$CFG_A|$CKPT_A" "B|$CFG_B|$CKPT_B"; do
   IFS='|' read -r arm cfg ckpt <<< "$spec"
+  case " $ARMS " in *" $arm "*) ;; *) continue ;; esac
   XLA_PYTHON_CLIENT_PREALLOCATE=false $PY - "$cfg" "$ckpt" "$ASSET_ID" <<'PYEOF' || fail "arm $arm cannot serve"
 import dataclasses, sys
 import numpy as np
@@ -202,10 +206,23 @@ print(f"SMOKE_OK {name}: actions {a.shape}, |a| max {np.abs(a).max():.3f}")
 PYEOF
 done
 
+# Finished attempts go to the volume as they appear, not only when the evaluator exits: a
+# pod lost mid-unit (host failure, empty balance) would otherwise take every result with it.
+sync_results () {
+  local d
+  for d in "$SCR"/arm*/*/json; do
+    [ -d "$d" ] || continue
+    local arm; arm=$(basename "$(dirname "$(dirname "$d")")")
+    mkdir -p "$OUT/$arm/json" && cp -n "$d"/*.json "$OUT/$arm/json/" 2>/dev/null
+  done
+  return 0
+}
+
 # --- supervisor: hours cap, and a hung evaluator --------------------------------------
 supervise () {
   local deadline=$(( T_START + MAX_HOURS * 3600 ))
   while sleep 60; do
+    sync_results
     if [ "$(date +%s)" -ge "$deadline" ]; then
       status "CAP_HIT after ${MAX_HOURS} h"; kill_group "$(cat "$OUT/eval.pg" 2>/dev/null)"; return
     fi
