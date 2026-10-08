@@ -327,6 +327,31 @@ trainer armB "${ARM_B[@]}" --check-only > "$RUN/check_armB.log" 2>&1
 grep -q CONFIG_OK "$RUN/check_armB.log" || fail "arm B config (see $RUN/check_armB.log)"
 grep -E "^(config|progress_head|progress_key|progress_weight|norm_stats loaded)" "$RUN"/check_arm?.log
 
+# --- 3b warm start only: arm B really loads the checkpoint, before arm A's hours ------
+# --check-only never loads weights. Arm B takes the released checkpoint PLUS a new head
+# (missing_regex); run its real trainer call until step SMOKE_STEPS is logged, into a scratch
+# checkpoint dir, and apply the warm-start rule to its opening loss.
+stage 3b_smoke_arm_B
+SMOKE_STEPS="${SMOKE_STEPS:-25}"
+if [ -n "$INIT_PARAMS" ] && [ ! -f "$RUN/smoke_armB.ok" ]; then
+  rm -rf /opt/smoke_ckpt; : > "$RUN/smoke_armB.log"
+  ( CKPT=/opt/smoke_ckpt; trainer smokeB "${ARM_B[@]}" 2>&1 | eval "$TSTAMP" ) >> "$RUN/smoke_armB.log" &
+  SMOKE_PID=$!
+  for i in $(seq 1 180); do      # up to 30 min: model build + JIT + the first steps
+    sleep 10
+    tr '\r' '\n' < "$RUN/smoke_armB.log" | grep -q "Step $SMOKE_STEPS:" && break
+    kill -0 "$SMOKE_PID" 2>/dev/null || break
+  done
+  kill_trainer; wait "$SMOKE_PID" 2>/dev/null; rm -rf /opt/smoke_ckpt
+  tr '\r' '\n' < "$RUN/smoke_armB.log" | grep -q "Step $SMOKE_STEPS:" \
+    || { tail -5 "$RUN/smoke_armB.log"; fail "arm B smoke never reached step $SMOKE_STEPS (see $RUN/smoke_armB.log)"; }
+  (cd $B26 && $PY -m analysis.health_gate "$RUN/smoke_armB.log" --arm B --warm-start \
+      --check-step $HEALTH_CHECK_STEP) > "$RUN/smoke_armB.txt" 2>&1
+  [ $? -ne 1 ] || fail "arm B smoke: $(cat "$RUN/smoke_armB.txt")"
+  tr '\r' '\n' < "$RUN/smoke_armB.log" | grep -o "Step $SMOKE_STEPS:.*" | tail -1
+  date -u +%FT%TZ > "$RUN/smoke_armB.ok"
+fi
+
 # --- supervisor: the hours cap and the step-GATE_STEP loader gate ------------------
 supervise () {
   local deadline=$(( T_START + MAX_HOURS * 3600 ))
