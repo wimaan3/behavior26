@@ -218,3 +218,38 @@ def test_a_crashed_unit_is_resumed_for_its_missing_instances():
     """The simulator crashed mid-unit twice on 3-4 Oct and exited 0; the old runner moved on."""
     t = text()
     assert "MAX_REINVOKE" in t and "missing_instances" in t
+
+
+# --- submission mode (8 Oct): the only path allowed onto the public test instances ---------
+
+def test_submission_mode_is_explicit_and_uses_the_public_test_split():
+    """The A/B refuses test instances; a submission must run on them. SUBMISSION=1 is the
+    one switch: public_test mode, the 20 public indices, a single arm, its own output dir."""
+    t = text()
+    assert re.search(r'SUBMISSION="\$\{SUBMISSION:-0\}"', t)
+    assert "public_test" in t and "seq 0 19" in t
+    assert "exactly one arm" in t.lower()
+
+
+def test_without_submission_mode_test_instances_are_still_refused():
+    t = text()
+    assert 'refusing -- that is tuning on the leaderboard' in t
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
+def test_missing_instances_understands_resolved_test_ids(tmp_path):
+    """In public_test mode --instance-indices are 0..19 but the JSON carries the resolved id
+    (301..320). Without the offset every instance would look missing forever."""
+    m = re.search(r"missing_instances \(\) \{.*?\n\}", text(), re.S)
+    j = tmp_path / "json"; j.mkdir()
+    (j / "putting_shoes_on_rack_301_0.json").write_text("{}")
+    (j / "putting_shoes_on_rack_303_0.json").write_text("{}")
+    script = f'{m.group(0)}\nID_OFFSET=301; INSTANCES=(0 1 2 3); missing_instances putting_shoes_on_rack "{j}"'
+    p = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=30)
+    assert p.stdout.split() == ["1", "3"], p.stdout + p.stderr
+
+
+def test_submission_mode_saves_the_exact_wrapper_and_robot_config_used():
+    """The package must contain the wrapper .py and robot config actually used."""
+    t = text()
+    assert "submission_files" in t and "r1pro.yaml" in t and "wrappers" in t
