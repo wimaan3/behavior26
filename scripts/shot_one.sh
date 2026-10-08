@@ -286,7 +286,7 @@ trainer () {   # exp-name config [extra...]; extra args follow the shared ones
   # function's output pipe -- the 14.5-hour deadlock of 2026-10-01.
   (cd $B26 && echo $BASHPID > "$RUN/trainer.pgid" && exec setsid $PY -u scripts/train_b1k_rooted.py \
       --config "$cfg" --exp-name "$name" \
-      --dataset-root $ROOT --repo-id "${TASKS[@]}" --protocol \
+      --dataset-root "$DATA_ROOT" --repo-id "${TASKS[@]}" --protocol \
       --assets-base-dir $ASSETS --checkpoint-base-dir "$CKPT" \
       --num-train-steps $STEPS --batch-size "$BATCH" --num-workers "$WORKERS" --seed $SEED \
       --save-interval $SAVE_EVERY --keep-period 0 --log-interval $LOG_EVERY \
