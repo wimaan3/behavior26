@@ -37,7 +37,7 @@ EXPERIMENT="${EXPERIMENT:-configs/experiments/001-dev-loop.yaml}"
 MAX_HOURS="${MAX_HOURS:-20}"
 STALL_MINUTES="${STALL_MINUTES:-45}"          # evaluator silent this long = hung
 VIDEO_KEEP_FREE_GB="${VIDEO_KEEP_FREE_GB:-10}"
-VOL_QUOTA_GB="${VOL_QUOTA_GB:-250}"            # the volume was grown to 250 GB on 8 Oct; at 200 the video budget read as spent
+VOL_QUOTA_GB="${VOL_QUOTA_GB:-200}"
 MAX_REINVOKE="${MAX_REINVOKE:-2}"             # the simulator crashed mid-unit twice on 3-4 Oct, exiting 0
 # Narrow the run to a SUBSET of the frozen config (refused if outside it), e.g.
 #   ARMS=B TASKS_OVERRIDE=putting_shoes_on_rack INSTANCES_OVERRIDE="10 11 ... 21"
