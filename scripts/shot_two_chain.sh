@@ -67,7 +67,7 @@ echo "checkpoints: $CKPT_A | $CKPT_B"
 
 evaluate () {   # $1 = hours cap, $2 = instance subset ("" = all)
   env EXPERIMENT="$EXPERIMENT" ASSET_ID=turning_on_radio CKPT_A="$CKPT_A" CKPT_B="$CKPT_B" \
-      OUT="$EVAL" MAX_HOURS="$1" INSTANCES_OVERRIDE="$2" bash "$B26/scripts/eval_arms.sh" > "$RUN/eval_launch.out" 2>&1
+      OUT="$EVAL" MAX_HOURS="$1" INSTANCES_OVERRIDE="$2" VOL_QUOTA_GB="${VOL_QUOTA_GB:-250}" bash "$B26/scripts/eval_arms.sh" > "$RUN/eval_launch.out" 2>&1
   head -1 "$EVAL/STATUS" 2>/dev/null
 }
 successes () {  # $1 = arm dir -> "successes attempts"
