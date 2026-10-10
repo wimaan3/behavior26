@@ -1,0 +1,25 @@
+{
+  "task": "turning_on_radio",
+  "instance_id": 18,
+  "rollout_id": 0,
+  "steps": 3225,
+  "success": false,
+  "agent_distance": {
+    "base": 1.0682160262634852,
+    "left": 2.9405533466908764,
+    "right": 3.886592524187563
+  },
+  "normalized_agent_distance": {
+    "base": 5.331786698541024,
+    "left": 1.107920726439548,
+    "right": 1.0478330245981466
+  },
+  "q_score": {
+    "final": 0.0
+  },
+  "time": {
+    "simulator_steps": 3225,
+    "simulator_time": 107.5,
+    "normalized_time": 0.6665550387596899
+  }
+}

@@ -1,0 +1,1 @@
+HEALTH WAIT arm B: at step 25; checks run once step 999 is logged

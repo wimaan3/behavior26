@@ -1,0 +1,173 @@
+
+=== STAGE 0_preflight 2026-10-09T09:22:23Z
+measuring volume usage with du (minutes)...
+volume: 193 GB used of 200, 7 GB free; video budget -3072 MB
+
+=== STAGE 1_setup 2026-10-09T09:25:21Z
+[1m==> already applied: 0003-task-prompts-for-our-tasks.patch[0m
+[1m==> already applied -- nothing to do[0m
+tasks turning_on_radio | mode train | 9 instances (10..18) x 4 = 36 rollouts per arm per task
+ffmpeg: /usr/bin/ffmpeg
+
+=== STAGE 2_smoke 2026-10-09T09:25:23Z
+PROMPTS_OK ['turning_on_radio']
+SMOKE_OK pi05_b1k_frozen_vlm: actions (32, 23), |a| max 1.003
+SMOKE_OK pi05_b1k_frozen_vlm_progress: actions (32, 23), |a| max 0.999
+
+=== STAGE 3_eval 2026-10-09T09:26:35Z
+--- UNIT arm A (pi05_b1k_frozen_vlm) on turning_on_radio, attempt 0, instances 10 11 12 13 14 15 16 17 18 2026-10-09T09:26:35Z
+SERVER_UP after 16s
+UNIT arm A turning_on_radio attempt 0: evaluator rc=0; still missing: 
+video budget spent; leaving turning_on_radio_10_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_10_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_10_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_10_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_11_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_11_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_11_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_11_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_12_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_12_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_12_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_12_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_13_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_13_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_13_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_13_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_14_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_14_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_14_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_14_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_15_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_15_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_15_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_15_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_16_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_16_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_16_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_16_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_17_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_17_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_17_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_17_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_18_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_18_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_18_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_18_3.mp4 on container disk
+UNIT arm A turning_on_radio complete
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on turning_on_radio, attempt 0, instances 10 11 12 13 14 15 16 17 18 2026-10-09T14:20:27Z
+SERVER_UP after 20s
+STATUS CAP_HIT after 7 h
+UNIT arm B turning_on_radio attempt 0: evaluator rc=143; still missing: 14 15 16 17 18 
+video budget spent; leaving turning_on_radio_10_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_10_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_10_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_10_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_11_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_11_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_11_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_11_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_12_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_12_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_12_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_12_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_13_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_13_1.mp4 on container disk
+video budget spent; leaving turning_on_radio_13_2.mp4 on container disk
+video budget spent; leaving turning_on_radio_13_3.mp4 on container disk
+video budget spent; leaving turning_on_radio_14_0.mp4 on container disk
+video budget spent; leaving turning_on_radio_14_1.mp4 on container disk
+EVAL_EXIT rc=1 after 420 min: CAP_HIT after 7 h 2026-10-09T16:22:38Z TERMINAL 2026-10-09T16:22:42Z 
+
+=== STAGE 0_preflight 2026-10-09T17:14:22Z
+measuring volume usage with du (minutes)...
+
+=== STAGE 0_preflight 2026-10-09T17:14:55Z
+measuring volume usage with du (minutes)...
+volume: 193 GB used of 250, 57 GB free; video budget 48128 MB
+
+=== STAGE 1_setup 2026-10-09T17:17:04Z
+/opt/baseline
+total: 0
+INSTALL_EXIT=0
+==> undo
+    scripts/apply_openpi_patches.sh --reverse
+tasks turning_on_radio | mode train | 9 instances (10..18) x 4 = 36 rollouts per arm per task
+ffmpeg: /usr/bin/ffmpeg
+
+=== STAGE 2_smoke 2026-10-09T17:17:44Z
+PROMPTS_OK ['turning_on_radio']
+SMOKE_OK pi05_b1k_frozen_vlm: actions (32, 23), |a| max 1.003
+SMOKE_OK pi05_b1k_frozen_vlm_progress: actions (32, 23), |a| max 0.999
+
+=== STAGE 3_eval 2026-10-09T17:19:26Z
+UNIT arm A turning_on_radio complete
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on turning_on_radio, attempt 0, instances 14 15 16 17 18 2026-10-09T17:19:26Z
+SERVER_UP after 16s
+UNIT arm B turning_on_radio attempt 0: evaluator rc=0; still missing: 
+UNIT arm B turning_on_radio complete
+
+=== STAGE 4_compare 2026-10-09T20:07:46Z
+
+A: /workspace/eval2/armA
+B: /workspace/eval2/armB
+--------------------------------------------------------------
+  coverage: identical, 9 paired unit(s)
+  rollouts: 36 in A, 36 in B -> 9 (task, instance) unit(s)
+  seeds: 4 per unit per arm, averaged within each arm before pairing
+
+  mean Q (A)          0.3056
+  mean Q (B)          0.3889
+  mean dQ (B - A)     +0.0833
+  std error (paired)  0.1250   [t(8)]
+  95% CI              [-0.2049, +0.3716]
+  p-value             0.52374
+
+  not significant -- the interval spans zero
+
+  resolution on these 9 unit(s):
+    paired    could detect dQ >= 0.2883
+    unpaired  could detect dQ >= 0.3521
+    pairing bought 1.2x resolution for the same GPU spend
+
+  biggest per-task moves (of 1 task(s)):
+    +0.0833  turning_on_radio  (n=9)
+
+  per-instance differences:
+            task  instance_id  seeds_a  q_score_a  seeds_b  q_score_b      dq
+turning_on_radio           15        4     1.0000        4     0.5000 -0.5000
+turning_on_radio           14        4     1.0000        4     0.7500 -0.2500
+turning_on_radio           13        4     0.2500        4     0.2500  0.0000
+turning_on_radio           16        4     0.0000        4     0.0000  0.0000
+turning_on_radio           17        4     0.2500        4     0.2500  0.0000
+turning_on_radio           18        4     0.0000        4     0.0000  0.0000
+turning_on_radio           12        4     0.2500        4     0.5000  0.2500
+turning_on_radio           10        4     0.0000        4     0.5000  0.5000
+turning_on_radio           11        4     0.0000        4     0.7500  0.7500
+
+wrote /workspace/eval2/paired.csv  (9 rows)
+STATUS DONE
+EVAL_EXIT rc=0 after 172 min: DONE 2026-10-09T20:07:48Z TERMINAL 2026-10-09T20:07:48Z 
+
+=== STAGE 0_preflight 2026-10-09T20:07:48Z
+measuring volume usage with du (minutes)...
+volume: 193 GB used of 250, 57 GB free; video budget 48128 MB
+
+=== STAGE 1_setup 2026-10-09T20:09:47Z
+[1m==> already applied: 0003-task-prompts-for-our-tasks.patch[0m
+[1m==> already applied -- nothing to do[0m
+tasks turning_on_radio | mode train | 27 instances (10..36) x 4 = 108 rollouts per arm per task
+ffmpeg: /usr/bin/ffmpeg
+
+=== STAGE 2_smoke 2026-10-09T20:09:48Z
+PROMPTS_OK ['turning_on_radio']
+SMOKE_OK pi05_b1k_frozen_vlm: actions (32, 23), |a| max 1.003
+SMOKE_OK pi05_b1k_frozen_vlm_progress: actions (32, 23), |a| max 0.999
+
+=== STAGE 3_eval 2026-10-09T20:11:05Z
+--- UNIT arm A (pi05_b1k_frozen_vlm) on turning_on_radio, attempt 0, instances 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 2026-10-09T20:11:05Z
+SERVER_UP after 15s
+UNIT arm A turning_on_radio attempt 0: evaluator rc=0; still missing: 
+UNIT arm A turning_on_radio complete
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on turning_on_radio, attempt 0, instances 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 2026-10-10T04:56:24Z
+SERVER_UP after 20s
