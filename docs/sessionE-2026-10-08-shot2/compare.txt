@@ -1,0 +1,54 @@
+
+A: docs/sessionE-2026-10-08-shot2/results/armA
+B: docs/sessionE-2026-10-08-shot2/results/armB
+--------------------------------------------------------------
+  coverage: identical, 27 paired unit(s)
+  rollouts: 108 in A, 108 in B -> 27 (task, instance) unit(s)
+  seeds: 4 per unit per arm, averaged within each arm before pairing
+
+  mean Q (A)          0.3519
+  mean Q (B)          0.3704
+  mean dQ (B - A)     +0.0185
+  std error (paired)  0.0533   [t(26)]
+  95% CI              [-0.0909, +0.1280]
+  p-value             0.73083
+
+  not significant -- the interval spans zero
+
+  resolution on these 27 unit(s):
+    paired    could detect dQ >= 0.1095
+    unpaired  could detect dQ >= 0.1979
+    pairing bought 1.8x resolution for the same GPU spend
+
+  biggest per-task moves (of 1 task(s)):
+    +0.0185  turning_on_radio  (n=27)
+
+  per-instance differences:
+            task  instance_id  seeds_a  q_score_a  seeds_b  q_score_b      dq
+turning_on_radio           15        4     1.0000        4     0.5000 -0.5000
+turning_on_radio           26        4     0.5000        4     0.0000 -0.5000
+turning_on_radio           28        4     1.0000        4     0.7500 -0.2500
+turning_on_radio           14        4     1.0000        4     0.7500 -0.2500
+turning_on_radio           30        4     0.5000        4     0.2500 -0.2500
+turning_on_radio           29        4     0.2500        4     0.0000 -0.2500
+turning_on_radio           13        4     0.2500        4     0.2500  0.0000
+turning_on_radio           16        4     0.0000        4     0.0000  0.0000
+turning_on_radio           25        4     0.0000        4     0.0000  0.0000
+turning_on_radio           23        4     0.5000        4     0.5000  0.0000
+turning_on_radio           22        4     0.5000        4     0.5000  0.0000
+turning_on_radio           27        4     1.0000        4     1.0000  0.0000
+turning_on_radio           17        4     0.2500        4     0.2500  0.0000
+turning_on_radio           21        4     0.5000        4     0.5000  0.0000
+turning_on_radio           20        4     0.0000        4     0.0000  0.0000
+turning_on_radio           18        4     0.0000        4     0.0000  0.0000
+turning_on_radio           36        4     0.0000        4     0.0000  0.0000
+turning_on_radio           35        4     1.0000        4     1.0000  0.0000
+turning_on_radio           33        4     0.2500        4     0.2500  0.0000
+turning_on_radio           34        4     0.0000        4     0.0000  0.0000
+turning_on_radio           31        4     0.0000        4     0.0000  0.0000
+turning_on_radio           12        4     0.2500        4     0.5000  0.2500
+turning_on_radio           32        4     0.0000        4     0.2500  0.2500
+turning_on_radio           24        4     0.7500        4     1.0000  0.2500
+turning_on_radio           10        4     0.0000        4     0.5000  0.5000
+turning_on_radio           19        4     0.0000        4     0.5000  0.5000
+turning_on_radio           11        4     0.0000        4     0.7500  0.7500
