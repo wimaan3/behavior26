@@ -20,7 +20,7 @@ JSON: [`results/`](results/).
 
 **Our own trained models complete the task.** Both arms succeed on about a third of
 attempts. Outcomes are driven by the instance: 5 instances succeed almost every time for
-both arms, 9 never succeed for either.
+both arms, 7 never succeed for either.
 
 For reference only, not a controlled comparison: the released checkpoint scored 3 / 27
 (Q = 0.111) on 13 Sep, on different instances (0–26), one attempt each, a different GPU and
