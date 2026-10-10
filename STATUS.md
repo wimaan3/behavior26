@@ -4,7 +4,7 @@
 [`docs/RUNPOD-FINDINGS.md`](docs/RUNPOD-FINDINGS.md). Detailed evidence lives in
 the dated `docs/session*` folders it links to. Updated with every milestone.
 
-*Last updated: 2026-10-04 · Deadline: **16 Oct 2026** (12 days) · Spend: **~$72** · RunPod balance: **~$2** · Pods running: **none***
+*Last updated: 2026-10-10 · Deadline: **16 Oct 2026** (6 days) · Spend: **~$140** · RunPod balance: **~$5.50** · Pods running: **none***
 
 ## Deliverables
 
@@ -20,18 +20,18 @@ the dated `docs/session*` folders it links to. Updated with every milestone.
 | 8 | Noise floor σ_w (§2: 12 instances × 6 repeats) | 🔴 **not started** — protocol says before the first A/B | `AB_PROTOCOL.md` §2 |
 | 9 | Decide k and λ | 🟡 λ ≈ **0.14–0.15** for a 20% gradient share; k still open (labels, not throughput) | `docs/sessionB-2026-09-16-rung2-5/RUNG2-5.md` |
 | 10 | Shot one: train arm A and arm B | ✅ **done**: both arms 10,000 steps, both health-gated; progress head learned (0.694 → 0.563). Checkpoints on the volume **and** the laptop, sha256-verified | `docs/sessionC-2026-10-01-shot1/` |
-| 11 | Evaluate both arms, paired ΔQ | 🟡 **partial**: pipeline proven end to end; coffee at the floor (A 0/13, B 0/3, all Q=0); shoes arm A mean Q 0.042 (4/12 nonzero); **arm B shoes not run**, so no A/B yet | `docs/sessionD-2026-10-03-eval/` |
-| 12 | Partial submission (2 tasks × 20 public instances) | ⏳ blocked on 10 | `submission/` |
+| 11 | Evaluate both arms, paired ΔQ | ✅ **done, twice; no significant difference.** Shot one, shoes, 25 pairs: ΔQ +0.008, p = 0.68 (both arms at the floor). Shot two, radio, 27 instances × 4: arm A 38/108, arm B 40/108, ΔQ +0.019, 95% CI [−0.091, +0.128], p = 0.73 | `docs/sessionD-2026-10-03-eval/`, `docs/sessionE-2026-10-08-shot2/` |
+| 11b | A policy we trained completes a task | ✅ **yes**: radio, ~36% of attempts, both arms (shot two, warm-started from the released checkpoint) | `docs/sessionE-2026-10-08-shot2/` |
+| 12 | Submission | ⏸ **on hold by owner decision (8 Oct)**: no submission without a significant result. A task is completed; the A/B is not significant | `submission/` |
 | 13 | Write-up | ⏳ ongoing in `docs/` | — |
 
 ## Next actions, in order
 
-1. **Arm B on shoes, instances 10–21** (the 12 arm A already has): ~10.5 h ≈ **$8**. That is
-   the real paired comparison. It needs funding, plus two runner changes first (an
-   instance/task override, and re-invoking after a mid-unit simulator crash).
-2. Write-up: methods, the pipeline findings, and whatever the shoes pair shows.
-3. Submission is not worthwhile at this budget (ceiling Q = 0.020).
-4. **Owner:** revoke the watchdog API key in the RunPod console.
+1. **Owner decision:** submit the radio policy as a working entry with an honest null A/B, or
+   not submit. The pre-registered evaluation is finished and is not repeated.
+2. Write-up: methods, pipeline findings, both A/B results.
+3. **Owner:** revoke the RunPod API keys (laptop watchdog key and the cloud one) after the last run.
+4. The volume (250 GB, ~$0.58/day) holds checkpoints and the sim env; the balance covers ~9 days.
 
 ## Open decisions for the project owner
 
