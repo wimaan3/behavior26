@@ -290,3 +290,11 @@ def test_only_the_arms_being_run_need_a_checkpoint():
     pre = t[t.index("stage 0_preflight"):t.index("stage 1_setup")]
     assert "for a in $ARMS" in pre
     assert re.search(r'CFG_A="\$\{CFG_A:-pi05_b1k_frozen_vlm\}"', t)
+
+
+def test_the_radio_submission_config_asks_for_one_attempt_per_instance():
+    """The challenge scores one rollout per public test instance; the A/B config asks for 4."""
+    import yaml
+    d = yaml.safe_load((REPO / "configs" / "experiments" / "003-radio-submission.yaml").read_text())
+    assert d["tasks"] == ["turning_on_radio"] and d["num_rollouts"] == 1
+    assert d["env_wrapper"] == "omnigibson.eval.wrappers.RGBDFullResWrapper"

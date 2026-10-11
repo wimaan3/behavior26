@@ -1,5 +1,7 @@
 # behavior26 — project status
 
+**New to the project? Read [`docs/HANDOFF-2026-10-11.md`](docs/HANDOFF-2026-10-11.md) first:** what was done, what is left, how to run it.
+
 **Read this first.** One page tracking every deliverable. Everything learned on rented GPUs is summarised in
 [`docs/RUNPOD-FINDINGS.md`](docs/RUNPOD-FINDINGS.md). Detailed evidence lives in
 the dated `docs/session*` folders it links to. Updated with every milestone.
