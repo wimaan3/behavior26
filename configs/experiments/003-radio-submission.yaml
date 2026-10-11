@@ -1,0 +1,37 @@
+# Radio SUBMISSION run. Not an experiment: scripts/eval_arms.sh with SUBMISSION=1 replaces the
+# mode and instance list below with public_test and the 20 public instances (ids 301-320).
+# This file exists to fix ONE attempt per instance, which is what the challenge scores.
+# The instances listed here are ignored in submission mode; they are kept so the file reads
+# like the frozen 002 config it was derived from.
+name: 003-radio-submission
+description: Radio submission run -- the 20 public test instances, one attempt each (SUBMISSION=1 sets the mode and instances).
+hypothesis: A progress head (lambda 0.15) changes the success rate of a policy fine-tuned from the released radio checkpoint.
+
+base_model: pi05
+checkpoint: null
+
+tasks:
+  - turning_on_radio
+mode: train                       # training instances only; 301+ is the leaderboard
+
+# The same contiguous ids as 001-dev-loop. For radio the training instances are 0-299
+# (the 13 Sep baseline ran ids 0-26), so 10-36 all exist.
+instances: [10, 11, 12, 13, 14, 15, 16, 17, 18,
+            19, 20, 21, 22, 23, 24, 25, 26, 27,
+            28, 29, 30, 31, 32, 33, 34, 35, 36]
+num_rollouts: 1
+
+host: 127.0.0.1
+env_wrapper: omnigibson.eval.wrappers.RGBDFullResWrapper
+robot_config: configs/robot/r1pro.yaml
+max_steps: null
+write_video: true
+headless: true
+
+heads: {predicate: false, progress: true, failure: false}
+recovery_conditioning: false
+heuristics: {gripper_auto_reopen: false, early_stop_on_goal: false}
+
+wandb:
+  project: behavior26
+  tags: [shot-two, radio]
