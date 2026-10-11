@@ -1,0 +1,5 @@
+# sha256 of the shot-two backups pulled to the owner's laptop on 2026-10-11 (verified on both ends)
+58480006c97ea47b14c51a7c8c7c58cc42cbf4b574beffe1f39b0bada6bf7121  shot2_small.tar  180305920 bytes
+80befa094d7422cb3d8779287f0d62ed07c6762a9bc197212ec01de2ace209a8  shot2_armA_5999.tar  9367500800 bytes
+66a3e1a19310a502ac01e82dd1c54ea5ef11d6fb1033c32a1b53666ffc85f209  shot2_armB_5999.tar  9362647040 bytes
+# unpacked: ~/behavior26-checkpoints/shot2/arm{A,B}/5999 and ~/behavior26-results/shot2/volume
