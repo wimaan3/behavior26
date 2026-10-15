@@ -1,5 +1,13 @@
 # Radio submission run: public test instances 301–320
 
+> **Read this first: 45% is on ONE task, not the whole challenge.** The challenge has 100
+> tasks, each with 20 public test instances (2,000 episodes in all). We submitted one task,
+> `turning_on_radio`, and ran its 20 public test instances: 9 succeeded. An *instance* is a
+> different starting setup of the same task (object and robot placement), not a different
+> task. The leaderboard averages over all 100 tasks and counts the other 99 as zero, so the
+> **overall score is about 0.0045** (45% ÷ 100). Our models were trained only for radio and
+> would score about zero on the other tasks.
+
 **Arm B (progress head), `turning_on_radio`, one attempt per public test instance:
 9 successes out of 20 (Q = 0.45).** Successful instances: 304, 306, 307, 308, 309, 310, 316,
 317, 320.

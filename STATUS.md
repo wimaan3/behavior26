@@ -6,7 +6,7 @@
 [`docs/RUNPOD-FINDINGS.md`](docs/RUNPOD-FINDINGS.md). Detailed evidence lives in
 the dated `docs/session*` folders it links to. Updated with every milestone.
 
-*Last updated: 2026-10-10 · Deadline: **16 Oct 2026** (6 days) · Spend: **~$140** · RunPod balance: **~$5.50** · Pods running: **none***
+*Last updated: 2026-10-15 · Deadline: **16 Oct 2026** (6 days) · Spend: **~$140** · RunPod balance: **~$5.50** · Pods running: **none***
 
 ## Deliverables
 
@@ -24,7 +24,7 @@ the dated `docs/session*` folders it links to. Updated with every milestone.
 | 10 | Shot one: train arm A and arm B | ✅ **done**: both arms 10,000 steps, both health-gated; progress head learned (0.694 → 0.563). Checkpoints on the volume **and** the laptop, sha256-verified | `docs/sessionC-2026-10-01-shot1/` |
 | 11 | Evaluate both arms, paired ΔQ | ✅ **done, twice; no significant difference.** Shot one, shoes, 25 pairs: ΔQ +0.008, p = 0.68 (both arms at the floor). Shot two, radio, 27 instances × 4: arm A 38/108, arm B 40/108, ΔQ +0.019, 95% CI [−0.091, +0.128], p = 0.73 | `docs/sessionD-2026-10-03-eval/`, `docs/sessionE-2026-10-08-shot2/` |
 | 11b | A policy we trained completes a task | ✅ **yes**: radio, ~36% of attempts, both arms (shot two, warm-started from the released checkpoint) | `docs/sessionE-2026-10-08-shot2/` |
-| 12 | Submission | ⏸ **on hold by owner decision (8 Oct)**: no submission without a significant result. A task is completed; the A/B is not significant | `submission/` |
+| 12 | Submission | 🟡 **package built, upload pending (owner)**: radio only, the task's 20 public test instances. Arm B 9/20 (45%) **on that one task**; arm A, run afterwards, also 9/20. The leaderboard averages over 100 tasks, so the overall score is **about 0.0045**, not 45% | `docs/sessionE-2026-10-08-shot2/submission/` |
 | 13 | Write-up | ⏳ ongoing in `docs/` | — |
 
 ## Next actions, in order
