@@ -27,6 +27,10 @@ INTERVAL="${INTERVAL:-300}"
 # The pod's supervisor kills a hung trainer after 30 min of silence and resumes it. If the
 # run has been silent for 3x that, the supervisor itself is gone: stop the billing.
 STALL_MIN="${STALL_MIN:-90}"
+# Silence is measured from the later of the log's last write and this watchdog's start. A pod
+# that reuses an output folder can find an old log there (14 Oct: 39 h old); without this the
+# first pass terminated the new pod seconds after launch.
+WD_START="${WD_START:-$(date +%s)}"
 # Which logs prove the run is alive: training writes train_arm*.log, evaluation
 # (scripts/eval_arms.sh) writes evaluator_arm*.log.
 LOG_GLOB="${LOG_GLOB:-train_arm*.log}"
@@ -105,6 +109,8 @@ while :; do
   if [ "$ps" -eq 1 ]; then log "pod $POD_ID is gone; nothing left to watch"; exit 0; fi
   raw=$(read_status)
   age=$(echo "$raw" | sed -n 's/^LOGAGE \([0-9]*\)$/\1/p' | tail -1)
+  watched=$(( $(date +%s) - WD_START ))
+  [ -n "$age" ] && [ "$age" -gt "$watched" ] && age=$watched
   st=$(echo "$raw" | sed -n 's/^STATUS: //p')
   if echo "$st" | grep -q "TERMINAL"; then
     terminate "run ended: $(echo "$st" | head -1)" && exit 0

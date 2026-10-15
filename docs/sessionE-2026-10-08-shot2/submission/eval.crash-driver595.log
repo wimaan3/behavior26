@@ -1,0 +1,38 @@
+
+=== STAGE 0_preflight 2026-10-13T05:18:02Z
+measuring volume usage with du (minutes)...
+volume: 193 GB used of 250, 57 GB free; video budget 48128 MB
+
+=== STAGE 1_setup 2026-10-13T05:20:19Z
+/opt/baseline
+total: 0
+INSTALL_EXIT=0
+==> undo
+    scripts/apply_openpi_patches.sh --reverse
+SUBMISSION MODE: arm B, public test instances 301-320
+tasks turning_on_radio | mode public_test | 20 instances (0..19) x 1 = 20 rollouts per arm per task
+ffmpeg: /usr/bin/ffmpeg
+
+=== STAGE 2_smoke 2026-10-13T05:20:51Z
+PROMPTS_OK ['turning_on_radio']
+SMOKE_OK pi05_b1k_frozen_vlm_progress: actions (32, 23), |a| max 0.999
+
+=== STAGE 3_eval 2026-10-13T05:21:42Z
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on turning_on_radio, attempt 0, instances 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 2026-10-13T05:21:42Z
+SERVER_UP after 15s
+/opt/behavior26/scripts/eval_arms.sh: line 304:  4239 Segmentation fault         (core dumped) VOLENV="$VOL/env.sh" setsid bash -c 'source "$VOLENV" && exec python -m omnigibson.eval.eval "$@"' evaluator --task-name "$TASK" --host 127.0.0.1 --port 8000 --mode "$MODE" --instance-indices "${TODO[@]}" --num-rollouts "$ROLLOUTS" --env-wrapper "$WRAPPER" --output-dir "$SCR/arm$ARM/$TASK" --write-video --headless >> "$LOG" 2>&1 < /dev/null
+UNIT arm B turning_on_radio attempt 0: evaluator rc=139; still missing: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on turning_on_radio, attempt 1, instances 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 2026-10-13T05:26:40Z
+SERVER_UP after 20s
+/opt/behavior26/scripts/eval_arms.sh: line 304:  7071 Segmentation fault         (core dumped) VOLENV="$VOL/env.sh" setsid bash -c 'source "$VOLENV" && exec python -m omnigibson.eval.eval "$@"' evaluator --task-name "$TASK" --host 127.0.0.1 --port 8000 --mode "$MODE" --instance-indices "${TODO[@]}" --num-rollouts "$ROLLOUTS" --env-wrapper "$WRAPPER" --output-dir "$SCR/arm$ARM/$TASK" --write-video --headless >> "$LOG" 2>&1 < /dev/null
+UNIT arm B turning_on_radio attempt 1: evaluator rc=139; still missing: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 
+--- UNIT arm B (pi05_b1k_frozen_vlm_progress) on turning_on_radio, attempt 2, instances 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 2026-10-13T05:30:01Z
+SERVER_UP after 20s
+/opt/behavior26/scripts/eval_arms.sh: line 304:  9596 Segmentation fault         (core dumped) VOLENV="$VOL/env.sh" setsid bash -c 'source "$VOLENV" && exec python -m omnigibson.eval.eval "$@"' evaluator --task-name "$TASK" --host 127.0.0.1 --port 8000 --mode "$MODE" --instance-indices "${TODO[@]}" --num-rollouts "$ROLLOUTS" --env-wrapper "$WRAPPER" --output-dir "$SCR/arm$ARM/$TASK" --write-video --headless >> "$LOG" 2>&1 < /dev/null
+UNIT arm B turning_on_radio attempt 2: evaluator rc=139; still missing: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 
+UNIT arm B turning_on_radio INCOMPLETE after 3 attempts: missing 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
+
+=== STAGE 4_compare 2026-10-13T05:33:59Z
+submission run: no A/B comparison
+STATUS PARTIAL: 1 unit(s) incomplete; re-invoke to finish
+EVAL_EXIT rc=0 after 15 min: PARTIAL: 1 unit(s) incomplete; re-invoke to finish 2026-10-13T05:33:59Z TERMINAL 2026-10-13T05:33:59Z 
