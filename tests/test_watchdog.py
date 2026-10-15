@@ -127,7 +127,9 @@ def test_a_run_silent_for_longer_than_the_stall_limit_is_terminated(tmp_path):
     """The pod's own supervisor kills a hung trainer after 30 min and resumes. If the
     supervisor itself is dead, nothing on the pod notices; at 90 min of silence the
     watchdog stops the billing."""
-    _run(_env(tmp_path, "", age=100 * 60))
+    env = _env(tmp_path, "", age=100 * 60)
+    env["WD_START"] = str(int(time.time()) - 100 * 60)      # watching for 100 min already
+    _run(env)
     calls = _calls(tmp_path)
     assert "argv: pod delete POD" in calls
     assert "silent" in (tmp_path / "wd.log").read_text().lower()
@@ -155,7 +157,9 @@ def test_echoed_command_text_never_triggers_a_termination(tmp_path):
 def test_the_age_is_read_through_escape_codes(tmp_path):
     """The real proxy prefixed lines with escape codes; an anchored match then read the age
     as blank and the silence backstop was quietly off."""
-    _run(_env(tmp_path, "", age=100 * 60))
+    env = _env(tmp_path, "", age=100 * 60)
+    env["WD_START"] = str(int(time.time()) - 100 * 60)
+    _run(env)
     assert "argv: pod delete POD" in _calls(tmp_path)
 
 
@@ -173,3 +177,12 @@ def test_the_silence_check_can_watch_evaluation_logs_too():
     t = WD.read_text()
     assert 'LOG_GLOB="${LOG_GLOB:-train_arm*.log}"' in t
     assert "$RUN/$LOG_GLOB" in t or "$RUN/${LOG_GLOB}" in t
+
+
+def test_an_old_log_left_by_an_earlier_run_does_not_terminate_a_fresh_pod(tmp_path):
+    """14 Oct: a new pod reused an output folder holding a 39-hour-old evaluator log. The
+    watchdog read that age on its first pass and terminated the pod seconds after launch.
+    Silence only counts for as long as this watchdog has been watching."""
+    _run(_env(tmp_path, "", age=39 * 3600))                 # WD_START defaults to now
+    assert "pod delete" not in _calls(tmp_path)
+    assert "silent" not in (tmp_path / "wd.log").read_text().lower()
