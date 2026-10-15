@@ -1,0 +1,29 @@
+
+=== STAGE 0_preflight 2026-10-15T03:53:44Z
+measuring volume usage with du (minutes)...
+volume: 193 GB used of 250, 57 GB free; video budget 48128 MB
+
+=== STAGE 1_setup 2026-10-15T03:56:50Z
+/opt/baseline
+total: 0
+INSTALL_EXIT=0
+==> undo
+    scripts/apply_openpi_patches.sh --reverse
+SUBMISSION MODE: arm A, public test instances 301-320
+tasks turning_on_radio | mode public_test | 20 instances (0..19) x 1 = 20 rollouts per arm per task
+ffmpeg: /usr/bin/ffmpeg
+
+=== STAGE 2_smoke 2026-10-15T03:57:25Z
+PROMPTS_OK ['turning_on_radio']
+SMOKE_OK pi05_b1k_frozen_vlm: actions (32, 23), |a| max 1.003
+
+=== STAGE 3_eval 2026-10-15T03:58:14Z
+--- UNIT arm A (pi05_b1k_frozen_vlm) on turning_on_radio, attempt 0, instances 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 2026-10-15T03:58:14Z
+SERVER_UP after 15s
+UNIT arm A turning_on_radio attempt 0: evaluator rc=0; still missing: 
+UNIT arm A turning_on_radio complete
+
+=== STAGE 4_compare 2026-10-15T06:19:01Z
+submission run: no A/B comparison
+STATUS DONE
+EVAL_EXIT rc=0 after 145 min: DONE 2026-10-15T06:19:01Z TERMINAL 2026-10-15T06:19:01Z 

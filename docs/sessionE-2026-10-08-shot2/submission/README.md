@@ -39,3 +39,24 @@ test instances, against 37% on our development instances and the released checkp
 
 1. Confirm the challenge rules allow an entry fine-tuned from the organisers' released checkpoint.
 2. Upload the zip through the challenge portal with a shareable link to the 20 videos.
+
+## Arm A on the test set (run afterwards, for comparison)
+
+Run on **15 Oct 2026, 03:58–06:19 UTC**, at the owner's request, **after arm B's test result
+was known**. Same command with `ARMS=A` and arm A's checkpoint
+(`/workspace/shot2/checkpoints/pi05_b1k_frozen_vlm/armA/5999`), same GPU type, output in
+`/workspace/submission2_armA`. Results: [`armA_results/`](armA_results/), logs: [`armA_logs/`](armA_logs/).
+Videos (20) are on the owner's laptop in `~/behavior26-results/submission2_armA/`.
+
+| Public test instances 301–320, one attempt each | Successes |
+|---|---|
+| Arm A (control) | **9 / 20 (45%)** |
+| Arm B (progress head) | **9 / 20 (45%)** |
+
+The two arms tie. Both succeed on 6 instances (304, 307, 309, 310, 317, 320), both fail on
+8, and each succeeds on 3 the other misses (arm A only: 311, 313, 315; arm B only: 306, 308,
+316). With 20 attempts per arm a test
+like this can only see differences of roughly 30 points, so it says nothing more than the
+development comparison did: the progress head makes no measurable difference.
+
+Arm B remains the entry: it was chosen before either test result, and the scores are equal.
