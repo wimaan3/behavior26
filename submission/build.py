@@ -311,6 +311,11 @@ segmentation, object state, target object pose, full-scene point cloud, or robot
 global pose is read from the simulator at evaluation time. The environment is not
 manipulated directly — no teleporting the robot and no setting object states.
 """)
+    if getattr(args, "notes", None):
+        # Disclosures the organisers require in writing (public checkpoints, reruns after
+        # infrastructure crashes, hardware needs). Appended verbatim from the owner's file.
+        with dest.open("a") as fh:
+            fh.write("\n## Notes and disclosures\n\n" + Path(args.notes).read_text().strip() + "\n")
 
 
 def main() -> int:
@@ -340,6 +345,8 @@ def main() -> int:
     ap.add_argument("--serving-mode", choices=["docker", "ip"], default="docker")
     ap.add_argument("--serving-detail", default=None, help="image name or endpoint")
     ap.add_argument("--video-link", default=None, help="link to the rollout MP4s")
+    ap.add_argument("--notes", type=Path, default=None,
+                    help="markdown file appended to the README as 'Notes and disclosures'")
     ap.add_argument("--out", type=Path, default=None,
                     help="zip path (default: submission/dist/<package name>.zip)")
     ap.add_argument("--force", action="store_true", help="package despite warnings")
