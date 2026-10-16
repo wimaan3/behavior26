@@ -1,6 +1,6 @@
 
-A: /tmp/claude-1000/-home-imaansol/73b3e6e0-c433-4404-9801-5a1a28c46eec/scratchpad/shoes12/A
-B: /tmp/claude-1000/-home-imaansol/73b3e6e0-c433-4404-9801-5a1a28c46eec/scratchpad/shoes12/B
+A: <scratch>/shoes12/A
+B: <scratch>/shoes12/B
 --------------------------------------------------------------
   coverage: identical, 12 paired unit(s)
   rollouts: 12 in A, 12 in B -> 12 (task, instance) unit(s)

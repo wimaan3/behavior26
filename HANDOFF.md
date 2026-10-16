@@ -2,7 +2,7 @@
 
 Work is on `main` and pushed.
 
-**Canonical checkout: `/mnt/c/Users/Imaan Soltanalipour/robotProj/behavior26`.**
+**Canonical checkout: `~/robotProj/behavior26`.**
 Git is slower there, but it is the copy with the sibling `openpi` and
 `external/b1k` checkouts, so it runs strictly more of the suite than a bare
 clone does — that is what makes it the one worth trusting. Work there.
@@ -12,7 +12,7 @@ clone does — that is what makes it the one worth trusting. Work there.
 ## 2026-09-11 session: Jetson relabel merged, pairing bug fixed, power re-run
 
 **Heads-up for whoever picks this up: the local working tree at
-`/home/imaansol/3MagicLabs/stanbeh` was EMPTY at the start of this session** —
+`~/3MagicLabs/stanbeh` was EMPTY at the start of this session** —
 no `.git`, no files, and no clone of `wimaan3/behavior26` anywhere on the
 machine. Everything below was done against a fresh clone of `origin`. Nothing
 was lost that had been pushed, but any unpushed local work from before
@@ -61,7 +61,7 @@ in one afternoon on the pod, all of which passed locally, three of which passed
 | # | Defect | Why local was green |
 |---|---|---|
 | 1 | `pyarrow` missing from `requirements-tools.txt` | Dev machine had pyarrow from elsewhere. On the pod, `test_progress_labels.py` module-level `importorskip` meant it never COLLECTED — 20 tests silently absent. Pod ran 98, dev ran 121. Both "passed". |
-| 2 | RunPod image ships no conda | Dev machine has `/home/imaansol/miniconda3/bin`, so the conda branch never executed locally. `setup.sh` died at 2 min with `ERROR: Conda not found`. |
+| 2 | RunPod image ships no conda | Dev machine has `~/miniconda3/bin`, so the conda branch never executed locally. `setup.sh` died at 2 min with `ERROR: Conda not found`. |
 | 3 | A bare clone has no sibling `openpi` / `external/b1k` | Those tests skip, including the live openpi↔evaluator robot-name check — the one that proves the first rollout will not KeyError. |
 | 4 | `setup_cloud.sh` tests **prepended** the stub dir to the real PATH | The developer's own `conda`/`git`/`nvidia-smi` shadowed the stubs, so the tests exercised a different branch than production. This is what let #2 survive being "covered by tests". |
 
@@ -189,7 +189,7 @@ Treat "it passed on my machine" as saying nothing about any of these.
 7. `sigma_b = 0.05` is still assumed, never estimated. It is now ~16% of
    Var(d_i) at f=0.20 rather than ~2%, so it matters more than it used to.
 8. The Jetson's reward tests (`analysis/reward/tests/`, 54 of them) **all skip
-   here** — they gate on a LeRobot pull at `/home/imaansol/behavior-data`, which
+   here** — they gate on a LeRobot pull at `~/behavior-data`, which
    does not exist on this box. The relabel logic is unverified locally; it was
    tested on the Jetson. `tests/test_progress_labels.py` (the merge-script
    schema pin) does run and passes.

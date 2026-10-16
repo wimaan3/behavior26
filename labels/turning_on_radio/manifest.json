@@ -39,7 +39,7 @@
   "measurement_scope": "full-200ep",
   "reward_instrumentation": "ok",
   "corpus_valid_rate": 1.0,
-  "dataset_root": "/home/imaansol/behavior26-radio-labels/rewards",
+  "dataset_root": "~/behavior26-radio-labels/rewards",
   "codebase_version": "v3.0",
   "generated_utc": "2026-10-08T19:37:29+00:00"
 }
