@@ -6,7 +6,65 @@ predicts how much of the task's BDDL goal is already satisfied, trained
 alongside the action decoder so the shared representation has to encode task
 progress rather than just the next action.
 
-**Deadline: 16 October 2026.** Budget: $200 total, all rented GPU.
+Authors: Imaan Soltanalipour, Jeffrey Le.
+
+## Final result and how to reproduce it
+
+**Technical report:** [`report/behavior26_report.pdf`](report/behavior26_report.pdf) ·
+**Weights:** [huggingface.co/imaan3/behavior26-pi05-radio](https://huggingface.co/imaan3/behavior26-pi05-radio) ·
+**Docker image:** `wimaan3/behavior26-policy:armB-5999@sha256:84f7bd76d2edc28eeb88c4a16dd119d7c6fd3d5de55d77b85a46bd3ba904a73e` ·
+**Rollout videos:** [Google Drive](https://drive.google.com/drive/folders/1HBUMYrx29VgiCbJynF9re3L8EhgbWvWz)
+
+| | Control (no head) | Submitted (progress head) |
+|---|---|---|
+| Training instances 10–36, 4 rollouts each | 38/108 (35.2%) | 40/108 (37.0%) |
+| Public test 301–320, 1 rollout each | 9/20 | **9/20 (45%)** |
+
+π₀.₅ fine-tuned for 6,000 steps from the organisers' released `turning_on_radio` checkpoint,
+vision-language backbone frozen, with an auxiliary progress head (λ 0.15). The paired A/B finds
+**no effect of the head** (ΔQ +0.019, 95% CI [−0.091, +0.128], p = 0.73). One task of 100 was
+attempted, so the overall challenge score is about 0.0045. Details and caveats are in the report.
+
+**1. Serve the policy** (one GPU with bfloat16 support, ~6 GB of GPU memory):
+
+```bash
+docker run --gpus all -p 8000:8000 wimaan3/behavior26-policy:armB-5999
+```
+
+or from source with the published weights:
+
+```bash
+git clone https://github.com/wensi-ai/openpi.git ../openpi
+git -C ../openpi checkout 0cc8e355f7bac0976db1cc3139b1ff0379feea60
+OPENPI_ROOT=../openpi scripts/apply_openpi_patches.sh
+hf download imaan3/behavior26-pi05-radio --local-dir ../ckpt
+cd ../openpi && uv sync && uv run scripts/b1k/serve_b1k.py \
+  --robot b1k/R1Pro --task b1k/turning_on_radio --repo-id turning_on_radio \
+  --port 8000 --policy.config pi05_b1k_frozen_vlm_progress --policy.dir ../ckpt
+```
+
+The server takes several minutes to load before `GET /healthz` answers.
+
+**2. Evaluate** (BEHAVIOR-1K v3.9.2, stock evaluator and wrapper):
+
+```bash
+python -m omnigibson.eval.eval --task-name turning_on_radio \
+  --host 127.0.0.1 --port 8000 --mode public_test \
+  --instance-indices 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 \
+  --num-rollouts 1 --env-wrapper omnigibson.eval.wrappers.RGBDFullResWrapper \
+  --robot-config configs/robot/r1pro.yaml --output-dir outputs/eval --write-video
+```
+
+**3. Retrain both arms and rerun the A/B:** `scripts/shot_one.sh` with
+`INIT_FROM=released STATS_FROM=released TASKS_CSV=turning_on_radio` (about $10 on one
+RTX PRO 4500), then `scripts/eval_arms.sh` with `configs/experiments/002-radio-ab.yaml` and
+`analysis/compare.py` (about $20). Plan and results: [`docs/sessionE-2026-10-08-shot2/`](docs/sessionE-2026-10-08-shot2/).
+
+The weights are a Gemma Model Derivative and are distributed under the Gemma Terms of Use; the
+code here is MIT.
+
+*Everything below is the project's working log from before the deadline (16 October 2026,
+$200 budget, all rented GPU) and is kept as written.*
 
 ---
 
