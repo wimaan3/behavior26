@@ -111,7 +111,7 @@ python -m analysis.failures rollouts/mockA --sample 2
 python -m submission.build  --rollouts rollouts/mockA \
     --wrapper tests/fixtures/mock_wrapper.py \
     --robot-config configs/robot/r1pro.yaml \
-    --team behavior26 --affiliation 3MagicLabs \
+    --team behavior26 --affiliation mock \
     --intended-tasks-from configs/experiments/001-dev-loop.yaml
 
 pytest tests/test_pipeline.py tests/test_progress_labels.py -q
