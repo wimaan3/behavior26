@@ -4,7 +4,7 @@ One-page summary of every finding from the rented-GPU sessions. Each line links 
 dated folder holding its evidence (logs, reports, commits). Written 2026-09-18.
 
 **About 21 pods, $25.00 total** ($23.61 compute, $1.39 network-volume storage). The
-account balance ran out on 2026-09-18; see [the end of this page](#where-things-stand).
+work paused on 2026-09-18; see [the end of this page](#where-things-stand).
 
 ## Evaluation: simulator and scoring (session A, 13–14 Sep)
 
@@ -99,7 +99,7 @@ revision 2026-09-15 **before** the runs.
 
 The σ_w noise-floor runner (`scripts/session_a/noise_floor.sh`) has the same safeguards.
 
-**Blocked on the RunPod balance** (HTTP 402 on 2026-09-18). The next round needs about **$50–55**:
+**Paused on 2026-09-18.** The next round needs about **$50–55**:
 
 | Step | Cost |
 |---|---|

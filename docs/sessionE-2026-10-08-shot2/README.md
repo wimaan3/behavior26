@@ -67,8 +67,8 @@ passed. Final-step losses are single noisy readings, not a difference between ar
   sha256-verified. They are not in this repository.
 - Radio evaluation took ~7.5 min per attempt on this GPU, about twice the estimate.
 
-Spend for shot two: about $31.70 of the $37.20 balance (training ≈ $10.50, evaluation
-≈ $20, a GPU check and transfers ≈ $1). Balance afterwards: $5.52. No pods running.
+Spend for shot two: about $31.70 (training ≈ $10.50, evaluation ≈ $20, a GPU check and
+transfers ≈ $1).
 
 ## What this does and does not support
 

@@ -57,5 +57,5 @@ smaller effect will read as no difference, and will be reported as that.
 
 ## Budget
 
-Balance at the start: $37.20. Training ≈ 14 h at $0.72/h ≈ $10; evaluation ≈ $12–14;
-volume ≈ $0.47/day. No funds are added by the agent.
+Budget: training ≈ 14 h at $0.72/h ≈ $10; evaluation ≈ $12–14;
+volume ≈ $0.47/day.

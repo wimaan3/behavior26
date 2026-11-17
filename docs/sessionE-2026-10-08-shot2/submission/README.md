@@ -14,7 +14,7 @@
 
 ## How it was run
 
-- Run on **13 Oct 2026, 05:42–08:01 UTC**, from `docs/HANDOFF-2026-10-11.md` §5:
+- Run on **13 Oct 2026, 05:42–08:01 UTC**, with:
   `SUBMISSION=1 ARMS=B EXPERIMENT=configs/experiments/003-radio-submission.yaml`, checkpoint
   `/workspace/shot2/checkpoints/pi05_b1k_frozen_vlm_progress/armB/5999`, RTX PRO 4500.
   An earlier attempt the same morning crashed in the simulator driver
@@ -30,9 +30,9 @@
 
 - `results/`: the 20 per-attempt JSON files.
 - `eval.log`, `evaluator_armB_turning_on_radio.log`, `serve_armB_turning_on_radio.log`: the run.
-- `behavior26_radio_public_package.zip`: the package from `python -m submission.build`
-  (team `behavior26`, affiliation `Elmdin`, standard track, public test set, intended task
-  `turning_on_radio`, wrapper `omnigibson.eval.wrappers.RGBDFullResWrapper`, BEHAVIOR-1K v3.9.2).
+- The package built by `python -m submission.build` (team `behavior26`, standard track, public test
+  set, intended task `turning_on_radio`, wrapper `omnigibson.eval.wrappers.RGBDFullResWrapper`,
+  BEHAVIOR-1K v3.9.2) is not kept in this repository.
 - Videos (20) are on the owner's laptop in `~/behavior26-results/submission2/submission2/armB/videos`,
   not in this repository. The portal needs a shareable link to them.
 

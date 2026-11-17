@@ -70,7 +70,7 @@ $200 budget, all rented GPU) and is kept as written.*
 
 ## Status
 
-*Updated 2026-09-18.* Live tracker: [`STATUS.md`](STATUS.md). Everything learned on rented
+*Updated 2026-09-18.* Everything learned on rented
 GPUs: [`docs/RUNPOD-FINDINGS.md`](docs/RUNPOD-FINDINGS.md).
 
 | | |
@@ -261,7 +261,6 @@ docs/        protocol, evaluation, training, gotchas
 | [training/README.md](training/README.md) | What the openpi fork contains, quoted from source |
 | [GPU_FREE_TESTING.md](docs/GPU_FREE_TESTING.md) | The no-GPU path in full |
 | [GOTCHAS.md](docs/GOTCHAS.md) | Setup traps |
-| [HANDOFF.md](HANDOFF.md) | Current session state |
 
 ---
 
